@@ -1,0 +1,59 @@
+# ========== IDE ==========
+*.iml
+.idea/
+.kotlin/
+.vscode/
+.fleet/
+*.swp
+*.swo
+
+# ========== Gradle ==========
+/.gradle/
+.gradle/
+
+# ========== Build outputs ==========
+**/build/
+*.class
+*.jar
+*.war
+*.ear
+*.dex
+*.ap_
+*.aab
+*.apk
+*.hprof
+*.log
+*.tmp
+*.bin
+
+# ========== Local config & secrets ==========
+local.properties
+captures/
+*.keystore
+*.jks
+
+# ========== Android ==========
+.externalNativeBuild/
+.cxx/
+
+# ========== iOS / Xcode ==========
+xcuserdata/
+*.xcodeproj/*
+!*.xcodeproj/project.pbxproj
+!*.xcodeproj/xcshareddata/
+!*.xcodeproj/project.xcworkspace/
+!*.xcworkspace/contents.xcworkspacedata
+**/xcshareddata/WorkspaceSettings.xcsettings
+DerivedData/
+*.hmap
+*.ipa
+
+# ========== OS ==========
+.DS_Store
+Thumbs.db
+
+# ========== Node (if used) ==========
+node_modules/
+
+# ========== 生成的语料（由 fetch 脚本下载，非源码） ==========
+corpus/books/

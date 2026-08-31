@@ -1,0 +1,3 @@
+[submodule "third_party/ComposeIztro"]
+	path = third_party/ComposeIztro
+	url = https://github.com/aacai/ComposeIztro.git
