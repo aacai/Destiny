@@ -43,6 +43,9 @@ project(":qizheng-core").projectDir = file("qizheng/qizheng-core")
 include(":qizheng-ui")
 project(":qizheng-ui").projectDir = file("qizheng/qizheng-ui")
 
+include(":crypto-core")
+project(":crypto-core").projectDir = file("crypto/crypto-core")
+
 include(":iztro-core")
 project(":iztro-core").projectDir = file("third_party/ComposeIztro/iztro-core")
 

@@ -2,8 +2,10 @@ package zhiqiu.app.destiny.profile
 
 import androidx.room3.Entity
 import androidx.room3.PrimaryKey
+import kotlinx.serialization.Serializable
 
 @Entity
+@Serializable
 data class Profile(
     @PrimaryKey val id: String,
     val name: String,

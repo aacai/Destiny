@@ -17,13 +17,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,13 +36,19 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
@@ -47,8 +57,22 @@ import compose.icons.feathericons.BookOpen
 import compose.icons.feathericons.Search
 import compose.icons.feathericons.Trash2
 import compose.icons.feathericons.X
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import io.github.vinceglb.filekit.*
+import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
+import io.github.vinceglb.filekit.dialogs.FileKitType
+import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
+import io.github.vinceglb.filekit.dialogs.compose.rememberFileSaverLauncher
+import zhiqiu.app.destiny.db.ReaderPrefEntity
 import zhiqiu.app.destiny.profile.Profile
+import zhiqiu.app.destiny.profile.exportAllJson
+import zhiqiu.app.destiny.profile.exportEncryptedJson
+import zhiqiu.app.destiny.profile.importAllFromJson
+import zhiqiu.app.destiny.profile.isEncryptedBackup
 import zhiqiu.app.destiny.time.timeIndexLabel
+import androidx.compose.material3.Checkbox
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 
 private val PageBg = Color(0xFFF5F3EE)
 private val CardBg = Color(0xFFFFFFFF)
@@ -78,11 +102,54 @@ fun ProfileListScreen(
     onAdd: () -> Unit,
     onOpen: (Profile) -> Unit,
     onDelete: (Profile) -> Unit,
+    onExportAll: suspend () -> String,
+    onImportAll: suspend (List<Profile>, List<ReaderPrefEntity>) -> Unit,
     onOpenBooks: () -> Unit = {},
 ) {
+    val scope = rememberCoroutineScope()
     var query by rememberSaveable { mutableStateOf("") }
     var sortKey by rememberSaveable { mutableStateOf(SortKey.CREATED) }
     var ascending by rememberSaveable { mutableStateOf(false) }
+    var exportJson by remember { mutableStateOf<String?>(null) }
+    var exportMsg by remember { mutableStateOf("") }
+    var showImport by remember { mutableStateOf(false) }
+    var importMsg by remember { mutableStateOf("") }
+    val exportPayload = remember { mutableStateOf("") }
+    val importPassword = remember { mutableStateOf("") }
+
+    val saverLauncher = rememberFileSaverLauncher(
+        dialogSettings = FileKitDialogSettings.createDefault(),
+        onResult = { file: PlatformFile? ->
+            if (file != null) {
+                scope.launch(Dispatchers.IO) {
+                    exportMsg = runCatching {
+                        file.write(exportPayload.value.encodeToByteArray())
+                        "已导出到 ${file.name}"
+                    }.getOrDefault("导出失败")
+                }
+            }
+        },
+    )
+    val pickerLauncher = rememberFilePickerLauncher(
+        dialogSettings = FileKitDialogSettings.createDefault(),
+        type = FileKitType.File(extensions = listOf("json")),
+        onResult = { file: PlatformFile? ->
+            if (file != null) {
+                scope.launch(Dispatchers.IO) {
+                    val text = runCatching { file.readBytes().decodeToString() }.getOrNull()
+                    importMsg = if (text == null) {
+                        "读取文件失败"
+                    } else {
+                        runCatching {
+                            val parsed = importAllFromJson(text, importPassword.value.ifBlank { null })
+                            onImportAll(parsed.profiles, parsed.readerPrefs)
+                            "成功导入 ${parsed.profiles.size} 个档案、${parsed.readerPrefs.size} 条偏好"
+                        }.getOrElse { "解析失败：${it.message}" }
+                    }
+                }
+            }
+        },
+    )
 
     val q = query.trim()
     val filtered = profiles.filter { p ->
@@ -118,6 +185,15 @@ fun ProfileListScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = PageBg),
                 actions = {
+                    TextButton(onClick = { scope.launch { exportJson = onExportAll() } }) {
+                        Text("导出", color = Accent, fontWeight = FontWeight.SemiBold)
+                    }
+                    TextButton(onClick = {
+                        importMsg = ""
+                        showImport = true
+                    }) {
+                        Text("导入", color = Accent, fontWeight = FontWeight.SemiBold)
+                    }
                     IconButton(onClick = onOpenBooks) {
                         Icon(
                             imageVector = FeatherIcons.BookOpen,
@@ -199,6 +275,151 @@ fun ProfileListScreen(
             }
         }
     }
+
+    exportJson?.let { json ->
+        ExportDialog(
+            plainJson = json,
+            profilesCount = profiles.size,
+            message = exportMsg,
+            onExportFile = { text ->
+                exportPayload.value = text
+                saverLauncher.launch(
+                    suggestedName = "destiny-backup",
+                    defaultExtension = "json",
+                    allowedExtensions = setOf("json"),
+                )
+            },
+            onClose = {
+                exportJson = null
+                exportMsg = ""
+            },
+        )
+    }
+    if (showImport) {
+        ImportDialog(
+            message = importMsg,
+            onPickFile = { pw ->
+                importPassword.value = pw
+                pickerLauncher.launch()
+            },
+            onClose = {
+                showImport = false
+                importMsg = ""
+            },
+        )
+    }
+}
+
+@Composable
+private fun ExportDialog(
+    plainJson: String,
+    profilesCount: Int,
+    message: String,
+    onExportFile: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    val clipboard = LocalClipboardManager.current
+    var encrypt by remember { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
+    val display = remember(plainJson, encrypt, password) {
+        when {
+            !encrypt -> plainJson
+            password.isBlank() -> ""
+            else -> runCatching { exportEncryptedJson(plainJson, password) }.getOrDefault("")
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onClose,
+        confirmButton = {
+            TextButton(onClick = onClose) { Text("关闭", color = Accent) }
+        },
+        title = { Text("导出数据", color = Ink, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    "共 $profilesCount 个档案。点击「导出为文件」选择保存位置，生成 destiny-backup.json（无需粘贴大段文本）。",
+                    fontSize = 12.sp,
+                    color = Muted,
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = encrypt, onCheckedChange = { encrypt = it })
+                    Text("加密导出（用密码保护）", fontSize = 12.sp, color = Ink)
+                }
+                if (encrypt) {
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("密码") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                    )
+                    if (password.isBlank()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text("请输入密码后才会生成加密内容", fontSize = 12.sp, color = Muted)
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row {
+                    TextButton(onClick = { onExportFile(display) }) {
+                        Text("导出为文件", color = Accent)
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    TextButton(onClick = { clipboard.setText(AnnotatedString(display)) }) {
+                        Text("复制", color = Accent)
+                    }
+                }
+                if (message.isNotBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(message, fontSize = 12.sp, color = Accent)
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun ImportDialog(
+    message: String,
+    onPickFile: (String) -> Unit,
+    onClose: () -> Unit,
+) {
+    var password by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onClose,
+        confirmButton = {
+            TextButton(onClick = onClose) { Text("取消", color = Muted) }
+        },
+        title = { Text("导入数据", color = Ink, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    "点击「选择文件导入」选取 destiny-backup.json。导入按 id 合并，已存在的档案将被覆盖。",
+                    fontSize = 12.sp,
+                    color = Muted,
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("密码（加密备份填写）") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                )
+                Spacer(Modifier.height(10.dp))
+                TextButton(onClick = { onPickFile(password) }) {
+                    Text("选择文件导入", color = Accent)
+                }
+                if (message.isNotBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(message, fontSize = 12.sp, color = Accent)
+                }
+            }
+        },
+    )
 }
 
 @Composable

@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.composeCompiler)
     alias(libs.plugins.ksp)
     alias(libs.plugins.androidx.room3)
+    alias(libs.plugins.kotlinSerialization)
 }
 
 kotlin {
@@ -53,6 +54,7 @@ kotlin {
             implementation(project(":bazi-ui"))
             implementation(project(":qizheng-core"))
             implementation(project(":qizheng-ui"))
+            implementation(project(":crypto-core"))
             implementation(project(":iztro-core"))
             implementation(project(":iztro-ui"))
             implementation(libs.compose.runtime)
@@ -70,7 +72,9 @@ kotlin {
             implementation(libs.tyme4kt)
             implementation(libs.androidx.room3.runtime)
             implementation(libs.androidx.sqlite.bundled)
+            implementation(libs.kotlinx.serialization.json)
             implementation(libs.composeIcons.feather)
+            implementation(libs.filekit.dialogs.compose)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)

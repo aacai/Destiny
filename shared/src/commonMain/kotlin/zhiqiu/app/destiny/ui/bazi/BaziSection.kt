@@ -28,6 +28,19 @@ private val Accent = Color(0xFF26C6C6)
 @Composable
 fun BaziSection(profile: Profile) {
     var subTab by remember { mutableIntStateOf(0) }
+    var info by remember { mutableStateOf<GlossaryItem?>(null) }
+
+    val onBaziElementClick: (BaziElementType, String) -> Unit = { type, name ->
+        info = when (type) {
+            BaziElementType.ShenSha -> SHEN_SHA_GLOSSARY[name]
+                ?: GlossaryItem(name, "神煞", listOf("资料" to "该神煞资料整理中"))
+            BaziElementType.TenGod -> {
+                val full = tenGodFull(name)
+                TEN_GOD_GLOSSARY[full]
+                    ?: GlossaryItem(full, "十神", listOf("资料" to "该十神资料整理中"))
+            }
+        }
+    }
 
     Column(modifier = Modifier.fillMaxSize()) {
         SecondaryTabRow(
@@ -64,22 +77,7 @@ fun BaziSection(profile: Profile) {
                 if (chart == null) {
                     Text("八字排盘失败，请检查出生信息", modifier = Modifier.fillMaxSize())
                 } else {
-                    var info by remember { mutableStateOf<GlossaryItem?>(null) }
-                    BaziOriginalPage(
-                        chart = chart,
-                        onBaziElementClick = { type, name ->
-                            info = when (type) {
-                                BaziElementType.ShenSha -> SHEN_SHA_GLOSSARY[name]
-                                    ?: GlossaryItem(name, "神煞", listOf("资料" to "该神煞资料整理中"))
-                                BaziElementType.TenGod -> {
-                                    val full = tenGodFull(name)
-                                    TEN_GOD_GLOSSARY[full]
-                                        ?: GlossaryItem(full, "十神", listOf("资料" to "该十神资料整理中"))
-                                }
-                            }
-                        },
-                    )
-                    info?.let { item -> BaziInfoDialog(item) { info = null } }
+                    BaziOriginalPage(chart = chart, onBaziElementClick = onBaziElementClick)
                 }
             }
             else -> {
@@ -90,9 +88,14 @@ fun BaziSection(profile: Profile) {
                 if (chart == null) {
                     Text("流盘排盘失败，请检查出生信息", modifier = Modifier.fillMaxSize())
                 } else {
-                    BaziFlowPage(chart = chart, onSelectionChange = { selection = it })
+                    BaziFlowPage(
+                        chart = chart,
+                        onSelectionChange = { selection = it },
+                        onBaziElementClick = onBaziElementClick,
+                    )
                 }
             }
         }
+        info?.let { item -> BaziInfoDialog(item) { info = null } }
     }
 }

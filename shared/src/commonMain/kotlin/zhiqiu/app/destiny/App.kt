@@ -15,6 +15,7 @@ import androidx.navigation.navArgument
 import androidx.savedstate.read
 import kotlinx.coroutines.launch
 import zhiqiu.app.destiny.profile.ProfileRepository
+import zhiqiu.app.destiny.profile.exportAllJson
 import zhiqiu.app.destiny.ui.AddProfileScreen
 import zhiqiu.app.destiny.ui.ChartPagerScreen
 import zhiqiu.app.destiny.ui.ProfileListScreen
@@ -58,6 +59,14 @@ fun App(repository: ProfileRepository) {
                     },
                     onDelete = { profile ->
                         scope.launch { repository.delete(profile.id) }
+                    },
+                    onExportAll = {
+                        val prefs = repository.getAllPrefs()
+                        exportAllJson(profiles, prefs)
+                    },
+                    onImportAll = { profileList, prefList ->
+                        profileList.forEach { repository.upsert(it) }
+                        repository.upsertAllPrefs(prefList)
                     },
                     onOpenBooks = { navController.navigate(Routes.Books) },
                 )
