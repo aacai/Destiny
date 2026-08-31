@@ -19,6 +19,7 @@ import zhiqiu.app.destiny.bazi.original.toOriginalChart
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.iztro.bazi.flow.FlowSelection
 import zhiqiu.iztro.bazi.ui.BaziFlowPage
+import zhiqiu.iztro.bazi.ui.BaziElementType
 import zhiqiu.iztro.bazi.ui.BaziOriginalPage
 
 private val Accent = Color(0xFF26C6C6)
@@ -66,14 +67,16 @@ fun BaziSection(profile: Profile) {
                     var info by remember { mutableStateOf<GlossaryItem?>(null) }
                     BaziOriginalPage(
                         chart = chart,
-                        onShenShaClick = { name ->
-                            info = SHEN_SHA_GLOSSARY[name]
-                                ?: GlossaryItem(name, "神煞", listOf("资料" to "该神煞资料整理中"))
-                        },
-                        onTenGodClick = { name ->
-                            val full = tenGodFull(name)
-                            info = TEN_GOD_GLOSSARY[full]
-                                ?: GlossaryItem(full, "十神", listOf("资料" to "该十神资料整理中"))
+                        onBaziElementClick = { type, name ->
+                            info = when (type) {
+                                BaziElementType.ShenSha -> SHEN_SHA_GLOSSARY[name]
+                                    ?: GlossaryItem(name, "神煞", listOf("资料" to "该神煞资料整理中"))
+                                BaziElementType.TenGod -> {
+                                    val full = tenGodFull(name)
+                                    TEN_GOD_GLOSSARY[full]
+                                        ?: GlossaryItem(full, "十神", listOf("资料" to "该十神资料整理中"))
+                                }
+                            }
                         },
                     )
                     info?.let { item -> BaziInfoDialog(item) { info = null } }

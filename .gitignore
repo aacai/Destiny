@@ -14,7 +14,7 @@
 # ========== Build outputs ==========
 **/build/
 *.class
-*.jar
+# *.jar
 *.war
 *.ear
 *.dex
