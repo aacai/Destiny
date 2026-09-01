@@ -91,7 +91,6 @@ fun BaziSection(profile: Profile) {
                     BaziFlowPage(
                         chart = chart,
                         onSelectionChange = { selection = it },
-                        onBaziElementClick = onBaziElementClick,
                     )
                 }
             }
