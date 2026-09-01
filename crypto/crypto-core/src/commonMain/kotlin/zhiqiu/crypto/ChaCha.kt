@@ -243,7 +243,14 @@ private fun buildMacData(aad: ByteArray, ciphertext: ByteArray): ByteArray {
     return out.toByteArray()
 }
 
-/** ChaCha20-Poly1305 AEAD 加密：返回 `密文 || 16字节 tag`。 */
+/**
+ * ChaCha20-Poly1305 AEAD 加密（RFC 8439）。
+ * @param key 32 字节密钥
+ * @param nonce 12 字节随机数（**必须**对每个密钥唯一；复用会灾难性地泄露密钥流）
+ * @param plaintext 明文
+ * @param aad 附加认证数据（不参与加密，但参与认证；可为空）
+ * @return `密文 || 16 字节 tag`（拼接形式，解密时用 [chacha20Poly1305Open]）
+ */
 fun chacha20Poly1305Seal(key: ByteArray, nonce: ByteArray, plaintext: ByteArray, aad: ByteArray = ByteArray(0)): ByteArray {
     require(key.size == 32) { "AEAD 需要 32 字节密钥" }
     require(nonce.size == 12) { "AEAD 需要 12 字节 nonce" }
@@ -253,7 +260,14 @@ fun chacha20Poly1305Seal(key: ByteArray, nonce: ByteArray, plaintext: ByteArray,
     return ciphertext + tag
 }
 
-/** ChaCha20-Poly1305 AEAD 解密：校验失败抛出 [IllegalArgumentException]。 */
+/**
+ * ChaCha20-Poly1305 AEAD 解密（RFC 8439）。
+ * @param key 32 字节密钥
+ * @param nonce 12 字节随机数（须与加密时一致）
+ * @param ciphertextAndTag `密文 || 16 字节 tag`
+ * @param aad 附加认证数据
+ * @return 明文；标签校验失败抛出 [IllegalArgumentException]（恒定时间比较，抗时序侧信道）
+ */
 fun chacha20Poly1305Open(key: ByteArray, nonce: ByteArray, ciphertextAndTag: ByteArray, aad: ByteArray = ByteArray(0)): ByteArray {
     require(key.size == 32) { "AEAD 需要 32 字节密钥" }
     require(nonce.size == 12) { "AEAD 需要 12 字节 nonce" }
@@ -266,3 +280,14 @@ fun chacha20Poly1305Open(key: ByteArray, nonce: ByteArray, ciphertextAndTag: Byt
     if (!constantTimeEquals(tag, expected)) throw IllegalArgumentException("Poly1305 校验失败（数据被篡改）")
     return chacha20(key, 1, nonce, ciphertext)
 }
+
+/** ChaCha20 流密码（明文为 UTF-8 文本，[counter] 为起始块计数器）。 */
+fun chacha20(key: ByteArray, counter: Int, nonce: ByteArray, plaintext: String): ByteArray =
+    chacha20(key, counter, nonce, plaintext.encodeToByteArray())
+
+/**
+ * ChaCha20-Poly1305 AEAD 加密（明文为 UTF-8 文本，[aad] 为 UTF-8 关联数据）。
+ * 返回 `密文 || 16 字节 tag`。**注意：同一密钥下的 [nonce] 必须唯一。**
+ */
+fun chacha20Poly1305Seal(key: ByteArray, nonce: ByteArray, plaintext: String, aad: String = ""): ByteArray =
+    chacha20Poly1305Seal(key, nonce, plaintext.encodeToByteArray(), aad.encodeToByteArray())

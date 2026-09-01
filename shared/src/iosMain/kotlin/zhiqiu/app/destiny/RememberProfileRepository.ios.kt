@@ -2,29 +2,27 @@ package zhiqiu.app.destiny
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.room3.Room
-import androidx.sqlite.driver.bundled.BundledSQLiteDriver
-import kotlinx.coroutines.Dispatchers
-import platform.Foundation.NSDocumentDirectory
-import platform.Foundation.NSSearchPathForDirectoriesInDomains
-import platform.Foundation.NSUserDomainMask
-import zhiqiu.app.destiny.db.AppDatabase
+import platform.Foundation.NSFileManager
+import zhiqiu.app.destiny.db.getRoomDatabase
+import zhiqiu.app.destiny.db.getDatabaseBuilder
+import zhiqiu.app.destiny.db.documentDirectory
 import zhiqiu.app.destiny.profile.ProfileRepository
+import zhiqiu.app.destiny.sharing.ImageStorage
 
-private fun documentDirectory(): String {
-    val paths = NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, true)
-    return paths.first() as String
+actual fun createProfileRepository(): ProfileRepository {
+    val dbFile = documentDirectory() + "/destiny.db"
+    val imageStorage = ImageStorage(documentDirectory() + "/images")
+    return ProfileRepository(getRoomDatabase(getDatabaseBuilder()), imageStorage)
+}
+
+actual fun deleteAppData() {
+    val dir = documentDirectory()
+    val fm = NSFileManager.defaultManager
+    fm.removeItemAtPath(dir + "/destiny.db", null)
+    fm.removeItemAtPath(dir + "/destiny.db-wal", null)
+    fm.removeItemAtPath(dir + "/destiny.db-shm", null)
+    fm.removeItemAtPath(dir + "/images", null)
 }
 
 @Composable
-actual fun rememberProfileRepository(): ProfileRepository {
-    return remember {
-        val dbFile = documentDirectory() + "/destiny.db"
-        val db = Room.databaseBuilder<AppDatabase>(name = dbFile)
-            .setDriver(BundledSQLiteDriver())
-            .fallbackToDestructiveMigration()
-            .setQueryCoroutineContext(Dispatchers.IO)
-            .build()
-        ProfileRepository(db)
-    }
-}
+actual fun rememberProfileRepository(): ProfileRepository = remember { createProfileRepository() }

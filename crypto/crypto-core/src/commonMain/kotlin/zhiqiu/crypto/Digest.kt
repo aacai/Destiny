@@ -84,6 +84,12 @@ fun sha512(message: ByteArray): ByteArray {
     return out
 }
 
+/** 对 UTF-8 文本计算 SHA-512 摘要。 */
+fun String.sha512(): ByteArray = sha512(encodeToByteArray())
+
+/** 对 UTF-8 文本计算 SHA-512，并以十六进制小写串返回。 */
+fun String.sha512Hex(): String = sha512(encodeToByteArray()).toHex()
+
 private fun longToBytes(v: Long, out: ByteArray, off: Int) {
     out[off] = (v ushr 56).toByte(); out[off + 1] = (v ushr 48).toByte()
     out[off + 2] = (v ushr 40).toByte(); out[off + 3] = (v ushr 32).toByte()
@@ -91,7 +97,12 @@ private fun longToBytes(v: Long, out: ByteArray, off: Int) {
     out[off + 6] = (v ushr 8).toByte(); out[off + 7] = v.toByte()
 }
 
-/** HMAC-SHA512。 */
+/**
+ * HMAC-SHA512 消息认证码（RFC 2104）。
+ * @param key 密钥（任意长度；> 128 字节会先经 SHA-512 压缩到 128 字节）
+ * @param data 待认证数据
+ * @return 64 字节 MAC
+ */
 fun hmacSha512(key: ByteArray, data: ByteArray): ByteArray {
     val blockSize = 128
     val k = if (key.size > blockSize) sha512(key) else key.copyOf(blockSize)
@@ -100,3 +111,6 @@ fun hmacSha512(key: ByteArray, data: ByteArray): ByteArray {
     val inner = sha512(iKeyPad + data)
     return sha512(oKeyPad + inner)
 }
+
+/** 对 UTF-8 文本计算 HMAC-SHA512（[key] 为密钥字节）。 */
+fun String.hmacSha512(key: ByteArray): ByteArray = hmacSha512(key, encodeToByteArray())

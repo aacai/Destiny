@@ -1,11 +1,17 @@
 package zhiqiu.app.destiny
 
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -14,8 +20,11 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.read
 import kotlinx.coroutines.launch
+import kotlin.system.exitProcess
 import zhiqiu.app.destiny.profile.ProfileRepository
-import zhiqiu.app.destiny.profile.exportAllJson
+import zhiqiu.app.destiny.sharing.BackupSharing
+import zhiqiu.app.destiny.sharing.FileIoClient
+import zhiqiu.app.destiny.sharing.createSharedHttpClient
 import zhiqiu.app.destiny.ui.AddProfileScreen
 import zhiqiu.app.destiny.ui.ChartPagerScreen
 import zhiqiu.app.destiny.ui.ProfileListScreen
@@ -35,7 +44,55 @@ private object Routes {
 
 @Composable
 fun App() {
-    App(repository = rememberProfileRepository())
+    var repository by remember { mutableStateOf<ProfileRepository?>(null) }
+    var schemaError by remember { mutableStateOf(false) }
+    var reloadKey by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(reloadKey) {
+        schemaError = false
+        try {
+            val repo = createProfileRepository()
+            // 触发数据库打开与 schema 校验，尽早暴露“结构不兼容”错误（否则会在首次查询时崩溃）
+            repo.getAll()
+            repository = repo
+        } catch (e: IllegalStateException) {
+            if (e.message?.contains("cannot verify the data integrity", ignoreCase = true) == true) {
+                schemaError = true
+            } else {
+                throw e
+            }
+        }
+    }
+
+    if (repository != null) {
+        App(repository = repository!!)
+    }
+
+    if (schemaError) {
+        AlertDialog(
+            onDismissRequest = { /* 必须显式选择，不允许点外部关闭 */ },
+            title = { Text("数据库结构已变更") },
+            text = {
+                Text(
+                    "检测到旧数据库与当前应用版本不兼容，无法直接打开。" +
+                        "是否删除旧数据（含本地批注图片）并重新创建？此操作不可恢复；" +
+                        "如有备份，可在删除后通过“导入备份”恢复。",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deleteAppData()
+                        schemaError = false
+                        reloadKey++
+                    },
+                ) { Text("删除旧数据并继续") }
+            },
+            dismissButton = {
+                TextButton(onClick = { exitProcess(0) }) { Text("退出应用") }
+            },
+        )
+    }
 }
 
 @Composable
@@ -44,6 +101,7 @@ fun App(repository: ProfileRepository) {
         val scope = rememberCoroutineScope()
         val profiles by repository.observeAll().collectAsState(initial = emptyList())
         val readerStore = remember(repository) { repository.readerStore }
+        val sharing = remember { BackupSharing(FileIoClient(createSharedHttpClient())) }
         val navController = rememberNavController()
 
         NavHost(
@@ -60,14 +118,9 @@ fun App(repository: ProfileRepository) {
                     onDelete = { profile ->
                         scope.launch { repository.delete(profile.id) }
                     },
-                    onExportAll = {
-                        val prefs = repository.getAllPrefs()
-                        exportAllJson(profiles, prefs)
-                    },
-                    onImportAll = { profileList, prefList ->
-                        profileList.forEach { repository.upsert(it) }
-                        repository.upsertAllPrefs(prefList)
-                    },
+                    onExportBackup = { password -> repository.exportBackupBytes(password) },
+                    onImportBackup = { bytes, password -> repository.importBackupBytes(bytes, password) },
+                    sharing = sharing,
                     onOpenBooks = { navController.navigate(Routes.Books) },
                 )
             }
@@ -118,12 +171,8 @@ fun App(repository: ProfileRepository) {
                 } else {
                     ChartPagerScreen(
                         profile = profile,
+                        repository = repository,
                         onBack = { navController.popBackStack() },
-                        onSaveQizhengNote = { note ->
-                            scope.launch {
-                                repository.upsert(profile.copy(qizhengNote = note))
-                            }
-                        },
                         onSaveQizhengPanZhi = { panZhi ->
                             scope.launch {
                                 repository.upsert(profile.copy(qizhengPanZhi = panZhi))
@@ -135,6 +184,12 @@ fun App(repository: ProfileRepository) {
         }
     }
 }
+
+/** 构建数据库实例（可能抛出 Room 的 schema 不兼容异常）。由各平台 actual 实现。 */
+expect fun createProfileRepository(): ProfileRepository
+
+/** 删除旧数据库文件与本地批注图片目录，用于 schema 不兼容时由用户确认后重建。 */
+expect fun deleteAppData()
 
 @Composable
 expect fun rememberProfileRepository(): ProfileRepository

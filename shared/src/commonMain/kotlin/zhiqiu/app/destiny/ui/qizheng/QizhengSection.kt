@@ -22,13 +22,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -44,13 +42,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import kotlinx.coroutines.delay
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.qizheng.HuaYaoSchool
 import zhiqiu.qizheng.PanZhiPresets
@@ -89,13 +85,11 @@ private enum class QzTimeMode { Natal, Demo, Custom }
 @Composable
 fun QizhengSection(
     profile: Profile,
-    onSaveNote: ((String) -> Unit)? = null,
     /** 切换盘制时回调（盘制名），用于持久化到档案 */
     onSavePanZhi: ((String) -> Unit)? = null,
 ) {
     var timeMode by remember { mutableStateOf(QzTimeMode.Demo) }
     var subTab by remember { mutableIntStateOf(0) }
-    var noteDraft by remember(profile.id) { mutableStateOf(profile.qizhengNote) }
     var cy by remember { mutableIntStateOf(2026) }
     var cm by remember { mutableIntStateOf(8) }
     var cd by remember { mutableIntStateOf(29) }
@@ -116,7 +110,7 @@ fun QizhengSection(
     var coordIdx by rememberSaveable(profile.id) { mutableIntStateOf(initialPanZhiIdxs(profile.qizhengPanZhi).first) }
     var xiuIdx by rememberSaveable(profile.id) { mutableIntStateOf(initialPanZhiIdxs(profile.qizhengPanZhi).second) }
 
-    val chart = remember(profile, timeMode, noteDraft, cy, cm, cd, ch, cmi, coordIdx, xiuIdx, fixedMing, huaYaoSchoolIdx) {
+    val chart = remember(profile, timeMode, cy, cm, cd, ch, cmi, coordIdx, xiuIdx, fixedMing, huaYaoSchoolIdx) {
         runCatching {
             val base = when (xiuIdx) {
                 1 -> PanZhiPresets.ModernReading
@@ -137,14 +131,13 @@ fun QizhengSection(
                     gender = profile.gender.ifBlank { "男" },
                     lon = profile.longitude ?: 116.4074,
                     lat = profile.latitude ?: 39.9042,
-                    note = noteDraft,
                     config = cfg,
                 )
                 QzTimeMode.Natal -> buildFromProfile(
-                    profile, note = noteDraft, config = cfg,
+                    profile, config = cfg,
                 )
                 QzTimeMode.Custom -> buildFromProfile(
-                    profile, cy, cm, cd, ch, cmi, note = noteDraft, config = cfg,
+                    profile, cy, cm, cd, ch, cmi, config = cfg,
                 )
             }
         }.getOrNull()
@@ -396,7 +389,7 @@ fun QizhengSection(
         Spacer(modifier = Modifier.height(8.dp))
 
         // 子 Tab
-        val tabs = listOf("四柱", "化曜", "相位", "星格", "批注")
+        val tabs = listOf("四柱", "化曜", "相位", "星格")
         Row(modifier = Modifier.fillMaxWidth()) {
             tabs.forEachIndexed { i, title ->
                 Column(
@@ -433,12 +426,7 @@ fun QizhengSection(
                 onSchoolChange = { huaYaoSchoolIdx = if (it == HuaYaoSchool.TIANGUAN) 1 else 0 },
             )
             2 -> AspectsPane(chart)
-            3 -> PatternsPane(chart)
-            else -> NotesPane(
-                note = noteDraft,
-                onNoteChange = { noteDraft = it },
-                onSave = onSaveNote,
-            )
+            else -> PatternsPane(chart)
         }
         Spacer(modifier = Modifier.height(20.dp))
     }
@@ -784,71 +772,6 @@ private fun PatternColumn(
                 )
             }
         }
-    }
-}
-
-/** 批注：用户手写观察与断语，800ms 防抖自动保存到档案 */
-@Composable
-private fun NotesPane(
-    note: String,
-    onNoteChange: (String) -> Unit,
-    onSave: ((String) -> Unit)?,
-) {
-    var saved by remember { mutableStateOf(true) }
-
-    LaunchedEffect(note, onSave) {
-        if (onSave != null) {
-            delay(800)
-            onSave(note)
-            saved = true
-        }
-    }
-
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("批注", fontSize = 16.sp, color = Ink, fontWeight = FontWeight.Bold)
-            Text(
-                when {
-                    onSave == null -> ""
-                    saved -> "已自动保存"
-                    else -> "编辑中…"
-                },
-                fontSize = 12.sp,
-                color = Muted,
-            )
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        BasicTextField(
-            value = note,
-            onValueChange = {
-                onNoteChange(it)
-                saved = false
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(220.dp)
-                .background(Color.White, RoundedCornerShape(10.dp))
-                .border(1.dp, Line, RoundedCornerShape(10.dp))
-                .padding(12.dp),
-            textStyle = TextStyle(fontSize = 14.sp, color = Ink, lineHeight = 21.sp),
-            decorationBox = { inner ->
-                Column {
-                    if (note.isEmpty()) {
-                        Text(
-                            "在此写下这张盘的观察、断语与心得，会自动保存到该档案…",
-                            fontSize = 14.sp,
-                            color = Muted,
-                            lineHeight = 21.sp,
-                        )
-                    }
-                    inner()
-                }
-            },
-        )
     }
 }
 

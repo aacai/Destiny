@@ -25,14 +25,12 @@ data class Profile(
     val clockHour: Int? = null,
     /** 精确分钟（0-59） */
     val clockMinute: Int? = null,
-    /** 七政批注 */
-    val qizhengNote: String = "",
     /**
      * 七政盘制名（对应 [zhiqiu.qizheng.PanZhiPresets.all] 的名称）。
      * 空串表示用默认盘制；只存名字，配置本身由 PanZhiPresets 查回。
      */
     val qizhengPanZhi: String = "",
-    /** 备注 */
+    /** 批注（命例级：详细批注文本），与八字/紫微/七政无关 */
     val note: String = "",
     /** 分组：默认/家人/朋友/案例/名人 */
     val groupName: String = "默认",

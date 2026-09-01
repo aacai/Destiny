@@ -294,4 +294,49 @@ class CryptoTest {
         val other = argon2id("different".encodeToByteArray(), salt, t = 3, m = 64, p = 2)
         assertTrue(!tag1.contentEquals(other))
     }
+
+    // ---------------- 便捷 String 扩展（可用性验证） ----------------
+
+    @Test
+    fun stringExtensionsMatchByteApi() {
+        assertEquals(sha256("abc".encodeToByteArray()).toHex(), "abc".sha256Hex())
+        assertEquals(sha512("abc".encodeToByteArray()).toHex(), "abc".sha512Hex())
+        assertEquals(blake2b("abc".encodeToByteArray()).toHex(), "abc".blake2bHex())
+        val key = ByteArray(20) { 0x0b }
+        assertEquals(hmacSha256(key, "Hi There".encodeToByteArray()).toHex(), "Hi There".hmacSha256(key).toHex())
+    }
+
+    @Test
+    fun aes256GcmStringOverloadMatches() {
+        val key = randomBytes(32); val iv = randomBytes(12)
+        val aad = "header"
+        val (ct, tag) = aes256GcmEncrypt(key, iv, "明文文本 🔒", aad)
+        val (ct2, tag2) = aes256GcmEncrypt(key, iv, "明文文本 🔒".encodeToByteArray(), aad.encodeToByteArray())
+        assertTrue(ct.contentEquals(ct2) && tag.contentEquals(tag2))
+        assertTrue("明文文本 🔒".encodeToByteArray().contentEquals(aes256GcmDecrypt(key, iv, ct, tag, aad.encodeToByteArray())))
+    }
+
+    @Test
+    fun chacha20StringOverloadRoundTrip() {
+        val key = ByteArray(32) { it.toByte() }; val nonce = ByteArray(12) { (it * 7).toByte() }
+        val ct = chacha20(key, 0, nonce, "命盘数据 🔐")
+        assertTrue("命盘数据 🔐".encodeToByteArray().contentEquals(chacha20(key, 0, nonce, ct)))
+    }
+
+    @Test
+    fun argon2idStringOverloadMatches() {
+        val salt = ByteArray(16) { 0x02.toByte() }
+        val pw = "correct horse battery staple"
+        assertTrue(
+            argon2id(pw.encodeToByteArray(), salt, t = 3, m = 64, p = 2)
+                .contentEquals(argon2id(pw, salt, t = 3, m = 64, p = 2)),
+        )
+    }
+
+    @Test
+    fun aes256CtrStringOverloadRoundTrip() {
+        val key = randomBytes(32); val iv = randomBytes(16)
+        val ct = aes256Ctr(key, iv, "命盘 CTR 🔒")
+        assertTrue("命盘 CTR 🔒".encodeToByteArray().contentEquals(aes256Ctr(key, iv, ct)))
+    }
 }

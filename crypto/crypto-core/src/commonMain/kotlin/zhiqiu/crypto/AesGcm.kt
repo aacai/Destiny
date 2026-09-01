@@ -83,7 +83,14 @@ private fun gcmKeystream(rk: IntArray, j0: ByteArray, dataLen: Int): ByteArray {
     return ks
 }
 
-/** AES-256-GCM 加密。[key] 32 字节，[iv] 任意长度（标准推荐 12 字节）。返回 (密文, 16 字节标签)。 */
+/**
+ * AES-256-GCM 认证加密（NIST SP 800-38D）。
+ * @param key 32 字节密钥
+ * @param iv 初始化向量（任意长度，标准推荐 12 字节；**必须**对每个密钥唯一，严禁复用）
+ * @param plaintext 明文
+ * @param aad 附加认证数据（不参与加密，但参与认证；可为空）
+ * @return `(密文, 16 字节认证标签)`
+ */
 fun aes256GcmEncrypt(
     key: ByteArray,
     iv: ByteArray,
@@ -130,3 +137,8 @@ fun aes256GcmDecrypt(
 ): ByteArray =
     aes256GcmDecryptOrNull(key, iv, ciphertext, tag, aad)
         ?: throw IllegalArgumentException("AES-GCM 认证标签校验失败")
+
+/** AES-256-GCM 加密（明文为 UTF-8 文本，[aad] 为 UTF-8 关联数据）。返回 (密文, 标签)。 */
+fun aes256GcmEncrypt(
+    key: ByteArray, iv: ByteArray, plaintext: String, aad: String = "",
+): Pair<ByteArray, ByteArray> = aes256GcmEncrypt(key, iv, plaintext.encodeToByteArray(), aad.encodeToByteArray())

@@ -48,8 +48,29 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
+            implementation(libs.ktor.client.okhttp)
         }
+
+        jvmMain.dependencies {
+            implementation(libs.ktor.client.java)
+        }
+
+        iosMain.dependencies {
+            implementation(libs.ktor.client.darwin)
+        }
+
         commonMain.dependencies {
+            // 网络（Ktor）
+            implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.content.negotiation)
+            implementation(libs.ktor.serialization.kotlinx.json)
+            // 图片（Coil3，与 Ktor 复用网络栈）
+            implementation(libs.coil.compose)
+            implementation(libs.coil.network.ktor3)
+            // 二维码（本地生成）
+            implementation(libs.qrcode.kotlin)
+            // 文件与 zip（备份包打包/解包）
+            implementation(libs.okio)
             implementation(project(":bazi-core"))
             implementation(project(":bazi-ui"))
             implementation(project(":qizheng-core"))
@@ -78,6 +99,7 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.okio.fakefilesystem)
         }
         // jvmTest 里的 @Test 要靠 junit 适配器才能被 Gradle 发现
         jvmTest.dependencies {

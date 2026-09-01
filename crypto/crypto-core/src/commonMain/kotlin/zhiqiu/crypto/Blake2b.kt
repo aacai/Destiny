@@ -71,8 +71,12 @@ private fun readLE64(b: ByteArray, off: Int): Long {
 }
 
 /**
- * BLAKE2b 哈希。[digestLen] 为输出字节数（1..64，默认 64）。
- * 仅支持 keyLen=0、fanout=1、depth=1 的默认参数化（满足 Argon2 的 H 需求）。
+ * BLAKE2b 哈希（RFC 7693）。比 SHA-2 更快且结构上更安全。
+ * @param message 待哈希数据
+ * @param digestLen 输出字节数（1..64，默认 64）
+ * @return [digestLen] 字节摘要
+ *
+ * 当前仅支持 keyLen=0、fanout=1、depth=1 的默认参数化（满足 Argon2 内部哈希 H 的需求）。
  */
 fun blake2b(message: ByteArray, digestLen: Int = 64): ByteArray {
     require(digestLen in 1..64) { "BLAKE2b 摘要长度须为 1..64 字节" }
@@ -116,3 +120,9 @@ fun blake2b(message: ByteArray, digestLen: Int = 64): ByteArray {
     }
     return out
 }
+
+/** 对 UTF-8 文本计算 BLAKE2b 摘要。 */
+fun String.blake2b(digestLen: Int = 64): ByteArray = blake2b(encodeToByteArray(), digestLen)
+
+/** 对 UTF-8 文本计算 BLAKE2b，并以十六进制小写串返回。 */
+fun String.blake2bHex(digestLen: Int = 64): String = blake2b(encodeToByteArray(), digestLen).toHex()

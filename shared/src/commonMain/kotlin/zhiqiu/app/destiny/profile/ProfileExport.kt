@@ -2,13 +2,13 @@ package zhiqiu.app.destiny.profile
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import zhiqiu.crypto.aes256Ctr
-import zhiqiu.crypto.constantTimeEquals
+import zhiqiu.crypto.chacha20Poly1305Open
+import zhiqiu.crypto.chacha20Poly1305Seal
 import zhiqiu.crypto.fromHex
-import zhiqiu.crypto.hmacSha256
 import zhiqiu.crypto.pbkdf2HmacSha256
 import zhiqiu.crypto.randomBytes
 import zhiqiu.crypto.toHex
+import zhiqiu.app.destiny.db.ProfileImage
 import zhiqiu.app.destiny.db.ReaderPrefEntity
 
 /**
@@ -18,13 +18,16 @@ import zhiqiu.app.destiny.db.ReaderPrefEntity
 @Serializable
 private data class DataBackup(
     val app: String = "Destiny",
-    val version: Int = 1,
+    val version: Int = 2,
     val profiles: List<Profile>,
     val readerPrefs: List<ReaderPrefEntity> = emptyList(),
+    val images: List<ProfileImage> = emptyList(),
 )
 
 /**
- * 加密导出信封。未加密的备份不含这些字段（[encrypted] 缺省为 false）。
+ * 加密导出信封（ChaCha20-Poly1305，RFC 8439）。未加密的备份不含这些字段（[encrypted] 缺省为 false）。
+ * - [nonce]：ChaCha20-Poly1305 的 12 字节随机数（须对每个备份唯一）。
+ * - [data]：`密文 || 16 字节 tag`。
  */
 @Serializable
 private data class BackupEnvelope(
@@ -35,8 +38,7 @@ private data class BackupEnvelope(
     val cipher: String = "",
     val iterations: Int = 0,
     val salt: String = "",
-    val iv: String = "",
-    val mac: String = "",
+    val nonce: String = "",
     val data: String = "",
 )
 
@@ -50,32 +52,36 @@ private const val PBKDF2_ITERATIONS = 120_000
 private const val KEY_LEN = 32
 private val UTF8 = charset("UTF-8")
 
-/** 将所有档案与阅读偏好序列化为可读性好的 JSON 字符串（明文） */
-fun exportAllJson(profiles: List<Profile>, readerPrefs: List<ReaderPrefEntity>): String {
-    return json.encodeToString(DataBackup(profiles = profiles, readerPrefs = readerPrefs))
+/** 将所有档案、阅读偏好与图片元数据序列化为可读性好的 JSON 字符串（明文） */
+fun exportAllJson(
+    profiles: List<Profile>,
+    readerPrefs: List<ReaderPrefEntity>,
+    images: List<ProfileImage> = emptyList(),
+): String {
+    return json.encodeToString(
+        DataBackup(profiles = profiles, readerPrefs = readerPrefs, images = images),
+    )
 }
 
 /**
  * 将明文备份 JSON 用密码加密，返回信封 JSON 字符串。
- * 构造：PBKDF2-HMAC-SHA256 派生 32 字节密钥 → AES-256-CTR 加密 → HMAC-SHA256 认证（Encrypt-then-MAC）。
+ * 构造：PBKDF2-HMAC-SHA256 派生 32 字节密钥 → ChaCha20-Poly1305 认证加密（RFC 8439，AEAD 自带完整性校验）。
  */
 fun exportEncryptedJson(plaintext: String, password: String): String {
     require(password.isNotBlank()) { "密码不能为空" }
     val salt = randomBytes(16)
-    val iv = randomBytes(16)
+    val nonce = randomBytes(12)
     val key = pbkdf2HmacSha256(password.toByteArray(UTF8), salt, PBKDF2_ITERATIONS, KEY_LEN)
-    val ct = aes256Ctr(key, iv, plaintext.toByteArray(UTF8))
-    val mac = hmacSha256(key, iv + ct)
+    val sealed = chacha20Poly1305Seal(key, nonce, plaintext.toByteArray(UTF8))
     return json.encodeToString(
         BackupEnvelope(
             encrypted = true,
             kdf = "pbkdf2-hmac-sha256",
-            cipher = "aes-256-ctr-hmac-sha256",
+            cipher = "chacha20-poly1305",
             iterations = PBKDF2_ITERATIONS,
             salt = salt.toHex(),
-            iv = iv.toHex(),
-            mac = mac.toHex(),
-            data = ct.toHex(),
+            nonce = nonce.toHex(),
+            data = sealed.toHex(),
         ),
     )
 }
@@ -88,6 +94,7 @@ fun isEncryptedBackup(text: String): Boolean =
 data class ParsedBackup(
     val profiles: List<Profile>,
     val readerPrefs: List<ReaderPrefEntity>,
+    val images: List<ProfileImage>,
 )
 
 /**
@@ -98,7 +105,7 @@ data class ParsedBackup(
  */
 fun importAllFromJson(text: String, password: String? = null): ParsedBackup {
     val trimmed = text.trim()
-    if (trimmed.isEmpty()) return ParsedBackup(emptyList(), emptyList())
+    if (trimmed.isEmpty()) return ParsedBackup(emptyList(), emptyList(), emptyList())
     val plainText = if (isEncryptedBackup(trimmed)) {
         val pw = password ?: throw IllegalArgumentException("该备份已加密，请输入密码")
         decryptEnvelope(trimmed, pw)
@@ -108,22 +115,17 @@ fun importAllFromJson(text: String, password: String? = null): ParsedBackup {
     val backup = runCatching { json.decodeFromString<DataBackup>(plainText) }
         .getOrElse {
             val profiles = json.decodeFromString<List<Profile>>(plainText)
-            return ParsedBackup(profiles, emptyList())
+            return ParsedBackup(profiles, emptyList(), emptyList())
         }
-    return ParsedBackup(backup.profiles, backup.readerPrefs)
+    return ParsedBackup(backup.profiles, backup.readerPrefs, backup.images)
 }
 
 private fun decryptEnvelope(envelopeText: String, password: String): String {
     val env = json.decodeFromString<BackupEnvelope>(envelopeText)
     require(env.encrypted) { "并非加密备份" }
-    val salt = env.salt.fromHex()
-    val iv = env.iv.fromHex()
-    val ct = env.data.fromHex()
-    val mac = env.mac.fromHex()
-    val key = pbkdf2HmacSha256(password.toByteArray(UTF8), salt, env.iterations, KEY_LEN)
-    val expectedMac = hmacSha256(key, iv + ct)
-    if (!constantTimeEquals(mac, expectedMac)) {
-        throw IllegalArgumentException("密码错误或数据已被篡改")
-    }
-    return aes256Ctr(key, iv, ct).toString(UTF8)
+    require(env.cipher == "chacha20-poly1305") { "不支持的加密算法: ${env.cipher}" }
+    val key = pbkdf2HmacSha256(password.toByteArray(UTF8), env.salt.fromHex(), env.iterations, KEY_LEN)
+    return runCatching {
+        chacha20Poly1305Open(key, env.nonce.fromHex(), env.data.fromHex()).toString(UTF8)
+    }.getOrElse { throw IllegalArgumentException("密码错误或数据已被篡改") }
 }

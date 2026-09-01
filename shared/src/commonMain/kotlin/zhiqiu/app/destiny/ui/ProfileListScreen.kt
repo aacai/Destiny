@@ -21,18 +21,20 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,19 +59,18 @@ import compose.icons.feathericons.BookOpen
 import compose.icons.feathericons.Search
 import compose.icons.feathericons.Trash2
 import compose.icons.feathericons.X
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
+import coil3.compose.AsyncImage
 import io.github.vinceglb.filekit.*
 import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.dialogs.compose.rememberFileSaverLauncher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import zhiqiu.app.destiny.db.ReaderPrefEntity
 import zhiqiu.app.destiny.profile.Profile
-import zhiqiu.app.destiny.profile.exportAllJson
-import zhiqiu.app.destiny.profile.exportEncryptedJson
-import zhiqiu.app.destiny.profile.importAllFromJson
-import zhiqiu.app.destiny.profile.isEncryptedBackup
+import zhiqiu.app.destiny.sharing.BackupSharing
+import zhiqiu.app.destiny.sharing.generateQrCodePng
 import zhiqiu.app.destiny.time.timeIndexLabel
 import androidx.compose.material3.Checkbox
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -102,28 +103,37 @@ fun ProfileListScreen(
     onAdd: () -> Unit,
     onOpen: (Profile) -> Unit,
     onDelete: (Profile) -> Unit,
-    onExportAll: suspend () -> String,
-    onImportAll: suspend (List<Profile>, List<ReaderPrefEntity>) -> Unit,
+    onExportBackup: suspend (password: String?) -> ByteArray,
+    onImportBackup: suspend (bytes: ByteArray, password: String?) -> Unit,
+    sharing: BackupSharing,
     onOpenBooks: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     var query by rememberSaveable { mutableStateOf("") }
     var sortKey by rememberSaveable { mutableStateOf(SortKey.CREATED) }
     var ascending by rememberSaveable { mutableStateOf(false) }
-    var exportJson by remember { mutableStateOf<String?>(null) }
+    var showExport by remember { mutableStateOf(false) }
     var exportMsg by remember { mutableStateOf("") }
     var showImport by remember { mutableStateOf(false) }
     var importMsg by remember { mutableStateOf("") }
-    val exportPayload = remember { mutableStateOf("") }
+    var showShare by remember { mutableStateOf(false) }
+    var showLinkImport by remember { mutableStateOf(false) }
+    var linkImportMsg by remember { mutableStateOf("") }
+    var shareMsg by remember { mutableStateOf("") }
+    var isSharing by remember { mutableStateOf(false) }
+    val shareQr = remember { mutableStateOf<ByteArray?>(null) }
+    val exportPayload = remember { mutableStateOf<ByteArray?>(null) }
     val importPassword = remember { mutableStateOf("") }
+    val clipboard = LocalClipboardManager.current
 
     val saverLauncher = rememberFileSaverLauncher(
         dialogSettings = FileKitDialogSettings.createDefault(),
         onResult = { file: PlatformFile? ->
-            if (file != null) {
+            val payload = exportPayload.value
+            if (file != null && payload != null) {
                 scope.launch(Dispatchers.IO) {
                     exportMsg = runCatching {
-                        file.write(exportPayload.value.encodeToByteArray())
+                        file.write(payload)
                         "已导出到 ${file.name}"
                     }.getOrDefault("导出失败")
                 }
@@ -132,19 +142,18 @@ fun ProfileListScreen(
     )
     val pickerLauncher = rememberFilePickerLauncher(
         dialogSettings = FileKitDialogSettings.createDefault(),
-        type = FileKitType.File(extensions = listOf("json")),
+        type = FileKitType.File(extensions = listOf("zip")),
         onResult = { file: PlatformFile? ->
             if (file != null) {
                 scope.launch(Dispatchers.IO) {
-                    val text = runCatching { file.readBytes().decodeToString() }.getOrNull()
-                    importMsg = if (text == null) {
+                    val bytes = runCatching { file.readBytes() }.getOrNull()
+                    importMsg = if (bytes == null) {
                         "读取文件失败"
                     } else {
                         runCatching {
-                            val parsed = importAllFromJson(text, importPassword.value.ifBlank { null })
-                            onImportAll(parsed.profiles, parsed.readerPrefs)
-                            "成功导入 ${parsed.profiles.size} 个档案、${parsed.readerPrefs.size} 条偏好"
-                        }.getOrElse { "解析失败：${it.message}" }
+                            onImportBackup(bytes, importPassword.value.ifBlank { null })
+                            "导入成功"
+                        }.getOrElse { "导入失败：${it.message}" }
                     }
                 }
             }
@@ -185,7 +194,10 @@ fun ProfileListScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = PageBg),
                 actions = {
-                    TextButton(onClick = { scope.launch { exportJson = onExportAll() } }) {
+                    TextButton(onClick = {
+                        exportMsg = ""
+                        showExport = true
+                    }) {
                         Text("导出", color = Accent, fontWeight = FontWeight.SemiBold)
                     }
                     TextButton(onClick = {
@@ -193,6 +205,19 @@ fun ProfileListScreen(
                         showImport = true
                     }) {
                         Text("导入", color = Accent, fontWeight = FontWeight.SemiBold)
+                    }
+                    TextButton(onClick = {
+                        shareMsg = ""
+                        shareQr.value = null
+                        showShare = true
+                    }) {
+                        Text("分享", color = Accent, fontWeight = FontWeight.SemiBold)
+                    }
+                    TextButton(onClick = {
+                        linkImportMsg = ""
+                        showLinkImport = true
+                    }) {
+                        Text("导入链接", color = Accent, fontWeight = FontWeight.SemiBold)
                     }
                     IconButton(onClick = onOpenBooks) {
                         Icon(
@@ -276,22 +301,29 @@ fun ProfileListScreen(
         }
     }
 
-    exportJson?.let { json ->
+    if (showExport) {
         ExportDialog(
-            plainJson = json,
             profilesCount = profiles.size,
             message = exportMsg,
-            onExportFile = { text ->
-                exportPayload.value = text
-                saverLauncher.launch(
-                    suggestedName = "destiny-backup",
-                    defaultExtension = "json",
-                    allowedExtensions = setOf("json"),
-                )
+            onExport = { password ->
+                scope.launch(Dispatchers.IO) {
+                    exportPayload.value = runCatching { onExportBackup(password.ifBlank { null }) }
+                        .getOrNull()
+                    if (exportPayload.value != null) {
+                        saverLauncher.launch(
+                            suggestedName = "destiny-backup",
+                            defaultExtension = "zip",
+                            allowedExtensions = setOf("zip"),
+                        )
+                    } else {
+                        exportMsg = "导出失败"
+                    }
+                }
             },
             onClose = {
-                exportJson = null
+                showExport = false
                 exportMsg = ""
+                exportPayload.value = null
             },
         )
     }
@@ -308,26 +340,63 @@ fun ProfileListScreen(
             },
         )
     }
+    if (showShare) {
+        ShareDialog(
+            message = shareMsg,
+            qrBytes = shareQr.value,
+            loading = isSharing,
+            onShare = { password ->
+                isSharing = true
+                scope.launch(Dispatchers.IO) {
+                    val result = runCatching {
+                        val zip = onExportBackup(password.ifBlank { null })
+                        sharing.share(zip)
+                    }
+                    result.onSuccess { link ->
+                        shareQr.value = runCatching { generateQrCodePng(link, cellSize = 8) }.getOrNull()
+                        runCatching { clipboard.setText(AnnotatedString(link)) }
+                        shareMsg = link
+                    }.onFailure { shareMsg = "分享失败：${it.message}" }
+                    isSharing = false
+                }
+            },
+            onCopy = { clipboard.setText(AnnotatedString(shareMsg)) },
+            onClose = {
+                showShare = false
+                shareMsg = ""
+                shareQr.value = null
+            },
+        )
+    }
+    if (showLinkImport) {
+        LinkImportDialog(
+            message = linkImportMsg,
+            onImport = { link, password ->
+                scope.launch(Dispatchers.IO) {
+                    linkImportMsg = runCatching {
+                        val bytes = sharing.fetch(link)
+                        onImportBackup(bytes, password.ifBlank { null })
+                        "导入成功"
+                    }.getOrElse { "导入失败：${it.message}" }
+                }
+            },
+            onClose = {
+                showLinkImport = false
+                linkImportMsg = ""
+            },
+        )
+    }
 }
 
 @Composable
 private fun ExportDialog(
-    plainJson: String,
     profilesCount: Int,
     message: String,
-    onExportFile: (String) -> Unit,
+    onExport: (password: String) -> Unit,
     onClose: () -> Unit,
 ) {
-    val clipboard = LocalClipboardManager.current
     var encrypt by remember { mutableStateOf(false) }
     var password by remember { mutableStateOf("") }
-    val display = remember(plainJson, encrypt, password) {
-        when {
-            !encrypt -> plainJson
-            password.isBlank() -> ""
-            else -> runCatching { exportEncryptedJson(plainJson, password) }.getOrDefault("")
-        }
-    }
     AlertDialog(
         onDismissRequest = onClose,
         confirmButton = {
@@ -337,7 +406,7 @@ private fun ExportDialog(
         text = {
             Column {
                 Text(
-                    "共 $profilesCount 个档案。点击「导出为文件」选择保存位置，生成 destiny-backup.json（无需粘贴大段文本）。",
+                    "共 $profilesCount 个档案及批注图片。点击「导出为文件」生成 destiny-backup.zip（含全部图片）。",
                     fontSize = 12.sp,
                     color = Muted,
                 )
@@ -348,28 +417,25 @@ private fun ExportDialog(
                 }
                 if (encrypt) {
                     Spacer(Modifier.height(4.dp))
-                    OutlinedTextField(
+                    BasicInputField(
                         value = password,
                         onValueChange = { password = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("密码") },
+                        label = "密码",
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                     )
                     if (password.isBlank()) {
                         Spacer(Modifier.height(4.dp))
-                        Text("请输入密码后才会生成加密内容", fontSize = 12.sp, color = Muted)
+                        Text("请输入密码后再导出", fontSize = 12.sp, color = Muted)
                     }
                 }
                 Spacer(Modifier.height(10.dp))
-                Row {
-                    TextButton(onClick = { onExportFile(display) }) {
-                        Text("导出为文件", color = Accent)
-                    }
-                    Spacer(Modifier.width(12.dp))
-                    TextButton(onClick = { clipboard.setText(AnnotatedString(display)) }) {
-                        Text("复制", color = Accent)
-                    }
+                TextButton(
+                    onClick = { onExport(password) },
+                    enabled = !encrypt || password.isNotBlank(),
+                ) {
+                    Text("导出为文件", color = Accent)
                 }
                 if (message.isNotBlank()) {
                     Spacer(Modifier.height(6.dp))
@@ -396,16 +462,16 @@ private fun ImportDialog(
         text = {
             Column {
                 Text(
-                    "点击「选择文件导入」选取 destiny-backup.json。导入按 id 合并，已存在的档案将被覆盖。",
+                    "点击「选择文件导入」选取 destiny-backup.zip。导入按 id 合并，已存在的档案与图片将被覆盖。",
                     fontSize = 12.sp,
                     color = Muted,
                 )
                 Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
+                BasicInputField(
                     value = password,
                     onValueChange = { password = it },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text("密码（加密备份填写）") },
+                    label = "密码（加密备份填写）",
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                 )
@@ -594,4 +660,194 @@ private fun ProfileRow(
             )
         }
     }
+}
+
+@Composable
+private fun ShareDialog(
+    message: String,
+    qrBytes: ByteArray?,
+    loading: Boolean = false,
+    onShare: (password: String) -> Unit,
+    onCopy: () -> Unit,
+    onClose: () -> Unit,
+) {
+    var encrypt by remember { mutableStateOf(false) }
+    var password by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onClose,
+        confirmButton = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (message.startsWith("https://")) {
+                    TextButton(onClick = onCopy) {
+                        Text("复制链接", color = Accent)
+                    }
+                }
+                TextButton(onClick = onClose) {
+                    Text("关闭", color = Accent)
+                }
+            }
+        },
+        title = { Text("分享到链接", color = Ink, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    "生成备份包并上传到 Litterbox，得到一个 72 小时内有效的分享链接（到期后自动删除，请尽快导入）。",
+                    fontSize = 12.sp,
+                    color = Muted,
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = encrypt, onCheckedChange = { encrypt = it })
+                    Text("加密备份（用密码保护）", fontSize = 12.sp, color = Ink)
+                }
+                if (encrypt) {
+                    Spacer(Modifier.height(4.dp))
+                    BasicInputField(
+                        value = password,
+                        onValueChange = { password = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = "密码",
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                    )
+                }
+                Spacer(Modifier.height(10.dp))
+                TextButton(
+                    onClick = { onShare(password) },
+                    enabled = (!encrypt || password.isNotBlank()) && !loading,
+                ) {
+                    if (loading) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Accent,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text("正在生成并上传…", color = Accent)
+                        }
+                    } else {
+                        Text("生成分享链接", color = Accent)
+                    }
+                }
+                if (message.isNotBlank()) {
+                    Spacer(Modifier.height(8.dp))
+                    if (message.startsWith("https://")) {
+                        Text("分享链接（可复制或扫码）：", fontSize = 12.sp, color = Muted)
+                        Spacer(Modifier.height(4.dp))
+                        SelectionContainer {
+                            Text(message, fontSize = 12.sp, color = Ink)
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        qrBytes?.let { bytes ->
+                            AsyncImage(
+                                model = bytes,
+                                contentDescription = "分享二维码",
+                                modifier = Modifier
+                                    .size(180.dp)
+                                    .align(Alignment.CenterHorizontally),
+                            )
+                            Spacer(Modifier.height(8.dp))
+                        }
+                        Text("（已自动复制到剪贴板，也可点「复制链接」）", fontSize = 11.sp, color = Muted)
+                    } else {
+                        Text(message, fontSize = 12.sp, color = Accent)
+                    }
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun LinkImportDialog(
+    message: String,
+    onImport: (link: String, password: String) -> Unit,
+    onClose: () -> Unit,
+) {
+    var link by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onClose,
+        confirmButton = {
+            TextButton(onClick = onClose) { Text("取消", color = Muted) }
+        },
+        title = { Text("从链接导入", color = Ink, fontWeight = FontWeight.Bold) },
+        text = {
+            Column {
+                Text(
+                    "粘贴他人分享的 Litterbox 链接（72 小时内有效），下载并导入。",
+                    fontSize = 12.sp,
+                    color = Muted,
+                )
+                Spacer(Modifier.height(8.dp))
+                BasicInputField(
+                    value = link,
+                    onValueChange = { link = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = "分享链接",
+                    singleLine = true,
+                )
+                Spacer(Modifier.height(8.dp))
+                BasicInputField(
+                    value = password,
+                    onValueChange = { password = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = "密码（加密备份填写）",
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                )
+                Spacer(Modifier.height(10.dp))
+                TextButton(
+                    onClick = { onImport(link, password) },
+                    enabled = link.isNotBlank(),
+                ) {
+                    Text("下载并导入", color = Accent)
+                }
+                if (message.isNotBlank()) {
+                    Spacer(Modifier.height(6.dp))
+                    Text(message, fontSize = 12.sp, color = Accent)
+                }
+            }
+        },
+    )
+}
+
+/**
+ * 与 Material3 的 OutlinedTextField 等价，但基于 Foundation 的 BasicTextField，
+ * 以避开当前引入的 Material3(alpha) 与 Foundation 版本二进制不兼容（CustomStyle.applyStyle）导致的崩溃。
+ */
+@Composable
+private fun BasicInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    label: String? = null,
+    placeholder: String? = null,
+    singleLine: Boolean = false,
+    textStyle: TextStyle = TextStyle.Default,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier
+            .border(1.dp, Muted, RoundedCornerShape(8.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        singleLine = singleLine,
+        textStyle = textStyle,
+        visualTransformation = visualTransformation,
+        decorationBox = { innerTextField ->
+            Column {
+                if (label != null) {
+                    Text(label, fontSize = 12.sp, color = Muted)
+                    Spacer(Modifier.height(4.dp))
+                }
+                if (value.isEmpty() && placeholder != null) {
+                    Text(placeholder, fontSize = 13.sp, color = Muted)
+                }
+                innerTextField()
+            }
+        },
+    )
 }

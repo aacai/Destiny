@@ -253,3 +253,12 @@ fun argon2id(
     }
     return hPrime(tagLen, c)
 }
+
+/**
+ * 以 UTF-8 文本口令调用 [argon2id]。
+ * @see argon2id
+ */
+fun argon2id(
+    password: String, salt: ByteArray, t: Int, m: Int, p: Int, tagLen: Int = 32,
+    secret: ByteArray = ByteArray(0), ad: ByteArray = ByteArray(0),
+): ByteArray = argon2id(password.encodeToByteArray(), salt, t, m, p, tagLen, secret, ad)

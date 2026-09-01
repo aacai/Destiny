@@ -3,14 +3,25 @@ package zhiqiu.crypto
 import kotlin.random.Random
 
 /**
- * 纯 Kotlin 实现的轻量加密原语，可在 JVM / Android / iOS / Web 一致运行（仅依赖 Kotlin 标准库）。
- * 构造：PBKDF2-HMAC-SHA256 派生密钥 → AES-256-CTR 加密 → HMAC-SHA256 做完整性/认证（Encrypt-then-MAC）。
+ * 纯 Kotlin 实现的轻量密码学原语，可在 JVM / Android / iOS / Web(wasmJs) 一致运行，**仅依赖 Kotlin 标准库、零第三方依赖**。
  *
- * 算法正确性由 [zhiqiu.crypto.CryptoTest] 中的标准测试向量保证：
- * - SHA-256：FIPS 180 已知向量（"abc"）
- * - HMAC-SHA256：RFC 4231 Case 1
- * - PBKDF2-HMAC-SHA256：RFC 7914
- * - AES-256：FIPS 197 标准 ECB 测试向量（全 0、非零密钥各一组，覆盖完整 14 轮与密钥扩展）
+ * 提供的算法（均为顶层函数，字节接口与 `String` 便捷扩展并存）：
+ * - 哈希：SHA-256、SHA-512、BLAKE2b
+ * - MAC：HMAC-SHA256、HMAC-SHA512、Poly1305
+ * - 密钥派生：PBKDF2-HMAC-SHA256、Argon2id（RFC 9106，内存硬，抗 GPU/ASIC）
+ * - 对称加密（AEAD）：AES-256-GCM、ChaCha20-Poly1305、AES-256-CTR、AES-256-CBC
+ * - 工具：`ByteArray.toHex()` / `String.fromHex()` / `randomBytes` / `constantTimeEquals`
+ *
+ * 正确性由 [CryptoTest] 中的权威测试向量保证：
+ * - SHA-256/SHA-512：FIPS 180 已知向量
+ * - HMAC：RFC 4231 向量
+ * - PBKDF2-HMAC-SHA256：RFC 6070 向量
+ * - AES-256：FIPS 197 ECB 向量
+ * - AES-256-GCM：Project Wycheproof 向量
+ * - BLAKE2b：RFC 7693 向量
+ * - Argon2id：RFC 9106 §5.3 官方向量
+ *
+ * 安全约定：所有 AEAD 解密均使用恒定时间比较；同一密钥下的 IV/nonce **必须**唯一（详见各函数文档）。
  */
 
 // ---------------------------------------------------------------- 字节工具
@@ -44,7 +55,13 @@ private fun hexVal(c: Char): Int {
     return v
 }
 
-/** 密码学安全的随机字节（基于 Kotlin 默认随机源） */
+/**
+ * 生成 [n] 字节随机数据（基于平台默认 [kotlin.random.Random]）。
+ *
+ * 注意：平台默认 [kotlin.random.Random] 不保证密码学安全。生产环境生成盐(salt)、IV 等
+ * 机密随机量时，应使用平台 CSPRNG（如 JVM/Android 的 `java.security.SecureRandom`、
+ * Web 的 `crypto.getRandomValues`、iOS 的 `SecRandomCopyBytes`）。
+ */
 fun randomBytes(n: Int): ByteArray {
     val a = ByteArray(n)
     for (i in a.indices) a[i] = Random.Default.nextInt(256).toByte()
@@ -114,6 +131,12 @@ fun sha256(message: ByteArray): ByteArray {
     return intsToBytes(intArrayOf(h0, h1, h2, h3, h4, h5, h6, h7))
 }
 
+/** 对 UTF-8 文本计算 SHA-256 摘要。 */
+fun String.sha256(): ByteArray = sha256(encodeToByteArray())
+
+/** 对 UTF-8 文本计算 SHA-256，并以十六进制小写串返回（便于展示或校验）。 */
+fun String.sha256Hex(): String = sha256(encodeToByteArray()).toHex()
+
 private fun intsToBytes(xs: IntArray): ByteArray {
     val out = ByteArray(xs.size * 4)
     for (i in xs.indices) {
@@ -128,7 +151,12 @@ private fun intsToBytes(xs: IntArray): ByteArray {
 
 // ---------------------------------------------------------------- HMAC-SHA256
 
-/** HMAC-SHA256 */
+/**
+ * HMAC-SHA256 消息认证码（RFC 2104）。
+ * @param key 密钥（任意长度；> 64 字节会先经 SHA-256 压缩到 64 字节）
+ * @param data 待认证数据
+ * @return 32 字节 MAC
+ */
 fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray {
     val blockSize = 64
     val k = if (key.size > blockSize) sha256(key) else key.copyOf(blockSize)
@@ -138,9 +166,22 @@ fun hmacSha256(key: ByteArray, data: ByteArray): ByteArray {
     return sha256(oKeyPad + inner)
 }
 
+/** 对 UTF-8 文本计算 HMAC-SHA256（[key] 为密钥字节）。 */
+fun String.hmacSha256(key: ByteArray): ByteArray = hmacSha256(key, encodeToByteArray())
+
 // ---------------------------------------------------------------- PBKDF2-HMAC-SHA256
 
-/** PBKDF2-HMAC-SHA256 密钥派生。返回 [keyLen] 字节。 */
+/**
+ * PBKDF2-HMAC-SHA256 密钥派生（RFC 8018）。
+ * @param password 口令（任意长度字节）
+ * @param salt 盐（建议 >= 16 字节随机值，可公开）
+ * @param iterations 迭代次数（越大越慢、抗暴力破解；建议 >= 100_000）
+ * @param keyLen 输出密钥字节数
+ * @return [keyLen] 字节派生密钥
+ *
+ * 注：PBKDF2 仅提高时间成本，不抗 GPU/ASIC 集群；若场景允许（无极度受限设备），
+ * 优先使用内存硬函数 [argon2id]。
+ */
 fun pbkdf2HmacSha256(password: ByteArray, salt: ByteArray, iterations: Int, keyLen: Int): ByteArray {
     val hLen = 32
     val l = (keyLen + hLen - 1) / hLen
@@ -208,6 +249,10 @@ fun aes256Ctr(key: ByteArray, iv: ByteArray, data: ByteArray): ByteArray {
     }
     return out
 }
+
+/** AES-256-CTR 加解密（数据为 UTF-8 文本，与二进制接口对称）。 */
+fun aes256Ctr(key: ByteArray, iv: ByteArray, data: String): ByteArray =
+    aes256Ctr(key, iv, data.encodeToByteArray())
 
 private fun incrementCounter(c: ByteArray) {
     for (i in 15 downTo 0) {

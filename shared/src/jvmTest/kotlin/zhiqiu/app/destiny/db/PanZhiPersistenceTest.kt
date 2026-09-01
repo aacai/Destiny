@@ -7,6 +7,7 @@ import kotlinx.coroutines.runBlocking
 import zhiqiu.app.destiny.db.AppDatabase
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.profile.ProfileRepository
+import zhiqiu.app.destiny.sharing.ImageStorage
 import java.io.File
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,7 +29,7 @@ class PanZhiPersistenceTest {
             .fallbackToDestructiveMigration()
             .setQueryCoroutineContext(Dispatchers.IO)
             .build()
-        val repo = ProfileRepository(db)
+        val repo = ProfileRepository(db, ImageStorage(File(System.getProperty("java.io.tmpdir"), "destiny-test-images").absolutePath))
 
         val saved = runBlocking {
             repo.upsert(
