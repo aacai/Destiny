@@ -121,6 +121,7 @@ fun ProfileListScreen(
     var linkImportMsg by remember { mutableStateOf("") }
     var shareMsg by remember { mutableStateOf("") }
     var isSharing by remember { mutableStateOf(false) }
+    var isLinkImporting by remember { mutableStateOf(false) }
     val shareQr = remember { mutableStateOf<ByteArray?>(null) }
     val exportPayload = remember { mutableStateOf<ByteArray?>(null) }
     val importPassword = remember { mutableStateOf("") }
@@ -371,13 +372,16 @@ fun ProfileListScreen(
     if (showLinkImport) {
         LinkImportDialog(
             message = linkImportMsg,
+            loading = isLinkImporting,
             onImport = { link, password ->
+                isLinkImporting = true
                 scope.launch(Dispatchers.IO) {
                     linkImportMsg = runCatching {
                         val bytes = sharing.fetch(link)
                         onImportBackup(bytes, password.ifBlank { null })
                         "导入成功"
                     }.getOrElse { "导入失败：${it.message}" }
+                    isLinkImporting = false
                 }
             },
             onClose = {
@@ -762,6 +766,7 @@ private fun ShareDialog(
 @Composable
 private fun LinkImportDialog(
     message: String,
+    loading: Boolean = false,
     onImport: (link: String, password: String) -> Unit,
     onClose: () -> Unit,
 ) {
@@ -800,9 +805,21 @@ private fun LinkImportDialog(
                 Spacer(Modifier.height(10.dp))
                 TextButton(
                     onClick = { onImport(link, password) },
-                    enabled = link.isNotBlank(),
+                    enabled = link.isNotBlank() && !loading,
                 ) {
-                    Text("下载并导入", color = Accent)
+                    if (loading) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(16.dp),
+                                strokeWidth = 2.dp,
+                                color = Accent,
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text("正在下载并导入…", color = Accent)
+                        }
+                    } else {
+                        Text("下载并导入", color = Accent)
+                    }
                 }
                 if (message.isNotBlank()) {
                     Spacer(Modifier.height(6.dp))
