@@ -2,6 +2,7 @@ package zhiqiu.app.destiny.ui.bazi
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
@@ -14,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import zhiqiu.app.destiny.bazi.original.toFlowChart
 import zhiqiu.app.destiny.bazi.original.toOriginalChart
 import zhiqiu.app.destiny.profile.Profile
@@ -45,6 +47,7 @@ fun BaziSection(profile: Profile) {
     Column(modifier = Modifier.fillMaxSize()) {
         SecondaryTabRow(
             selectedTabIndex = subTab,
+            modifier = Modifier.height(40.dp),
             containerColor = Color.Transparent,
             contentColor = Accent,
         ) {

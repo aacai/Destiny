@@ -69,8 +69,11 @@ class ImageStorage(
         return "$imagesRoot/$inner".toPath()
     }
 
-    private fun normalizeExt(ext: String): String =
-        if (ext.isEmpty()) "" else if (ext.startsWith(".")) ext else ".$ext"
+    private fun normalizeExt(ext: String): String {
+        val raw = ext.trim().lowercase()
+        if (raw.isEmpty()) return ""
+        return if (raw.startsWith(".")) raw else ".$raw"
+    }
 
     private fun randomName(): String = buildString(16) {
         repeat(16) { append(HEX[Random.nextInt(HEX.size)]) }

@@ -15,6 +15,7 @@
 **/build/
 *.class
 # *.jar
+*.pyc
 *.war
 *.ear
 *.dex

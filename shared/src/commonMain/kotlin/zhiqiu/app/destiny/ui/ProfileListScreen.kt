@@ -28,6 +28,11 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -45,6 +50,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
@@ -54,10 +60,14 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
-import compose.icons.feathericons.Plus
 import compose.icons.feathericons.BookOpen
+import compose.icons.feathericons.Download
+import compose.icons.feathericons.Link
+import compose.icons.feathericons.Plus
 import compose.icons.feathericons.Search
+import compose.icons.feathericons.Share2
 import compose.icons.feathericons.Trash2
+import compose.icons.feathericons.Upload
 import compose.icons.feathericons.X
 import coil3.compose.AsyncImage
 import io.github.vinceglb.filekit.*
@@ -94,6 +104,28 @@ private fun birthSortValue(profile: Profile): Int {
     val m = Regex("(\\d{4})[-/.年](\\d{1,2})[-/.月](\\d{1,2})").find(text) ?: return Int.MIN_VALUE
     val (y, mo, d) = m.destructured
     return (y.toIntOrNull() ?: 0) * 10000 + (mo.toIntOrNull() ?: 0) * 100 + (d.toIntOrNull() ?: 0)
+}
+
+/** 带悬浮提示的图标按钮：桌面端鼠标悬浮即显示文字 tooltip，触屏端长按显示 */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun TipIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    tint: Color = Accent,
+) {
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+        tooltip = { PlainTooltip { Text(contentDescription) } },
+        state = rememberTooltipState(),
+        modifier = modifier,
+    ) {
+        IconButton(onClick = onClick) {
+            Icon(imageVector = icon, contentDescription = contentDescription, tint = tint)
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -195,48 +227,60 @@ fun ProfileListScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = PageBg),
                 actions = {
-                    TextButton(onClick = {
-                        exportMsg = ""
-                        showExport = true
-                    }) {
-                        Text("导出", color = Accent, fontWeight = FontWeight.SemiBold)
-                    }
-                    TextButton(onClick = {
-                        importMsg = ""
-                        showImport = true
-                    }) {
-                        Text("导入", color = Accent, fontWeight = FontWeight.SemiBold)
-                    }
-                    TextButton(onClick = {
-                        shareMsg = ""
-                        shareQr.value = null
-                        showShare = true
-                    }) {
-                        Text("分享", color = Accent, fontWeight = FontWeight.SemiBold)
-                    }
-                    TextButton(onClick = {
-                        linkImportMsg = ""
-                        showLinkImport = true
-                    }) {
-                        Text("导入链接", color = Accent, fontWeight = FontWeight.SemiBold)
-                    }
-                    IconButton(onClick = onOpenBooks) {
-                        Icon(
-                            imageVector = FeatherIcons.BookOpen,
-                            contentDescription = "书架",
-                            tint = Accent,
-                        )
-                    }
+                    TipIconButton(
+                        icon = FeatherIcons.Upload,
+                        contentDescription = "导出",
+                        onClick = {
+                            exportMsg = ""
+                            showExport = true
+                        },
+                    )
+                    TipIconButton(
+                        icon = FeatherIcons.Download,
+                        contentDescription = "导入",
+                        onClick = {
+                            importMsg = ""
+                            showImport = true
+                        },
+                    )
+                    TipIconButton(
+                        icon = FeatherIcons.Share2,
+                        contentDescription = "分享",
+                        onClick = {
+                            shareMsg = ""
+                            shareQr.value = null
+                            showShare = true
+                        },
+                    )
+                    TipIconButton(
+                        icon = FeatherIcons.Link,
+                        contentDescription = "导入链接",
+                        onClick = {
+                            linkImportMsg = ""
+                            showLinkImport = true
+                        },
+                    )
+                    TipIconButton(
+                        icon = FeatherIcons.BookOpen,
+                        contentDescription = "书架",
+                        onClick = onOpenBooks,
+                    )
                 },
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = onAdd,
-                containerColor = Accent,
-                contentColor = Color.White,
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                tooltip = { PlainTooltip { Text("添加档案") } },
+                state = rememberTooltipState(),
             ) {
-                Icon(imageVector = FeatherIcons.Plus, contentDescription = "添加档案")
+                FloatingActionButton(
+                    onClick = onAdd,
+                    containerColor = Accent,
+                    contentColor = Color.White,
+                ) {
+                    Icon(imageVector = FeatherIcons.Plus, contentDescription = "添加档案")
+                }
             }
         },
     ) { padding ->
@@ -655,13 +699,20 @@ private fun ProfileRow(
                 Text(profile.baziSummary, color = Accent, fontSize = 12.sp)
             }
         }
-        IconButton(onClick = onDelete) {
-            Icon(
-                imageVector = FeatherIcons.Trash2,
-                contentDescription = "删除",
-                tint = Line,
-                modifier = Modifier.size(18.dp),
-            )
+        @OptIn(ExperimentalMaterial3Api::class)
+        TooltipBox(
+            positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+            tooltip = { PlainTooltip { Text("删除") } },
+            state = rememberTooltipState(),
+        ) {
+            IconButton(onClick = onDelete) {
+                Icon(
+                    imageVector = FeatherIcons.Trash2,
+                    contentDescription = "删除",
+                    tint = Line,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
         }
     }
 }
