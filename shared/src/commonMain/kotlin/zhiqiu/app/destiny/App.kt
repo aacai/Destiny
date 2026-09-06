@@ -30,6 +30,8 @@ import zhiqiu.app.destiny.ui.ChartPagerScreen
 import zhiqiu.app.destiny.ui.ProfileListScreen
 import zhiqiu.app.destiny.ui.books.BookshelfScreen
 import zhiqiu.app.destiny.ui.books.ReaderScreen
+import zhiqiu.liuyao.ui.LiuYaoScreen
+import zhiqiu.liuyao.ui.ZhouyiBrowserScreen
 
 private object Routes {
     const val List = "list"
@@ -37,6 +39,8 @@ private object Routes {
     const val Chart = "chart/{profileId}"
     const val Books = "books"
     const val Reader = "reader/{bookId}"
+    const val Liuyao = "liuyao"
+    const val Yijing = "yijing"
 
     fun chart(profileId: String) = "chart/$profileId"
     fun reader(bookId: String) = "reader/$bookId"
@@ -122,7 +126,17 @@ fun App(repository: ProfileRepository) {
                     onImportBackup = { bytes, password -> repository.importBackupBytes(bytes, password) },
                     sharing = sharing,
                     onOpenBooks = { navController.navigate(Routes.Books) },
+                    onOpenLiuyao = { navController.navigate(Routes.Liuyao) },
                 )
+            }
+            composable(Routes.Liuyao) {
+                LiuYaoScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenYijing = { navController.navigate(Routes.Yijing) },
+                )
+            }
+            composable(Routes.Yijing) {
+                ZhouyiBrowserScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.Books) {
                 BookshelfScreen(
