@@ -75,6 +75,8 @@ kotlin {
             implementation(project(":bazi-ui"))
             implementation(project(":qizheng-core"))
             implementation(project(":qizheng-ui"))
+            implementation(project(":liuyao-core"))
+            implementation(project(":liuyao-ui"))
             implementation(project(":crypto-core"))
             implementation(project(":iztro-core"))
             implementation(project(":iztro-ui"))

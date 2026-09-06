@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.BookOpen
 import compose.icons.feathericons.Download
+import compose.icons.feathericons.Hexagon
 import compose.icons.feathericons.Link
 import compose.icons.feathericons.Plus
 import compose.icons.feathericons.Search
@@ -139,6 +140,7 @@ fun ProfileListScreen(
     onImportBackup: suspend (bytes: ByteArray, password: String?) -> Unit,
     sharing: BackupSharing,
     onOpenBooks: () -> Unit = {},
+    onOpenLiuyao: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     var query by rememberSaveable { mutableStateOf("") }
@@ -259,6 +261,11 @@ fun ProfileListScreen(
                             linkImportMsg = ""
                             showLinkImport = true
                         },
+                    )
+                    TipIconButton(
+                        icon = FeatherIcons.Hexagon,
+                        contentDescription = "六爻",
+                        onClick = onOpenLiuyao,
                     )
                     TipIconButton(
                         icon = FeatherIcons.BookOpen,
