@@ -2,9 +2,7 @@ package zhiqiu.app.destiny.sharing
 
 import okio.FileSystem
 import okio.Path
-import okio.Path.Companion.toPath
 import okio.buffer
-import okio.openZip
 
 /**
  * 备份包内的目录布局约定。
@@ -42,9 +40,9 @@ data class UnpackedBackup(
 /**
  * 备份包（zip）的打包与解包。结构为 `backup.json` + `images/...`，单文件即可分享/上传。
  *
- * @param fs 文件系统，默认 [FileSystem.SYSTEM]；测试可注入 [okio.fakefilesystem.FakeFileSystem]
+ * @param fs 文件系统；Web 端应注入 [okio.fakefilesystem.FakeFileSystem]
  */
-class BackupBundle(private val fs: FileSystem = FileSystem.SYSTEM) {
+class BackupBundle(private val fs: FileSystem) {
 
     /**
      * 打包为 zip。
@@ -63,43 +61,11 @@ class BackupBundle(private val fs: FileSystem = FileSystem.SYSTEM) {
     }
 
     /**
-     * 解包 zip。
+     * 解包 zip（STORE）。
      *
-     * @throws okio.IOException zip 损坏，或缺少 [BackupLayout.BACKUP_JSON]
+     * @throws IllegalStateException zip 损坏，或缺少 [BackupLayout.BACKUP_JSON]
      */
-    fun unpack(zipPath: Path): UnpackedBackup {
-        val zip = fs.openZip(zipPath)
-        return try {
-            val json = readText(zip, BackupLayout.BACKUP_JSON.toPath())
-            val images = mutableMapOf<String, ByteArray>()
-            val imagesRoot = BackupLayout.IMAGES_ROOT.toPath()
-            if (zip.exists(imagesRoot)) collectImages(zip, imagesRoot, images)
-            UnpackedBackup(json, images)
-        } finally {
-            zip.close()
-        }
-    }
-
-    /** 递归收集 [dir] 下的图片文件（相对路径 → 字节）。 */
-    private fun collectImages(zip: FileSystem, dir: Path, out: MutableMap<String, ByteArray>) {
-        for (entry in zip.list(dir)) {
-            if (zip.metadata(entry).isDirectory) {
-                collectImages(zip, entry, out)
-            } else {
-                // Okio 报告的 zip 内路径带前导 '/'，统一成打包时的相对路径形式
-                out[entry.toString().removePrefix("/")] = readBytes(zip, entry)
-            }
-        }
-    }
-
-    private fun writeText(fs: FileSystem, path: Path, text: String) {
-        val sink = fs.sink(path).buffer()
-        try {
-            sink.writeUtf8(text)
-        } finally {
-            sink.close() // 会先 flush 再关闭底层 sink
-        }
-    }
+    fun unpack(zipPath: Path): UnpackedBackup = ZipReader.unpackFromFs(fs, zipPath)
 
     private fun writeBytes(fs: FileSystem, path: Path, bytes: ByteArray) {
         val sink = fs.sink(path).buffer()
@@ -107,24 +73,6 @@ class BackupBundle(private val fs: FileSystem = FileSystem.SYSTEM) {
             sink.write(bytes, 0, bytes.size)
         } finally {
             sink.close()
-        }
-    }
-
-    private fun readText(fs: FileSystem, path: Path): String {
-        val source = fs.source(path).buffer()
-        return try {
-            source.readUtf8()
-        } finally {
-            source.close()
-        }
-    }
-
-    private fun readBytes(fs: FileSystem, path: Path): ByteArray {
-        val source = fs.source(path).buffer()
-        return try {
-            source.readByteArray()
-        } finally {
-            source.close()
         }
     }
 }

@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -22,6 +23,11 @@ kotlin {
     }
 
     jvm()
+
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+    }
 
     android {
        namespace = "zhiqiu.app.destiny.shared"
@@ -49,14 +55,17 @@ kotlin {
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
             implementation(libs.ktor.client.okhttp)
+            implementation(libs.androidx.sqlite.bundled)
         }
 
         jvmMain.dependencies {
             implementation(libs.ktor.client.java)
+            implementation(libs.androidx.sqlite.bundled)
         }
 
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
+            implementation(libs.androidx.sqlite.bundled)
         }
 
         commonMain.dependencies {
@@ -94,7 +103,6 @@ kotlin {
             implementation(libs.kotlinx.datetime)
             implementation(libs.tyme4kt)
             implementation(libs.androidx.room3.runtime)
-            implementation(libs.androidx.sqlite.bundled)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.composeIcons.feather)
             implementation(libs.filekit.dialogs.compose)
@@ -106,6 +114,17 @@ kotlin {
         // jvmTest 里的 @Test 要靠 junit 适配器才能被 Gradle 发现
         jvmTest.dependencies {
             implementation(libs.kotlin.testJunit)
+            implementation(libs.androidx.sqlite.bundled)
+        }
+
+        val wasmJsMain by getting {
+            dependencies {
+                implementation(libs.ktor.client.js)
+                implementation(libs.androidx.sqlite.web)
+                implementation(libs.okio.fakefilesystem)
+                implementation(npm("@sqlite.org/sqlite-wasm", "3.50.1-build1"))
+                implementation(npm("sqlite-wasm-worker", project.file("sqlite-wasm-worker")))
+            }
         }
     }
 }
@@ -120,4 +139,5 @@ dependencies {
     add("kspJvm", libs.androidx.room3.compiler)
     add("kspIosArm64", libs.androidx.room3.compiler)
     add("kspIosSimulatorArm64", libs.androidx.room3.compiler)
+    add("kspWasmJs", libs.androidx.room3.compiler)
 }

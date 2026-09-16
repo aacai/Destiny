@@ -21,7 +21,9 @@ kotlin {
     jvm()
 
     // compose multiplatform 支持 wasm，webApp 可用
-    wasmJs()
+    wasmJs {
+        browser()
+    }
 
     android {
         namespace = "zhiqiu.liuyao.ui"

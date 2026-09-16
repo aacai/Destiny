@@ -90,7 +90,7 @@ fun ChartPagerScreen(
             val cat = pickCategory ?: return@rememberFilePickerLauncher
             pickCategory = null
             if (file != null) {
-                scope.launch(Dispatchers.IO) {
+                scope.launch(Dispatchers.Default) {
                     val bytes = runCatching { file.readBytes() }.getOrNull() ?: return@launch
                     val ext = file.name.substringAfterLast('.', "")
                     repository.addImage(profile.id, cat, bytes, ext)
@@ -102,7 +102,7 @@ fun ChartPagerScreen(
     fun saveNote() {
         val trimmed = noteDraft.trim()
         if (trimmed == profile.note) return
-        scope.launch(Dispatchers.IO) {
+        scope.launch(Dispatchers.Default) {
             repository.upsert(profile.copy(note = trimmed))
         }
     }
@@ -209,7 +209,7 @@ fun ChartPagerScreen(
                     imagesByCategory = imagesByCategory,
                     resolvePath = { image -> repository.imageAbsolutePath(image.relativePath) },
                     onNoteSaved = { text ->
-                        scope.launch(Dispatchers.IO) {
+                        scope.launch(Dispatchers.Default) {
                             repository.upsert(profile.copy(note = text))
                         }
                     },
@@ -218,7 +218,7 @@ fun ChartPagerScreen(
                         pickerLauncher.launch()
                     },
                     onDeleteImage = { image ->
-                        scope.launch(Dispatchers.IO) { repository.removeImage(image) }
+                        scope.launch(Dispatchers.Default) { repository.removeImage(image) }
                     },
                 )
             }
@@ -235,7 +235,7 @@ fun ChartPagerScreen(
                         pickerLauncher.launch()
                     },
                     onDeleteImage = { image ->
-                        scope.launch(Dispatchers.IO) { repository.removeImage(image) }
+                        scope.launch(Dispatchers.Default) { repository.removeImage(image) }
                     },
                     onClose = ::closeDrawer,
                 )

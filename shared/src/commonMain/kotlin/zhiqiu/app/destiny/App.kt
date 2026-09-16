@@ -20,7 +20,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.read
 import kotlinx.coroutines.launch
-import kotlin.system.exitProcess
 import zhiqiu.app.destiny.profile.ProfileRepository
 import zhiqiu.app.destiny.sharing.BackupSharing
 import zhiqiu.app.destiny.sharing.FileIoClient
@@ -93,7 +92,7 @@ fun App() {
                 ) { Text("删除旧数据并继续") }
             },
             dismissButton = {
-                TextButton(onClick = { exitProcess(0) }) { Text("退出应用") }
+                TextButton(onClick = { exitApp() }) { Text("退出应用") }
             },
         )
     }
@@ -204,6 +203,9 @@ expect fun createProfileRepository(): ProfileRepository
 
 /** 删除旧数据库文件与本地批注图片目录，用于 schema 不兼容时由用户确认后重建。 */
 expect fun deleteAppData()
+
+/** 退出应用；Web 端无进程可退时为 no-op。 */
+expect fun exitApp()
 
 @Composable
 expect fun rememberProfileRepository(): ProfileRepository

@@ -50,7 +50,6 @@ private val json = Json {
 
 private const val PBKDF2_ITERATIONS = 120_000
 private const val KEY_LEN = 32
-private val UTF8 = charset("UTF-8")
 
 /** 将所有档案、阅读偏好与图片元数据序列化为可读性好的 JSON 字符串（明文） */
 fun exportAllJson(
@@ -71,8 +70,8 @@ fun exportEncryptedJson(plaintext: String, password: String): String {
     require(password.isNotBlank()) { "密码不能为空" }
     val salt = randomBytes(16)
     val nonce = randomBytes(12)
-    val key = pbkdf2HmacSha256(password.toByteArray(UTF8), salt, PBKDF2_ITERATIONS, KEY_LEN)
-    val sealed = chacha20Poly1305Seal(key, nonce, plaintext.toByteArray(UTF8))
+    val key = pbkdf2HmacSha256(password.encodeToByteArray(), salt, PBKDF2_ITERATIONS, KEY_LEN)
+    val sealed = chacha20Poly1305Seal(key, nonce, plaintext.encodeToByteArray())
     return json.encodeToString(
         BackupEnvelope(
             encrypted = true,
@@ -124,8 +123,8 @@ private fun decryptEnvelope(envelopeText: String, password: String): String {
     val env = json.decodeFromString<BackupEnvelope>(envelopeText)
     require(env.encrypted) { "并非加密备份" }
     require(env.cipher == "chacha20-poly1305") { "不支持的加密算法: ${env.cipher}" }
-    val key = pbkdf2HmacSha256(password.toByteArray(UTF8), env.salt.fromHex(), env.iterations, KEY_LEN)
+    val key = pbkdf2HmacSha256(password.encodeToByteArray(), env.salt.fromHex(), env.iterations, KEY_LEN)
     return runCatching {
-        chacha20Poly1305Open(key, env.nonce.fromHex(), env.data.fromHex()).toString(UTF8)
+        chacha20Poly1305Open(key, env.nonce.fromHex(), env.data.fromHex()).decodeToString()
     }.getOrElse { throw IllegalArgumentException("密码错误或数据已被篡改") }
 }

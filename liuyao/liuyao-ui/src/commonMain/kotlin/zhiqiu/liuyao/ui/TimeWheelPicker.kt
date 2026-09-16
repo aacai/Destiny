@@ -112,8 +112,8 @@ fun TimePickerDialog(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                WheelColumn((0..23).map { "%02d".format(it) }, selHour) { selHour = it }
-                WheelColumn((0..59).map { "%02d".format(it) }, selMinute) { selMinute = it }
+                WheelColumn((0..23).map { it.toString().padStart(2, '0') }, selHour) { selHour = it }
+                WheelColumn((0..59).map { it.toString().padStart(2, '0') }, selMinute) { selMinute = it }
             }
         },
     )
@@ -134,7 +134,7 @@ fun TimeTrigger(hour: Int, minute: Int, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(
-            "%02d:%02d".format(hh, mm),
+            "${hh.toString().padStart(2, '0')}:${mm.toString().padStart(2, '0')}",
             color = PanInk,
             fontSize = 14.sp,
             fontWeight = androidx.compose.ui.text.font.FontWeight.Medium,

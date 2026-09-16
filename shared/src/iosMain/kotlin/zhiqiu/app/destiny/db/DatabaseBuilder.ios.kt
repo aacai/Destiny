@@ -2,6 +2,7 @@ package zhiqiu.app.destiny.db
 
 import androidx.room3.Room
 import androidx.room3.RoomDatabase
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSSearchPathForDirectoriesInDomains
 import platform.Foundation.NSUserDomainMask
@@ -14,4 +15,5 @@ internal fun documentDirectory(): String {
 fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase> {
     val dbFile = documentDirectory() + "/destiny.db"
     return Room.databaseBuilder<AppDatabase>(name = dbFile)
+        .setDriver(BundledSQLiteDriver())
 }

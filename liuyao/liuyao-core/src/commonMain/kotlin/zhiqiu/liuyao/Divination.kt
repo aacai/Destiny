@@ -78,7 +78,18 @@ data class DayInfo(
     /** 如一（即周一）。 */
     val weekLabel: String,
 ) {
-    val dateTimeLabel: String get() = "%04d-%02d-%02d %02d:%02d".format(year, month, day, hour, minute)
+    val dateTimeLabel: String
+        get() = buildString {
+            append(year.toString().padStart(4, '0'))
+            append('-')
+            append(month.toString().padStart(2, '0'))
+            append('-')
+            append(day.toString().padStart(2, '0'))
+            append(' ')
+            append(hour.toString().padStart(2, '0'))
+            append(':')
+            append(minute.toString().padStart(2, '0'))
+        }
 }
 
 /**
