@@ -30,7 +30,10 @@ kotlin {
     iosSimulatorArm64()
 
     // tyme4kt 有 wasm-js 变体，web 端可用
-    wasmJs()
+    @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+    }
 
     sourceSets {
         commonMain.dependencies {

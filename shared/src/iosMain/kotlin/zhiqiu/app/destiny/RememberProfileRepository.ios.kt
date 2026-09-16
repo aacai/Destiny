@@ -2,7 +2,9 @@ package zhiqiu.app.destiny
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import okio.FileSystem
 import platform.Foundation.NSFileManager
+import platform.posix.exit
 import zhiqiu.app.destiny.db.getRoomDatabase
 import zhiqiu.app.destiny.db.getDatabaseBuilder
 import zhiqiu.app.destiny.db.documentDirectory
@@ -10,8 +12,7 @@ import zhiqiu.app.destiny.profile.ProfileRepository
 import zhiqiu.app.destiny.sharing.ImageStorage
 
 actual fun createProfileRepository(): ProfileRepository {
-    val dbFile = documentDirectory() + "/destiny.db"
-    val imageStorage = ImageStorage(documentDirectory() + "/images")
+    val imageStorage = ImageStorage(documentDirectory() + "/images", FileSystem.SYSTEM)
     return ProfileRepository(getRoomDatabase(getDatabaseBuilder()), imageStorage)
 }
 
@@ -22,6 +23,10 @@ actual fun deleteAppData() {
     fm.removeItemAtPath(dir + "/destiny.db-wal", null)
     fm.removeItemAtPath(dir + "/destiny.db-shm", null)
     fm.removeItemAtPath(dir + "/images", null)
+}
+
+actual fun exitApp() {
+    exit(0)
 }
 
 @Composable

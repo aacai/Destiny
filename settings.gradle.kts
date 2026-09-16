@@ -57,3 +57,5 @@ project(":iztro-core").projectDir = file("third_party/ComposeIztro/iztro-core")
 
 include(":iztro-ui")
 project(":iztro-ui").projectDir = file("third_party/ComposeIztro/shared")
+
+include(":webApp")

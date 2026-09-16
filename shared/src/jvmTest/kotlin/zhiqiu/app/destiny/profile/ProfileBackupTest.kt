@@ -20,7 +20,7 @@ class ProfileBackupTest {
         val baseDir = File(System.getProperty("java.io.tmpdir"), "destiny-bk-${Random.nextInt()}")
         baseDir.deleteRecursively()
         val dbFile = File(baseDir, "destiny.db")
-        val imageStorage = ImageStorage(File(baseDir, "images").absolutePath)
+        val imageStorage = ImageStorage(File(baseDir, "images").absolutePath, okio.FileSystem.SYSTEM)
         val db = Room.databaseBuilder<AppDatabase>(name = dbFile.absolutePath)
             .setDriver(BundledSQLiteDriver())
             .fallbackToDestructiveMigration()

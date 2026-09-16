@@ -12,14 +12,17 @@ import kotlin.random.Random
  * 因此导入导出时路径可直接对应，无需转换。
  *
  * @param imagesRoot 图片根目录（绝对路径）；实际文件落在 `<imagesRoot>/<案例id>/<模块>/<文件名>`
- * @param fs 文件系统，默认 [FileSystem.SYSTEM]；测试可注入 [okio.fakefilesystem.FakeFileSystem]
+ * @param fs 文件系统；Web 端应注入 [okio.fakefilesystem.FakeFileSystem]
  */
 class ImageStorage(
     private val imagesRoot: String,
-    private val fs: FileSystem = FileSystem.SYSTEM,
+    private val fs: FileSystem,
 ) {
     /** 图片根目录（绝对路径），供上层拼接临时文件路径等 */
     val root: String get() = imagesRoot
+
+    /** 与本存储共用的文件系统（Web 可为 FakeFileSystem） */
+    val fileSystem: FileSystem get() = fs
 
     /** 保存图片字节，返回规范相对路径 `images/<案例id>/<模块>/<文件名>` */
     fun save(profileId: String, category: String, bytes: ByteArray, extension: String): String {

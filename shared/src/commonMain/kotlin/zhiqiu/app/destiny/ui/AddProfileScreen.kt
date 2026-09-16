@@ -124,7 +124,7 @@ fun AddProfileScreen(
     var showDatePicker by remember { mutableStateOf(false) }
     // 输入框显示「日期 + 时刻」，手输时自动解析出日期/时刻/时辰
     var dateText by remember {
-        mutableStateOf("${initial?.birthday ?: "2026-8-29"} " + "%02d:%02d".format(initial?.clockHour ?: 12, initial?.clockMinute ?: 0))
+        mutableStateOf("${initial?.birthday ?: "2026-8-29"} " + "${(initial?.clockHour ?: 12).toString().padStart(2, '0')}:${(initial?.clockMinute ?: 0).toString().padStart(2, '0')}")
     }
     var candidates by remember { mutableStateOf<List<BaziCandidate>>(emptyList()) }
     var lookupError by remember { mutableStateOf<String?>(null) }
@@ -163,7 +163,7 @@ fun AddProfileScreen(
         val maxD = if (mode == InputMode.Lunar) 30 else solarDaysInMonth(y, m)
         val d = dRaw.coerceIn(1, maxD)
         birthday = "$y-$m-$d"
-        dateText = "$birthday " + "%02d:%02d".format(clockHour, clockMinute)
+        dateText = "$birthday " + "${(clockHour).toString().padStart(2, '0')}:${(clockMinute).toString().padStart(2, '0')}"
     }
 
     // 手输「日期 时刻」：支持 2026-8-29 14:05、202608291405 等格式，并按时辰换算 timeIndex
@@ -442,7 +442,7 @@ fun AddProfileScreen(
                                         timeIndex = c.timeIndex
                                         clockHour = if (c.timeIndex == 0) 0 else c.timeIndex * 2 - 1
                                         clockMinute = 30
-                                        dateText = "${c.solarDate} " + "%02d:%02d".format(clockHour, clockMinute)
+                                        dateText = "${c.solarDate} " + "${(clockHour).toString().padStart(2, '0')}:${(clockMinute).toString().padStart(2, '0')}"
                                         mode = InputMode.Solar
                                         isLeapMonth = false
                                     }
@@ -522,12 +522,12 @@ fun AddProfileScreen(
                     horizontalArrangement = Arrangement.Center,
                 ) {
                     WheelColumn(
-                        items = (0..23).map { "%02d".format(it) },
+                        items = (0..23).map { it.toString().padStart(2, '0') },
                         startIndex = selHour,
                         onCenterChange = { selHour = it },
                     )
                     WheelColumn(
-                        items = (0..59).map { "%02d".format(it) },
+                        items = (0..59).map { it.toString().padStart(2, '0') },
                         startIndex = selMinute,
                         onCenterChange = { selMinute = it },
                     )
@@ -576,8 +576,8 @@ fun AddProfileScreen(
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        WheelColumn((0..23).map { "%02d".format(it) }, clockHour) { clockHour = it }
-                        WheelColumn((0..59).map { "%02d".format(it) }, clockMinute) { clockMinute = it }
+                        WheelColumn((0..23).map { it.toString().padStart(2, '0') }, clockHour) { clockHour = it }
+                        WheelColumn((0..59).map { it.toString().padStart(2, '0') }, clockMinute) { clockMinute = it }
                     }
                     Text("时 · 分", color = Muted, fontSize = 11.sp)
                 }
