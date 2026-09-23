@@ -25,3 +25,9 @@ python3 clean_ditiansui.py          # 清洗阐微正文
 - 维基文库公有领域原文，经脚本清洗为 UTF-8 纯文本。
 - 《滴天髓阐微》不在维基文库，用 `fetch_ditiansui.py`（古诗文网）。
 - 《子平真诠 / 千里命稿 / 八字提要》等需其它来源，请直接放真实 `.txt` 到 `files/books/`。
+- 若 txt 带网站壳（「第xxx章」「字号」）或四库 OCR 脏标记，可跑：
+
+```bash
+python3 clean_book_texts.py
+python3 clean_book_texts.py --only lixuzhongmingshu bazitiyao qianliminggao
+```
