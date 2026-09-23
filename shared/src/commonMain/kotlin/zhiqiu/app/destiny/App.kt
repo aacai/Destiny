@@ -20,7 +20,6 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.read
 import kotlinx.coroutines.launch
-import kotlin.system.exitProcess
 import zhiqiu.app.destiny.profile.ProfileRepository
 import zhiqiu.app.destiny.sharing.BackupSharing
 import zhiqiu.app.destiny.sharing.FileIoClient
@@ -30,6 +29,8 @@ import zhiqiu.app.destiny.ui.ChartPagerScreen
 import zhiqiu.app.destiny.ui.ProfileListScreen
 import zhiqiu.app.destiny.ui.books.BookshelfScreen
 import zhiqiu.app.destiny.ui.books.ReaderScreen
+import zhiqiu.liuyao.ui.LiuYaoScreen
+import zhiqiu.liuyao.ui.ZhouyiBrowserScreen
 
 private object Routes {
     const val List = "list"
@@ -37,6 +38,8 @@ private object Routes {
     const val Chart = "chart/{profileId}"
     const val Books = "books"
     const val Reader = "reader/{bookId}"
+    const val Liuyao = "liuyao"
+    const val Yijing = "yijing"
 
     fun chart(profileId: String) = "chart/$profileId"
     fun reader(bookId: String) = "reader/$bookId"
@@ -89,7 +92,7 @@ fun App() {
                 ) { Text("删除旧数据并继续") }
             },
             dismissButton = {
-                TextButton(onClick = { exitProcess(0) }) { Text("退出应用") }
+                TextButton(onClick = { exitApp() }) { Text("退出应用") }
             },
         )
     }
@@ -122,7 +125,17 @@ fun App(repository: ProfileRepository) {
                     onImportBackup = { bytes, password -> repository.importBackupBytes(bytes, password) },
                     sharing = sharing,
                     onOpenBooks = { navController.navigate(Routes.Books) },
+                    onOpenLiuyao = { navController.navigate(Routes.Liuyao) },
                 )
+            }
+            composable(Routes.Liuyao) {
+                LiuYaoScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenYijing = { navController.navigate(Routes.Yijing) },
+                )
+            }
+            composable(Routes.Yijing) {
+                ZhouyiBrowserScreen(onBack = { navController.popBackStack() })
             }
             composable(Routes.Books) {
                 BookshelfScreen(
@@ -190,6 +203,9 @@ expect fun createProfileRepository(): ProfileRepository
 
 /** 删除旧数据库文件与本地批注图片目录，用于 schema 不兼容时由用户确认后重建。 */
 expect fun deleteAppData()
+
+/** 退出应用；Web 端无进程可退时为 no-op。 */
+expect fun exitApp()
 
 @Composable
 expect fun rememberProfileRepository(): ProfileRepository

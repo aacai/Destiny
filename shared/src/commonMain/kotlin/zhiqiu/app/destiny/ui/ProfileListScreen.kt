@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.BookOpen
 import compose.icons.feathericons.Download
+import compose.icons.feathericons.Hexagon
 import compose.icons.feathericons.Link
 import compose.icons.feathericons.Plus
 import compose.icons.feathericons.Search
@@ -74,7 +75,6 @@ import io.github.vinceglb.filekit.*
 import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
-import io.github.vinceglb.filekit.dialogs.compose.rememberFileSaverLauncher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import zhiqiu.app.destiny.db.ReaderPrefEntity
@@ -139,6 +139,7 @@ fun ProfileListScreen(
     onImportBackup: suspend (bytes: ByteArray, password: String?) -> Unit,
     sharing: BackupSharing,
     onOpenBooks: () -> Unit = {},
+    onOpenLiuyao: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
     var query by rememberSaveable { mutableStateOf("") }
@@ -155,30 +156,19 @@ fun ProfileListScreen(
     var isSharing by remember { mutableStateOf(false) }
     var isLinkImporting by remember { mutableStateOf(false) }
     val shareQr = remember { mutableStateOf<ByteArray?>(null) }
-    val exportPayload = remember { mutableStateOf<ByteArray?>(null) }
     val importPassword = remember { mutableStateOf("") }
     val clipboard = LocalClipboardManager.current
 
-    val saverLauncher = rememberFileSaverLauncher(
-        dialogSettings = FileKitDialogSettings.createDefault(),
-        onResult = { file: PlatformFile? ->
-            val payload = exportPayload.value
-            if (file != null && payload != null) {
-                scope.launch(Dispatchers.IO) {
-                    exportMsg = runCatching {
-                        file.write(payload)
-                        "已导出到 ${file.name}"
-                    }.getOrDefault("导出失败")
-                }
-            }
-        },
+    val bytesSaver = rememberBytesFileSaver(
+        onSaved = { name -> exportMsg = "已导出到 $name" },
+        onFailed = { exportMsg = "导出失败" },
     )
     val pickerLauncher = rememberFilePickerLauncher(
         dialogSettings = FileKitDialogSettings.createDefault(),
         type = FileKitType.File(extensions = listOf("zip")),
         onResult = { file: PlatformFile? ->
             if (file != null) {
-                scope.launch(Dispatchers.IO) {
+                scope.launch(Dispatchers.Default) {
                     val bytes = runCatching { file.readBytes() }.getOrNull()
                     importMsg = if (bytes == null) {
                         "读取文件失败"
@@ -259,6 +249,11 @@ fun ProfileListScreen(
                             linkImportMsg = ""
                             showLinkImport = true
                         },
+                    )
+                    TipIconButton(
+                        icon = FeatherIcons.Hexagon,
+                        contentDescription = "六爻",
+                        onClick = onOpenLiuyao,
                     )
                     TipIconButton(
                         icon = FeatherIcons.BookOpen,
@@ -351,15 +346,10 @@ fun ProfileListScreen(
             profilesCount = profiles.size,
             message = exportMsg,
             onExport = { password ->
-                scope.launch(Dispatchers.IO) {
-                    exportPayload.value = runCatching { onExportBackup(password.ifBlank { null }) }
-                        .getOrNull()
-                    if (exportPayload.value != null) {
-                        saverLauncher.launch(
-                            suggestedName = "destiny-backup",
-                            defaultExtension = "zip",
-                            allowedExtensions = setOf("zip"),
-                        )
+                scope.launch(Dispatchers.Default) {
+                    val payload = runCatching { onExportBackup(password.ifBlank { null }) }.getOrNull()
+                    if (payload != null) {
+                        bytesSaver.save(payload, "destiny-backup.zip")
                     } else {
                         exportMsg = "导出失败"
                     }
@@ -368,7 +358,6 @@ fun ProfileListScreen(
             onClose = {
                 showExport = false
                 exportMsg = ""
-                exportPayload.value = null
             },
         )
     }
@@ -392,7 +381,7 @@ fun ProfileListScreen(
             loading = isSharing,
             onShare = { password ->
                 isSharing = true
-                scope.launch(Dispatchers.IO) {
+                scope.launch(Dispatchers.Default) {
                     val result = runCatching {
                         val zip = onExportBackup(password.ifBlank { null })
                         sharing.share(zip)
@@ -419,7 +408,7 @@ fun ProfileListScreen(
             loading = isLinkImporting,
             onImport = { link, password ->
                 isLinkImporting = true
-                scope.launch(Dispatchers.IO) {
+                scope.launch(Dispatchers.Default) {
                     linkImportMsg = runCatching {
                         val bytes = sharing.fetch(link)
                         onImportBackup(bytes, password.ifBlank { null })

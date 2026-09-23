@@ -4,7 +4,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
-import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
 import zhiqiu.app.destiny.db.AppDatabase
@@ -108,15 +107,16 @@ class ProfileRepository(
      * @param password 非空则对 `backup.json` 用 ChaCha20-Poly1305 加密
      */
     suspend fun exportBackup(zipPath: String, password: String? = null) = withContext(Dispatchers.Default) {
+        val fs = imageStorage.fileSystem
         val outPath = zipPath.toPath()
-        outPath.parent?.let { FileSystem.SYSTEM.createDirectories(it) }
+        outPath.parent?.let { fs.createDirectories(it) }
         val profiles = dao.selectAll().first()
         val prefs = database.readerPrefDao().getAll()
         val images = imageDao.selectAll().first()
         val plain = exportAllJson(profiles, prefs, images)
         val backupJson = if (password.isNullOrBlank()) plain else exportEncryptedJson(plain, password)
         val imageBytes = images.associate { it.relativePath to (imageStorage.read(it.relativePath) ?: byteArrayOf()) }
-        BackupBundle().pack(outPath, backupJson, imageBytes)
+        BackupBundle(fs).pack(outPath, backupJson, imageBytes)
     }
 
     /**
@@ -126,7 +126,7 @@ class ProfileRepository(
      * @param password 若备份已加密则提供密码；错误会抛 [IllegalArgumentException]
      */
     suspend fun importBackup(zipPath: String, password: String? = null) = withContext(Dispatchers.Default) {
-        val unpacked = BackupBundle().unpack(zipPath.toPath())
+        val unpacked = BackupBundle(imageStorage.fileSystem).unpack(zipPath.toPath())
         val parsed = importAllFromJson(unpacked.backupJson, password)
         for (p in parsed.profiles) upsert(p)
         upsertAllPrefs(parsed.readerPrefs)
@@ -141,22 +141,24 @@ class ProfileRepository(
      * 导出整库备份包的字节（同 [exportBackup]，但返回 zip 字节，便于直接保存到文件或上传）。
      */
     suspend fun exportBackupBytes(password: String? = null): ByteArray = withContext(Dispatchers.Default) {
+        val fs = imageStorage.fileSystem
         val tmp = tempZipPath()
         exportBackup(tmp.toString(), password)
-        FileSystem.SYSTEM.read(tmp) { readByteArray() }
+        fs.read(tmp) { readByteArray() }
     }
 
     /**
      * 从备份包字节导入整库（同 [importBackup]，但直接接收 zip 字节）。
      */
     suspend fun importBackupBytes(zipBytes: ByteArray, password: String? = null) = withContext(Dispatchers.Default) {
+        val fs = imageStorage.fileSystem
         val tmp = tempZipPath()
-        tmp.parent?.let { FileSystem.SYSTEM.createDirectories(it) }
-        FileSystem.SYSTEM.write(tmp) { write(zipBytes, 0, zipBytes.size) }
+        tmp.parent?.let { fs.createDirectories(it) }
+        fs.write(tmp) { write(zipBytes, 0, zipBytes.size) }
         try {
             importBackup(tmp.toString(), password)
         } finally {
-            runCatching { FileSystem.SYSTEM.delete(tmp) }
+            runCatching { fs.delete(tmp) }
         }
     }
 

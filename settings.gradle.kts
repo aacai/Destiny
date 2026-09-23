@@ -43,6 +43,12 @@ project(":qizheng-core").projectDir = file("qizheng/qizheng-core")
 include(":qizheng-ui")
 project(":qizheng-ui").projectDir = file("qizheng/qizheng-ui")
 
+include(":liuyao-core")
+project(":liuyao-core").projectDir = file("liuyao/liuyao-core")
+
+include(":liuyao-ui")
+project(":liuyao-ui").projectDir = file("liuyao/liuyao-ui")
+
 include(":crypto-core")
 project(":crypto-core").projectDir = file("crypto/crypto-core")
 
@@ -51,3 +57,5 @@ project(":iztro-core").projectDir = file("third_party/ComposeIztro/iztro-core")
 
 include(":iztro-ui")
 project(":iztro-ui").projectDir = file("third_party/ComposeIztro/shared")
+
+include(":webApp")

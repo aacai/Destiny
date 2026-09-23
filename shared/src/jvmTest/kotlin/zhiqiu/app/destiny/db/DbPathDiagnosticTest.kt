@@ -1,6 +1,7 @@
 package zhiqiu.app.destiny.db
 
 import androidx.room3.Room
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import zhiqiu.app.destiny.profile.Profile
@@ -16,7 +17,10 @@ class DbPathDiagnosticTest {
         // 而非 Room 为 @ConstructedBy 生成的裸 AppDatabase_Impl()（那种会抛 UninitializedPropertyAccessException）。
         val dbFile = File(System.getProperty("java.io.tmpdir"), "destiny-diag.db")
         dbFile.delete()
-        val db = getRoomDatabase(Room.databaseBuilder<AppDatabase>(name = dbFile.absolutePath))
+        val db = getRoomDatabase(
+            Room.databaseBuilder<AppDatabase>(name = dbFile.absolutePath)
+                .setDriver(BundledSQLiteDriver()),
+        )
         runBlocking(Dispatchers.IO) {
             db.profileDao().insert(
                 Profile(

@@ -18,6 +18,13 @@ subprojects {
             if (requested.group == "org.jetbrains.compose.material3") {
                 useVersion(libs.versions.material3.get())
                 because("Align Material3 with Compose Multiplatform ${libs.versions.composeMultiplatform.get()}")
+            } else if (
+                requested.group == "org.jetbrains.compose.annotation-internal" ||
+                requested.group == "org.jetbrains.compose.collection-internal"
+            ) {
+                // 1.12.0 稳定版尚未发布这两个内部坐标，对齐到同代 alpha
+                useVersion("1.12.0-alpha02")
+                because("Compose ${libs.versions.composeMultiplatform.get()} internals published as alpha02")
             } else if (requested.group.startsWith("org.jetbrains.compose")) {
                 useVersion(libs.versions.composeMultiplatform.get())
                 because("Align Compose Multiplatform artifacts with plugin ${libs.versions.composeMultiplatform.get()}")

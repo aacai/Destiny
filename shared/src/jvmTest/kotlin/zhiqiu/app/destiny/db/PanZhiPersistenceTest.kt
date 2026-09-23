@@ -29,7 +29,7 @@ class PanZhiPersistenceTest {
             .fallbackToDestructiveMigration()
             .setQueryCoroutineContext(Dispatchers.IO)
             .build()
-        val repo = ProfileRepository(db, ImageStorage(File(System.getProperty("java.io.tmpdir"), "destiny-test-images").absolutePath))
+        val repo = ProfileRepository(db, ImageStorage(File(System.getProperty("java.io.tmpdir"), "destiny-test-images").absolutePath, okio.FileSystem.SYSTEM))
 
         val saved = runBlocking {
             repo.upsert(
