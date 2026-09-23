@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -21,7 +22,10 @@ kotlin {
     jvm()
 
     // compose multiplatform 支持 wasm，webApp 可用
-    wasmJs()
+    @OptIn(ExperimentalWasmDsl::class)
+    wasmJs {
+        browser()
+    }
 
     android {
         namespace = "zhiqiu.qizheng.ui"

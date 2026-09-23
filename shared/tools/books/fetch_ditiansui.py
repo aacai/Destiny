@@ -12,8 +12,8 @@
 
 用法
 ----
-    python3 fetch_ditiansui.py                      # 下载到 ./books/滴天髓阐微.txt
-    python3 fetch_ditiansui.py --out books
+    # 默认写出到 composeResources/files/books/ditiunsuichanwei.txt（会打进 APK）
+    python3 fetch_ditiansui.py
     python3 fetch_ditiansui.py --proxy socks5://127.0.0.1:10808
 
 传输层复用 fetch_mingli_classics 的 http_get（优先 curl，支持 SOCKS/HTTP 代理与重试）。
@@ -27,13 +27,13 @@ import sys
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from fetch_mingli_classics import http_get, install_proxy  # noqa: E402
+from fetch_mingli_classics import DEFAULT_OUT, http_get, install_proxy  # noqa: E402
 
 BOOK_ID = "74c064ea85bf"
 TOC_URL = f"https://m.guwendao.net/guwen/book_{BOOK_ID}.aspx"
 MOBILE_UA = ("Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) "
              "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148")
-OUT_NAME = "滴天髓阐微"
+OUT_NAME = "ditiunsuichanwei"
 
 
 def fetch_chapter_list():
@@ -91,7 +91,8 @@ def clean_chapter(html):
 
 def main():
     ap = argparse.ArgumentParser(description="抓取《滴天髓阐微》为纯文本")
-    ap.add_argument("--out", default="books", help="输出目录 (默认 ./books)")
+    ap.add_argument("--out", default=DEFAULT_OUT,
+                    help=f"输出目录 (默认 {DEFAULT_OUT})")
     ap.add_argument("--proxy", default=None,
                     help="代理，如 socks5://127.0.0.1:10808；否则读 SOCKS_PROXY/HTTPS_PROXY 环境变量")
     args = ap.parse_args()

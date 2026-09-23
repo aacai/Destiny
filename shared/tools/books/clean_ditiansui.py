@@ -7,12 +7,17 @@
 
 用法
 ----
-    python3 clean_ditiansui.py                 # 就地清洗 books/滴天髓阐微.txt
+    python3 clean_ditiansui.py                 # 就地清洗 composeResources/.../ditiunsuichanwei.txt
     python3 clean_ditiansui.py --in x.txt --out y.txt
 """
 
 import argparse
+import os
 import re
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_IN = os.path.normpath(os.path.join(
+    _SCRIPT_DIR, "../../src/commonMain/composeResources/files/books/ditiunsuichanwei.txt"))
 
 
 def clean_block(block):
@@ -39,7 +44,7 @@ def clean_block(block):
 
 def main():
     ap = argparse.ArgumentParser(description="清洗《滴天髓阐微》抓取文件")
-    ap.add_argument("--in", dest="inp", default="books/滴天髓阐微.txt")
+    ap.add_argument("--in", dest="inp", default=DEFAULT_IN)
     ap.add_argument("--out", default=None, help="输出路径(默认就地覆盖 --in)")
     args = ap.parse_args()
     out = args.out or args.inp

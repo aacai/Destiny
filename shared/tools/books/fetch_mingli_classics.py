@@ -16,12 +16,11 @@
 
 用法
 ----
-    python3 fetch_mingli_classics.py                 # 下载全部，输出到 ./books
-    python3 fetch_mingli_classics.py --out mydir
-    python3 fetch_mingli_classics.py --only 神峰通考 三命通会
-    python3 fetch_mingli_classics.py --list          # 只列出将要下载的条目
+    # 默认写出到 composeResources/files/books/（ASCII 名，会打进 APK）
+    python3 fetch_mingli_classics.py
+    python3 fetch_mingli_classics.py --only 神峰通考 sanmingtonghui
+    python3 fetch_mingli_classics.py --list
     python3 fetch_mingli_classics.py --proxy socks5://127.0.0.1:10808
-        # 走 SOCKS5 代理（v2ray 等）；也可不传参而用环境变量 SOCKS_PROXY=...
 
 注意：本脚本需要能访问外网(维基文库)。在无法联网的环境里运行会失败。
 """
@@ -41,26 +40,38 @@ API = "https://zh.wikisource.org/w/api.php"
 UA = ("DestinyCorpusFetcher/1.0 (https://github.com/; educational corpus "
       "of public-domain Chinese astrology texts) python-urllib")
 
-# 每本书：name=输出文件名(不含扩展名)，search=搜索词，candidates=已知准确标题候选
+# 每本书：name=中文书名，id=composeResources ASCII 文件名，search/candidates=维基检索
 BOOKS = [
-    {"name": "穷通宝鉴", "search": "穷通宝鉴", "candidates": ["穷通宝鉴"]},
-    {"name": "三命通会", "search": "三命通會", "candidates": ["三命通會"]},
-    {"name": "渊海子平", "search": "淵海子平", "candidates": ["淵海子平", "渊海子平"]},
-    {"name": "神峰通考", "search": "神峰通考", "candidates": ["神峰通考"]},
-    {"name": "五行精纪", "search": "五行精紀", "candidates": ["五行精紀", "五行精纪"]},
-    {"name": "李虚中命书", "search": "李虛中命書",
+    {"name": "穷通宝鉴", "id": "qiongtongbaojian", "search": "穷通宝鉴",
+     "candidates": ["穷通宝鉴"]},
+    {"name": "三命通会", "id": "sanmingtonghui", "search": "三命通會",
+     "candidates": ["三命通會"]},
+    {"name": "渊海子平", "id": "yuanhaiziping", "search": "淵海子平",
+     "candidates": ["淵海子平", "渊海子平"]},
+    {"name": "神峰通考", "id": "shenfengtongkao", "search": "神峰通考",
+     "candidates": ["神峰通考"]},
+    {"name": "五行精纪", "id": "wuxingjingji", "search": "五行精紀",
+     "candidates": ["五行精紀", "五行精纪"]},
+    {"name": "李虚中命书", "id": "lixuzhongmingshu", "search": "李虛中命書",
      "candidates": ["李虛中命書", "李虚中命书", "李虛中命書 (四庫全書本)"]},
-    {"name": "滴天髓", "search": "滴天髓", "candidates": ["滴天髓"]},
-    {"name": "五行大义", "search": "五行大義", "candidates": ["五行大義", "五行大义"]},
-    {"name": "玉照定真经", "search": "玉照定真經",
+    {"name": "滴天髓", "id": "ditiunsui", "search": "滴天髓", "candidates": ["滴天髓"]},
+    {"name": "五行大义", "id": "wuxingdayi", "search": "五行大義",
+     "candidates": ["五行大義", "五行大义"]},
+    {"name": "玉照定真经", "id": "yuzhaodingzhenjing", "search": "玉照定真經",
      "candidates": ["玉照定真經 (四庫全書本)", "玉照定真經", "玉照定真经"]},
-    {"name": "珞琭子消息赋", "search": "珞琭子三命消息賦",
+    {"name": "珞琭子消息赋", "id": "luoluzixiaoxifu", "search": "珞琭子三命消息賦",
      "candidates": ["珞琭子三命消息賦註 (四庫全書本)", "珞琭子賦註 (四庫全書本)",
                     "珞琭子三命消息賦"]},
-    {"name": "星命总括", "search": "星命總括",
+    {"name": "星命总括", "id": "xingmingzongkuo", "search": "星命總括",
      "candidates": ["星命總括 (四庫全書本)", "星命總括", "星命总括"]},
-    {"name": "月谈赋", "search": "月談賦", "candidates": ["月談賦", "月谈赋"]},
+    {"name": "月谈赋", "id": "yuetanfu", "search": "月談賦",
+     "candidates": ["月談賦", "月谈赋"]},
 ]
+
+# 脚本所在目录 -> 默认写出到 composeResources/files/books（不进 APK 的是本 tools 目录）
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_OUT = os.path.normpath(os.path.join(
+    _SCRIPT_DIR, "../../src/commonMain/composeResources/files/books"))
 
 # 这些书在维基文库没有独立条目，脚本不会下载，仅在此注明其它来源(见 README)
 NOT_ON_WIKISOURCE = [
@@ -167,6 +178,9 @@ def http_get(url, timeout=60, retries=8, backoff=4.0, ua=None):
                         pass
                 if code == "429" or "Wikimedia Error" in body or "Too Many Requests" in body:
                     last_err = IOError("Wikimedia 429 限流")
+                    print(f"            [限流] 429，第 {attempt}/{retries} 次，"
+                          f"退避 {backoff * (2 ** (attempt - 1)):.0f}s",
+                          flush=True)
                 elif body.strip():
                     return body
                 else:
@@ -181,6 +195,7 @@ def http_get(url, timeout=60, retries=8, backoff=4.0, ua=None):
                 last_err = IOError("urllib 返回空响应")
         except Exception as e:  # noqa: BLE001  —— 网络抖动，重试
             last_err = e
+            print(f"            [重试] {attempt}/{retries}: {e}", flush=True)
         if attempt < retries:
             time.sleep(backoff * (2 ** (attempt - 1)))
     raise last_err or IOError("http_get 重试后仍失败")
@@ -358,12 +373,23 @@ def download_book(book, out_dir):
         return None
 
     print(f"  [下载] {book['name']}  <-  根条目: {root}")
-    print(f"          分卷({len(pages)}): " + ", ".join(pages))
+    print(f"          分卷共 {len(pages)} 卷", flush=True)
     parts = []
-    for t in pages:
-        raw = fetch_raw(t)
-        if raw:
-            parts.append(clean(raw))
+    for i, t in enumerate(pages, 1):
+        print(f"          [{i}/{len(pages)}] 拉取 {t} ...", flush=True)
+        try:
+            raw = fetch_raw(t)
+            if raw:
+                cleaned = clean(raw)
+                parts.append(cleaned)
+                print(f"          [{i}/{len(pages)}] 完成 {t}  ({len(cleaned)} 字)",
+                      flush=True)
+            else:
+                print(f"          [{i}/{len(pages)}] 空正文 {t}",
+                      file=sys.stderr, flush=True)
+        except Exception as e:  # noqa: BLE001
+            print(f"          [{i}/{len(pages)}] 失败 {t}: {e}",
+                  file=sys.stderr, flush=True)
         time.sleep(0.4)
 
     full = "\n\n".join(p for p in parts if p)
@@ -371,7 +397,8 @@ def download_book(book, out_dir):
         print(f"  [跳过] {book['name']}：正文为空", file=sys.stderr)
         return None
 
-    path = os.path.join(out_dir, book["name"] + ".txt")
+    file_id = book.get("id") or book["name"]
+    path = os.path.join(out_dir, file_id + ".txt")
     with open(path, "w", encoding="utf-8") as f:
         f.write(full)
     print(f"          已保存 -> {path}  ({len(full)} 字)")
@@ -380,8 +407,9 @@ def download_book(book, out_dir):
 
 def main():
     ap = argparse.ArgumentParser(description="从维基文库下载命理古籍为纯文本")
-    ap.add_argument("--out", default="books", help="输出目录 (默认 ./books)")
-    ap.add_argument("--only", nargs="*", help="只下载指定书名")
+    ap.add_argument("--out", default=DEFAULT_OUT,
+                    help=f"输出目录 (默认 {DEFAULT_OUT})")
+    ap.add_argument("--only", nargs="*", help="只下载指定书名或 ASCII id")
     ap.add_argument("--list", action="store_true", help="只列出将要下载的条目后退出")
     ap.add_argument("--proxy", default=None,
                     help="代理地址，如 socks5://127.0.0.1:10808 或 http://host:port。"
@@ -393,15 +421,17 @@ def main():
     books = BOOKS
     if args.only:
         wanted = set(args.only)
-        books = [b for b in BOOKS if b["name"] in wanted]
+        books = [b for b in BOOKS
+                 if b["name"] in wanted or b.get("id") in wanted]
         if not books:
-            print("没有匹配的书名。可选：", ", ".join(b["name"] for b in BOOKS),
+            print("没有匹配的书名。可选：",
+                  ", ".join(f"{b['name']}({b.get('id','')})" for b in BOOKS),
                   file=sys.stderr)
             return
 
     print("将处理的书籍（维基文库可用）：")
     for b in books:
-        print("  -", b["name"])
+        print(f"  - {b['name']} -> {b.get('id', b['name'])}.txt")
     if NOT_ON_WIKISOURCE:
         print("维基文库无独立条目（见 README 其它来源）：",
               ", ".join(NOT_ON_WIKISOURCE))

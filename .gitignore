@@ -55,6 +55,3 @@ Thumbs.db
 
 # ========== Node (if used) ==========
 node_modules/
-
-# ========== 生成的语料（由 fetch 脚本下载，非源码） ==========
-corpus/books/

@@ -27,7 +27,7 @@ data class BookSection(
 object BookStore {
     private const val RESOURCE_DIR = "files/books/"
 
-    /** 书目与 corpus/books 下古籍一一对应（拷贝为 ASCII 文件名打包进资源） */
+    /** 书目与 composeResources/files/books 下 ASCII .txt 一一对应（打进各端包） */
     val catalog: List<BookMeta> = listOf(
         BookMeta("sanmingtonghui", "三命通会", "命理", 0xFF2E6FB7, 0xFF1B3E68),
         BookMeta("yuanhaiziping", "渊海子平", "命理", 0xFFE2574C, 0xFF9A2A21),
