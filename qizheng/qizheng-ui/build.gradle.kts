@@ -1,3 +1,4 @@
+import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -21,6 +22,7 @@ kotlin {
     jvm()
 
     // compose multiplatform 支持 wasm，webApp 可用
+    @OptIn(ExperimentalWasmDsl::class)
     wasmJs {
         browser()
     }
