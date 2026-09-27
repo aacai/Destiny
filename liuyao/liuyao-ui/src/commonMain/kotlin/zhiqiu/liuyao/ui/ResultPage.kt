@@ -90,7 +90,7 @@ fun ResultPage(
         val d = dayInfo ?: return@remember null
         buildChart(kinds, d, ZhanSelection(topic, sub), gender)
     }
-    Column(modifier = Modifier.fillMaxSize().background(Color(0xFFF5F3EE))) {
+    Column(modifier = Modifier.fillMaxSize().background(LocalPanColors.current.page)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

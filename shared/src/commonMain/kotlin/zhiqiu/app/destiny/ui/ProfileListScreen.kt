@@ -69,7 +69,11 @@ import compose.icons.feathericons.Search
 import compose.icons.feathericons.Share2
 import compose.icons.feathericons.Trash2
 import compose.icons.feathericons.Upload
+import compose.icons.feathericons.Moon
+import compose.icons.feathericons.Sun
 import compose.icons.feathericons.X
+import zhiqiu.app.destiny.ui.theme.DestinyColorMode
+import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import coil3.compose.AsyncImage
 import io.github.vinceglb.filekit.*
 import io.github.vinceglb.filekit.dialogs.FileKitDialogSettings
@@ -84,15 +88,6 @@ import zhiqiu.app.destiny.sharing.generateQrCodePng
 import zhiqiu.app.destiny.time.timeIndexLabel
 import androidx.compose.material3.Checkbox
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-
-private val PageBg = Color(0xFFF5F3EE)
-private val CardBg = Color(0xFFFFFFFF)
-private val Ink = Color(0xFF222222)
-private val Muted = Color(0xFF8A8578)
-private val Line = Color(0xFFE2DED2)
-private val Accent = Color(0xFF26A6A6)
-private val MaleDot = Color(0xFF4A90D9)
-private val FemaleDot = Color(0xFFE57373)
 
 private enum class SortKey(val label: String) {
     CREATED("创建"), NAME("名字"), BIRTH("生日"),
@@ -114,7 +109,7 @@ private fun TipIconButton(
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    tint: Color = Accent,
+    tint: Color = DestinyTheme.accent,
 ) {
     TooltipBox(
         positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
@@ -140,13 +135,25 @@ fun ProfileListScreen(
     sharing: BackupSharing,
     onOpenBooks: () -> Unit = {},
     onOpenLiuyao: () -> Unit = {},
+    colorMode: DestinyColorMode = DestinyColorMode.Light,
+    onToggleColorMode: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
+    val PageBg = DestinyTheme.page
+    val CardBg = DestinyTheme.card
+    val Ink = DestinyTheme.ink
+    val Muted = DestinyTheme.muted
+    val Line = DestinyTheme.line
+    val Accent = DestinyTheme.accent
+    val MaleDot = DestinyTheme.male
+    val FemaleDot = DestinyTheme.female
+    val Danger = DestinyTheme.danger
     var query by rememberSaveable { mutableStateOf("") }
     var sortKey by rememberSaveable { mutableStateOf(SortKey.CREATED) }
     var ascending by rememberSaveable { mutableStateOf(false) }
     var showExport by remember { mutableStateOf(false) }
     var exportMsg by remember { mutableStateOf("") }
+    var pendingDelete by remember { mutableStateOf<Profile?>(null) }
     var showImport by remember { mutableStateOf(false) }
     var importMsg by remember { mutableStateOf("") }
     var showShare by remember { mutableStateOf(false) }
@@ -201,22 +208,27 @@ fun ProfileListScreen(
     }
 
     Scaffold(
-        containerColor = PageBg,
+        containerColor = DestinyTheme.page,
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text("档案", color = Ink, fontWeight = FontWeight.Bold)
+                        Text("档案", color = DestinyTheme.ink, fontWeight = FontWeight.Bold)
                         Text(
                             if (q.isBlank()) "共 ${profiles.size} 个档案"
                             else "匹配 ${sorted.size} / ${profiles.size}",
-                            color = Muted,
+                            color = DestinyTheme.muted,
                             fontSize = 12.sp,
                         )
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = PageBg),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = DestinyTheme.page),
                 actions = {
+                    TipIconButton(
+                        icon = if (colorMode == DestinyColorMode.Dark) FeatherIcons.Sun else FeatherIcons.Moon,
+                        contentDescription = if (colorMode == DestinyColorMode.Dark) "日间模式" else "夜间模式",
+                        onClick = onToggleColorMode,
+                    )
                     TipIconButton(
                         icon = FeatherIcons.Upload,
                         contentDescription = "导出",
@@ -271,7 +283,7 @@ fun ProfileListScreen(
             ) {
                 FloatingActionButton(
                     onClick = onAdd,
-                    containerColor = Accent,
+                    containerColor = DestinyTheme.accent,
                     contentColor = Color.White,
                 ) {
                     Icon(imageVector = FeatherIcons.Plus, contentDescription = "添加档案")
@@ -287,9 +299,9 @@ fun ProfileListScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("还没有档案", color = Muted)
+                    Text("还没有档案", color = DestinyTheme.muted)
                     Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(onClick = onAdd) { Text("添加档案", color = Accent) }
+                    TextButton(onClick = onAdd) { Text("添加档案", color = DestinyTheme.accent) }
                 }
             }
         } else {
@@ -325,7 +337,7 @@ fun ProfileListScreen(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text("没有匹配「$q」的档案", color = Muted, fontSize = 14.sp)
+                                Text("没有匹配「$q」的档案", color = DestinyTheme.muted, fontSize = 14.sp)
                             }
                         }
                     }
@@ -333,12 +345,39 @@ fun ProfileListScreen(
                         ProfileRow(
                             profile = profile,
                             onClick = { onOpen(profile) },
-                            onDelete = { onDelete(profile) },
+                            onDelete = { pendingDelete = profile },
                         )
                     }
                 }
             }
         }
+    }
+
+    pendingDelete?.let { profile ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("确认删除", color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "确定删除「${profile.name.ifBlank { "未命名" }}」吗？此操作不可恢复。",
+                    color = DestinyTheme.muted,
+                    fontSize = 14.sp,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingDelete = null
+                        onDelete(profile)
+                    },
+                ) { Text("删除", color = DestinyTheme.danger) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text("取消", color = DestinyTheme.muted)
+                }
+            },
+        )
     }
 
     if (showExport) {
@@ -437,20 +476,20 @@ private fun ExportDialog(
     AlertDialog(
         onDismissRequest = onClose,
         confirmButton = {
-            TextButton(onClick = onClose) { Text("关闭", color = Accent) }
+            TextButton(onClick = onClose) { Text("关闭", color = DestinyTheme.accent) }
         },
-        title = { Text("导出数据", color = Ink, fontWeight = FontWeight.Bold) },
+        title = { Text("导出数据", color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text(
                     "共 $profilesCount 个档案及批注图片。点击「导出为文件」生成 destiny-backup.zip（含全部图片）。",
                     fontSize = 12.sp,
-                    color = Muted,
+                    color = DestinyTheme.muted,
                 )
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = encrypt, onCheckedChange = { encrypt = it })
-                    Text("加密导出（用密码保护）", fontSize = 12.sp, color = Ink)
+                    Text("加密导出（用密码保护）", fontSize = 12.sp, color = DestinyTheme.ink)
                 }
                 if (encrypt) {
                     Spacer(Modifier.height(4.dp))
@@ -464,7 +503,7 @@ private fun ExportDialog(
                     )
                     if (password.isBlank()) {
                         Spacer(Modifier.height(4.dp))
-                        Text("请输入密码后再导出", fontSize = 12.sp, color = Muted)
+                        Text("请输入密码后再导出", fontSize = 12.sp, color = DestinyTheme.muted)
                     }
                 }
                 Spacer(Modifier.height(10.dp))
@@ -472,11 +511,11 @@ private fun ExportDialog(
                     onClick = { onExport(password) },
                     enabled = !encrypt || password.isNotBlank(),
                 ) {
-                    Text("导出为文件", color = Accent)
+                    Text("导出为文件", color = DestinyTheme.accent)
                 }
                 if (message.isNotBlank()) {
                     Spacer(Modifier.height(6.dp))
-                    Text(message, fontSize = 12.sp, color = Accent)
+                    Text(message, fontSize = 12.sp, color = DestinyTheme.accent)
                 }
             }
         },
@@ -493,15 +532,15 @@ private fun ImportDialog(
     AlertDialog(
         onDismissRequest = onClose,
         confirmButton = {
-            TextButton(onClick = onClose) { Text("取消", color = Muted) }
+            TextButton(onClick = onClose) { Text("取消", color = DestinyTheme.muted) }
         },
-        title = { Text("导入数据", color = Ink, fontWeight = FontWeight.Bold) },
+        title = { Text("导入数据", color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text(
                     "点击「选择文件导入」选取 destiny-backup.zip。导入按 id 合并，已存在的档案与图片将被覆盖。",
                     fontSize = 12.sp,
-                    color = Muted,
+                    color = DestinyTheme.muted,
                 )
                 Spacer(Modifier.height(8.dp))
                 BasicInputField(
@@ -514,11 +553,11 @@ private fun ImportDialog(
                 )
                 Spacer(Modifier.height(10.dp))
                 TextButton(onClick = { onPickFile(password) }) {
-                    Text("选择文件导入", color = Accent)
+                    Text("选择文件导入", color = DestinyTheme.accent)
                 }
                 if (message.isNotBlank()) {
                     Spacer(Modifier.height(6.dp))
-                    Text(message, fontSize = 12.sp, color = Accent)
+                    Text(message, fontSize = 12.sp, color = DestinyTheme.accent)
                 }
             }
         },
@@ -531,27 +570,27 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
-            .background(CardBg, RoundedCornerShape(10.dp))
-            .border(1.dp, Line, RoundedCornerShape(10.dp))
+            .background(DestinyTheme.card, RoundedCornerShape(10.dp))
+            .border(1.dp, DestinyTheme.line, RoundedCornerShape(10.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = FeatherIcons.Search,
             contentDescription = null,
-            tint = Muted,
+            tint = DestinyTheme.muted,
             modifier = Modifier.size(16.dp),
         )
         Spacer(modifier = Modifier.width(8.dp))
         Box(modifier = Modifier.weight(1f)) {
             if (query.isEmpty()) {
-                Text("搜索名字、日期、四柱…", color = Muted, fontSize = 14.sp)
+                Text("搜索名字、日期、四柱…", color = DestinyTheme.muted, fontSize = 14.sp)
             }
             BasicTextField(
                 value = query,
                 onValueChange = onQueryChange,
                 singleLine = true,
-                textStyle = TextStyle(fontSize = 14.sp, color = Ink),
+                textStyle = TextStyle(fontSize = 14.sp, color = DestinyTheme.ink),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -560,7 +599,7 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
             Icon(
                 imageVector = FeatherIcons.X,
                 contentDescription = "清除",
-                tint = Muted,
+                tint = DestinyTheme.muted,
                 modifier = Modifier
                     .size(16.dp)
                     .clickable { onQueryChange("") },
@@ -588,12 +627,12 @@ private fun SortRow(
                 modifier = Modifier
                     .clickable { onSelect(key) }
                     .background(
-                        if (active) Accent.copy(alpha = 0.12f) else CardBg,
+                        if (active) DestinyTheme.accent.copy(alpha = 0.12f) else DestinyTheme.card,
                         RoundedCornerShape(8.dp),
                     )
                     .border(
                         1.dp,
-                        if (active) Accent else Line,
+                        if (active) DestinyTheme.accent else DestinyTheme.line,
                         RoundedCornerShape(8.dp),
                     )
                     .padding(horizontal = 10.dp, vertical = 5.dp),
@@ -601,7 +640,7 @@ private fun SortRow(
             ) {
                 Text(
                     key.label,
-                    color = if (active) Accent else Muted,
+                    color = if (active) DestinyTheme.accent else DestinyTheme.muted,
                     fontSize = 12.sp,
                     fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
                 )
@@ -609,7 +648,7 @@ private fun SortRow(
                     Spacer(modifier = Modifier.width(2.dp))
                     Text(
                         if (ascending) "↑" else "↓",
-                        color = Accent,
+                        color = DestinyTheme.accent,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -628,8 +667,8 @@ private fun ProfileRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CardBg, RoundedCornerShape(12.dp))
-            .border(1.dp, Line, RoundedCornerShape(12.dp))
+            .background(DestinyTheme.card, RoundedCornerShape(12.dp))
+            .border(1.dp, DestinyTheme.line, RoundedCornerShape(12.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -639,14 +678,14 @@ private fun ProfileRow(
             modifier = Modifier
                 .size(34.dp)
                 .background(
-                    (if (profile.gender == "女") FemaleDot else MaleDot).copy(alpha = 0.15f),
+                    (if (profile.gender == "女") DestinyTheme.female else DestinyTheme.male).copy(alpha = 0.15f),
                     CircleShape,
                 ),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 (profile.name.ifBlank { "未" }).take(1),
-                color = if (profile.gender == "女") FemaleDot else MaleDot,
+                color = if (profile.gender == "女") DestinyTheme.female else DestinyTheme.male,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
             )
@@ -656,14 +695,14 @@ private fun ProfileRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     profile.name.ifBlank { "未命名" },
-                    color = Ink,
+                    color = DestinyTheme.ink,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     profile.gender,
-                    color = if (profile.gender == "女") FemaleDot else MaleDot,
+                    color = if (profile.gender == "女") DestinyTheme.female else DestinyTheme.male,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -671,7 +710,7 @@ private fun ProfileRow(
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         "· ${profile.groupName}",
-                        color = Muted,
+                        color = DestinyTheme.muted,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -680,12 +719,12 @@ private fun ProfileRow(
             Spacer(modifier = Modifier.height(3.dp))
             Text(
                 "${profile.solarDateDisplay.ifBlank { profile.birthday }} · ${timeIndexLabel(profile.timeIndex)}",
-                color = Muted,
+                color = DestinyTheme.muted,
                 fontSize = 12.sp,
             )
             if (profile.baziSummary.isNotBlank()) {
                 Spacer(modifier = Modifier.height(2.dp))
-                Text(profile.baziSummary, color = Accent, fontSize = 12.sp)
+                Text(profile.baziSummary, color = DestinyTheme.accent, fontSize = 12.sp)
             }
         }
         @OptIn(ExperimentalMaterial3Api::class)
@@ -698,8 +737,8 @@ private fun ProfileRow(
                 Icon(
                     imageVector = FeatherIcons.Trash2,
                     contentDescription = "删除",
-                    tint = Line,
-                    modifier = Modifier.size(18.dp),
+                    tint = DestinyTheme.danger,
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }
@@ -723,26 +762,26 @@ private fun ShareDialog(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (message.startsWith("https://")) {
                     TextButton(onClick = onCopy) {
-                        Text("复制链接", color = Accent)
+                        Text("复制链接", color = DestinyTheme.accent)
                     }
                 }
                 TextButton(onClick = onClose) {
-                    Text("关闭", color = Accent)
+                    Text("关闭", color = DestinyTheme.accent)
                 }
             }
         },
-        title = { Text("分享到链接", color = Ink, fontWeight = FontWeight.Bold) },
+        title = { Text("分享到链接", color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
                     "生成备份包并上传到 Litterbox，得到一个 72 小时内有效的分享链接（到期后自动删除，请尽快导入）。",
                     fontSize = 12.sp,
-                    color = Muted,
+                    color = DestinyTheme.muted,
                 )
                 Spacer(Modifier.height(6.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = encrypt, onCheckedChange = { encrypt = it })
-                    Text("加密备份（用密码保护）", fontSize = 12.sp, color = Ink)
+                    Text("加密备份（用密码保护）", fontSize = 12.sp, color = DestinyTheme.ink)
                 }
                 if (encrypt) {
                     Spacer(Modifier.height(4.dp))
@@ -765,22 +804,22 @@ private fun ShareDialog(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp,
-                                color = Accent,
+                                color = DestinyTheme.accent,
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text("正在生成并上传…", color = Accent)
+                            Text("正在生成并上传…", color = DestinyTheme.accent)
                         }
                     } else {
-                        Text("生成分享链接", color = Accent)
+                        Text("生成分享链接", color = DestinyTheme.accent)
                     }
                 }
                 if (message.isNotBlank()) {
                     Spacer(Modifier.height(8.dp))
                     if (message.startsWith("https://")) {
-                        Text("分享链接（可复制或扫码）：", fontSize = 12.sp, color = Muted)
+                        Text("分享链接（可复制或扫码）：", fontSize = 12.sp, color = DestinyTheme.muted)
                         Spacer(Modifier.height(4.dp))
                         SelectionContainer {
-                            Text(message, fontSize = 12.sp, color = Ink)
+                            Text(message, fontSize = 12.sp, color = DestinyTheme.ink)
                         }
                         Spacer(Modifier.height(8.dp))
                         qrBytes?.let { bytes ->
@@ -793,9 +832,9 @@ private fun ShareDialog(
                             )
                             Spacer(Modifier.height(8.dp))
                         }
-                        Text("（已自动复制到剪贴板，也可点「复制链接」）", fontSize = 11.sp, color = Muted)
+                        Text("（已自动复制到剪贴板，也可点「复制链接」）", fontSize = 11.sp, color = DestinyTheme.muted)
                     } else {
-                        Text(message, fontSize = 12.sp, color = Accent)
+                        Text(message, fontSize = 12.sp, color = DestinyTheme.accent)
                     }
                 }
             }
@@ -815,15 +854,15 @@ private fun LinkImportDialog(
     AlertDialog(
         onDismissRequest = onClose,
         confirmButton = {
-            TextButton(onClick = onClose) { Text("取消", color = Muted) }
+            TextButton(onClick = onClose) { Text("取消", color = DestinyTheme.muted) }
         },
-        title = { Text("从链接导入", color = Ink, fontWeight = FontWeight.Bold) },
+        title = { Text("从链接导入", color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text(
                     "粘贴他人分享的 Litterbox 链接（72 小时内有效），下载并导入。",
                     fontSize = 12.sp,
-                    color = Muted,
+                    color = DestinyTheme.muted,
                 )
                 Spacer(Modifier.height(8.dp))
                 BasicInputField(
@@ -852,18 +891,18 @@ private fun LinkImportDialog(
                             CircularProgressIndicator(
                                 modifier = Modifier.size(16.dp),
                                 strokeWidth = 2.dp,
-                                color = Accent,
+                                color = DestinyTheme.accent,
                             )
                             Spacer(Modifier.width(6.dp))
-                            Text("正在下载并导入…", color = Accent)
+                            Text("正在下载并导入…", color = DestinyTheme.accent)
                         }
                     } else {
-                        Text("下载并导入", color = Accent)
+                        Text("下载并导入", color = DestinyTheme.accent)
                     }
                 }
                 if (message.isNotBlank()) {
                     Spacer(Modifier.height(6.dp))
-                    Text(message, fontSize = 12.sp, color = Accent)
+                    Text(message, fontSize = 12.sp, color = DestinyTheme.accent)
                 }
             }
         },
@@ -889,7 +928,7 @@ private fun BasicInputField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
-            .border(1.dp, Muted, RoundedCornerShape(8.dp))
+            .border(1.dp, DestinyTheme.muted, RoundedCornerShape(8.dp))
             .padding(horizontal = 12.dp, vertical = 10.dp),
         singleLine = singleLine,
         textStyle = textStyle,
@@ -897,11 +936,11 @@ private fun BasicInputField(
         decorationBox = { innerTextField ->
             Column {
                 if (label != null) {
-                    Text(label, fontSize = 12.sp, color = Muted)
+                    Text(label, fontSize = 12.sp, color = DestinyTheme.muted)
                     Spacer(Modifier.height(4.dp))
                 }
                 if (value.isEmpty() && placeholder != null) {
-                    Text(placeholder, fontSize = 13.sp, color = Muted)
+                    Text(placeholder, fontSize = 13.sp, color = DestinyTheme.muted)
                 }
                 innerTextField()
             }

@@ -63,6 +63,7 @@ import kotlinx.coroutines.withContext
 import zhiqiu.app.destiny.chart.computeBaziSummary
 import zhiqiu.app.destiny.chart.resolvedSolarDate
 import zhiqiu.app.destiny.profile.Profile
+import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import zhiqiu.app.destiny.time.TIME_INDEX_LABELS
 import zhiqiu.iztro.bazi.lookup.BaziCandidate
 import zhiqiu.iztro.bazi.lookup.BaziPillars
@@ -81,15 +82,6 @@ import kotlinx.datetime.YearMonth
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-private val PageBg = Color(0xFFF5F3EE)
-private val CardBg = Color(0xFFFFFFFF)
-private val Ink = Color(0xFF222222)
-private val Muted = Color(0xFF8A8578)
-private val Line = Color(0xFFE2DED2)
-private val Accent = Color(0xFF26A6A6)
-private val MaleDot = Color(0xFF4A90D9)
-private val FemaleDot = Color(0xFFE57373)
-
 private enum class InputMode(val label: String) { Solar("公历"), Lunar("农历"), Bazi("八字") }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
@@ -99,6 +91,14 @@ fun AddProfileScreen(
     onSave: (Profile) -> Unit,
     onCancel: () -> Unit,
 ) {
+    val PageBg = DestinyTheme.page
+    val CardBg = DestinyTheme.card
+    val Ink = DestinyTheme.ink
+    val Muted = DestinyTheme.muted
+    val Line = DestinyTheme.line
+    val Accent = DestinyTheme.accent
+    val MaleDot = DestinyTheme.male
+    val FemaleDot = DestinyTheme.female
     var name by remember { mutableStateOf(initial?.name.orEmpty()) }
     var note by remember { mutableStateOf(initial?.note.orEmpty()) }
     var groupName by remember { mutableStateOf(initial?.groupName?.takeIf { it.isNotBlank() } ?: "默认") }
@@ -213,18 +213,18 @@ fun AddProfileScreen(
     }
 
     Scaffold(
-        containerColor = PageBg,
+        containerColor = DestinyTheme.page,
         topBar = {
             TopAppBar(
                 title = {
                     Text(
                         if (initial == null) "添加档案" else "编辑档案",
-                        color = Ink,
+                        color = DestinyTheme.ink,
                         fontWeight = FontWeight.Bold,
                     )
                 },
                 navigationIcon = { IosBackButton(onClick = onCancel) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = PageBg),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = DestinyTheme.page),
             )
         },
     ) { padding ->
@@ -242,41 +242,41 @@ fun AddProfileScreen(
                 Spacer(modifier = Modifier.height(12.dp))
                 FieldBox(label = "备注", value = note, onValueChange = { note = it }, placeholder = "备注（可选）")
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("分组", color = Muted, fontSize = 12.sp)
+                Text("分组", color = DestinyTheme.muted, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("默认", "家人", "朋友", "案例", "名人").forEach { g ->
                         val selected = groupName == g
                         Text(
                             g,
-                            color = if (selected) Color.White else Ink,
+                            color = if (selected) Color.White else DestinyTheme.ink,
                             fontSize = 12.sp,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                             modifier = Modifier
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(if (selected) Accent else PageBg)
-                                .border(1.dp, if (selected) Accent else Line, RoundedCornerShape(8.dp))
+                                .background(if (selected) DestinyTheme.accent else DestinyTheme.page)
+                                .border(1.dp, if (selected) DestinyTheme.accent else DestinyTheme.line, RoundedCornerShape(8.dp))
                                 .clickable { groupName = g }
                                 .padding(horizontal = 11.dp, vertical = 7.dp),
                         )
                     }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("性别", color = Muted, fontSize = 12.sp)
+                Text("性别", color = DestinyTheme.muted, fontSize = 12.sp)
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    listOf("男" to MaleDot, "女" to FemaleDot).forEach { (g, color) ->
+                    listOf("男" to DestinyTheme.male, "女" to DestinyTheme.female).forEach { (g, color) ->
                         val selected = gender == g
                         Row(
                             modifier = Modifier
                                 .clickable { gender = g }
                                 .background(
-                                    if (selected) color.copy(alpha = 0.12f) else PageBg,
+                                    if (selected) color.copy(alpha = 0.12f) else DestinyTheme.page,
                                     RoundedCornerShape(10.dp),
                                 )
                                 .border(
                                     1.dp,
-                                    if (selected) color else Line,
+                                    if (selected) color else DestinyTheme.line,
                                     RoundedCornerShape(10.dp),
                                 )
                                 .padding(horizontal = 22.dp, vertical = 9.dp),
@@ -290,7 +290,7 @@ fun AddProfileScreen(
                             Spacer(modifier = Modifier.width(7.dp))
                             Text(
                                 g,
-                                color = if (selected) color else Muted,
+                                color = if (selected) color else DestinyTheme.muted,
                                 fontSize = 14.sp,
                                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                             )
@@ -306,12 +306,12 @@ fun AddProfileScreen(
                         val selected = mode == m
                         Text(
                             m.label,
-                            color = if (selected) Color.White else Ink,
+                            color = if (selected) Color.White else DestinyTheme.ink,
                             fontSize = 13.sp,
                             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                             modifier = Modifier
                                 .clickable { mode = m }
-                                .background(if (selected) Accent else PageBg, RoundedCornerShape(8.dp))
+                                .background(if (selected) DestinyTheme.accent else DestinyTheme.page, RoundedCornerShape(8.dp))
                                 .padding(horizontal = 16.dp, vertical = 7.dp),
                         )
                     }
@@ -337,16 +337,16 @@ fun AddProfileScreen(
                     BaziPillarRow(bazi, editingSlot, onEdit = { editingSlot = it })
                     Spacer(modifier = Modifier.height(14.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("查找范围", color = Muted, fontSize = 12.sp)
+                        Text("查找范围", color = DestinyTheme.muted, fontSize = 12.sp)
                         Spacer(modifier = Modifier.width(6.dp))
                         YearField(value = yearFrom, placeholder = "1801") { yearFrom = it }
-                        Text("~", color = Muted, fontSize = 12.sp)
+                        Text("~", color = DestinyTheme.muted, fontSize = 12.sp)
                         YearField(value = yearTo, placeholder = "2099") { yearTo = it }
-                        Text("年", color = Muted, fontSize = 12.sp)
+                        Text("年", color = DestinyTheme.muted, fontSize = 12.sp)
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
                             "清除",
-                            color = Muted,
+                            color = DestinyTheme.muted,
                             fontSize = 13.sp,
                             modifier = Modifier
                                 .clickable {
@@ -396,9 +396,9 @@ fun AddProfileScreen(
                             },
                             enabled = !lookingUp && bazi.isComplete(),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Ink,
+                                containerColor = DestinyTheme.ink,
                                 contentColor = Color.White,
-                                disabledContainerColor = Line,
+                                disabledContainerColor = DestinyTheme.line,
                             ),
                             shape = RoundedCornerShape(50),
                             contentPadding = PaddingValues(horizontal = 22.dp, vertical = 6.dp),
@@ -426,14 +426,14 @@ fun AddProfileScreen(
                         Spacer(modifier = Modifier.height(10.dp))
                         Text(
                             "选择候选日期（${candidates.size} 个）",
-                            color = Muted,
+                            color = DestinyTheme.muted,
                             fontSize = 12.sp,
                         )
                         Spacer(modifier = Modifier.height(6.dp))
                         candidates.take(12).forEach { c ->
                             Text(
                                 "${c.solarDate} · ${TIME_INDEX_LABELS[c.timeIndex]}",
-                                color = Ink,
+                                color = DestinyTheme.ink,
                                 fontSize = 14.sp,
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -446,7 +446,7 @@ fun AddProfileScreen(
                                         mode = InputMode.Solar
                                         isLeapMonth = false
                                     }
-                                    .background(PageBg, RoundedCornerShape(8.dp))
+                                    .background(DestinyTheme.page, RoundedCornerShape(8.dp))
                                     .padding(horizontal = 12.dp, vertical = 9.dp),
                             )
                         }
@@ -487,9 +487,9 @@ fun AddProfileScreen(
                 modifier = Modifier.fillMaxWidth().height(48.dp),
                 enabled = mode != InputMode.Bazi || birthday.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Accent,
+                    containerColor = DestinyTheme.accent,
                     contentColor = Color.White,
-                    disabledContainerColor = Line,
+                    disabledContainerColor = DestinyTheme.line,
                 ),
                 shape = RoundedCornerShape(12.dp),
             ) {
@@ -510,10 +510,10 @@ fun AddProfileScreen(
                     clockHour = selHour
                     clockMinute = selMinute
                     showTimePicker = false
-                }) { Text("确定", color = Accent) }
+                }) { Text("确定", color = DestinyTheme.accent) }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) { Text("取消", color = Muted) }
+                TextButton(onClick = { showTimePicker = false }) { Text("取消", color = DestinyTheme.muted) }
             },
             title = { Text("具体时刻", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
             text = {
@@ -544,10 +544,10 @@ fun AddProfileScreen(
         AlertDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("确定", color = Accent) }
+                TextButton(onClick = { showDatePicker = false }) { Text("确定", color = DestinyTheme.accent) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("取消", color = Muted) }
+                TextButton(onClick = { showDatePicker = false }) { Text("取消", color = DestinyTheme.muted) }
             },
             title = {
                 Text(
@@ -570,7 +570,7 @@ fun AddProfileScreen(
                             WheelColumn((1..30).map { it.toString() }, d - 1) { applyDatePick(day = (it + 1).toString()) }
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("闰月", color = Ink, fontSize = 13.sp)
+                            Text("闰月", color = DestinyTheme.ink, fontSize = 13.sp)
                             Spacer(modifier = Modifier.width(8.dp))
                             Switch(checked = isLeapMonth, onCheckedChange = { isLeapMonth = it })
                         }
@@ -579,7 +579,7 @@ fun AddProfileScreen(
                         WheelColumn((0..23).map { it.toString().padStart(2, '0') }, clockHour) { clockHour = it }
                         WheelColumn((0..59).map { it.toString().padStart(2, '0') }, clockMinute) { clockMinute = it }
                     }
-                    Text("时 · 分", color = Muted, fontSize = 11.sp)
+                    Text("时 · 分", color = DestinyTheme.muted, fontSize = 11.sp)
                 }
             },
         )
@@ -592,11 +592,11 @@ private fun SectionCard(title: String, content: @Composable androidx.compose.fou
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(CardBg, RoundedCornerShape(12.dp))
-            .border(1.dp, Line, RoundedCornerShape(12.dp))
+            .background(DestinyTheme.card, RoundedCornerShape(12.dp))
+            .border(1.dp, DestinyTheme.line, RoundedCornerShape(12.dp))
             .padding(16.dp),
     ) {
-        Text(title, color = Ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = DestinyTheme.ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.height(12.dp))
         content()
     }
@@ -613,18 +613,18 @@ private fun FieldBox(
 ) {
     Column {
         if (label != null) {
-            Text(label, color = Muted, fontSize = 12.sp)
+            Text(label, color = DestinyTheme.muted, fontSize = 12.sp)
             Spacer(modifier = Modifier.height(6.dp))
         }
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
             singleLine = true,
-            textStyle = TextStyle(fontSize = 15.sp, color = Ink),
+            textStyle = TextStyle(fontSize = 15.sp, color = DestinyTheme.ink),
             modifier = Modifier
                 .fillMaxWidth()
-                .background(PageBg, RoundedCornerShape(10.dp))
-                .border(1.dp, Line, RoundedCornerShape(10.dp))
+                .background(DestinyTheme.page, RoundedCornerShape(10.dp))
+                .border(1.dp, DestinyTheme.line, RoundedCornerShape(10.dp))
                 .padding(start = 12.dp, end = if (onPickerClick != null) 38.dp else 12.dp, top = 11.dp, bottom = 11.dp),
             decorationBox = { inner ->
                 Box {
@@ -632,7 +632,7 @@ private fun FieldBox(
                     if (value.isEmpty() && placeholder.isNotEmpty()) {
                         Text(
                             placeholder,
-                            color = Muted,
+                            color = DestinyTheme.muted,
                             fontSize = 15.sp,
                             maxLines = 1,
                             modifier = Modifier.align(Alignment.CenterStart),
@@ -650,7 +650,7 @@ private fun FieldBox(
                             Icon(
                                 FeatherIcons.ChevronDown,
                                 contentDescription = "打开选择器",
-                                tint = Accent,
+                                tint = DestinyTheme.accent,
                                 modifier = Modifier.size(18.dp),
                             )
                         }
@@ -688,7 +688,7 @@ private fun PillarColumn(
     modifier: Modifier = Modifier,
 ) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = modifier) {
-        Text(label, color = Muted, fontSize = 12.sp)
+        Text(label, color = DestinyTheme.muted, fontSize = 12.sp)
         Spacer(modifier = Modifier.height(8.dp))
         GlyphCircle(stem, editing == stemSlot) { onEdit(stemSlot) }
         Spacer(modifier = Modifier.height(8.dp))
@@ -699,13 +699,13 @@ private fun PillarColumn(
 /** 干支圆圈：五行淡色底 + 编辑中红圈（参考问真八字） */
 @Composable
 private fun GlyphCircle(char: String?, active: Boolean, onClick: () -> Unit) {
-    val color = char?.let { glyphColor(it) } ?: Muted
+    val color = char?.let { glyphColor(it) } ?: DestinyTheme.muted
     Box(
         modifier = Modifier
             .size(44.dp)
             .clip(CircleShape)
-            .background(if (char != null) color.copy(alpha = 0.10f) else PageBg)
-            .border(if (active) 2.dp else 1.dp, if (active) SelectRing else Line, CircleShape)
+            .background(if (char != null) color.copy(alpha = 0.10f) else DestinyTheme.page)
+            .border(if (active) 2.dp else 1.dp, if (active) SelectRing else DestinyTheme.line, CircleShape)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
@@ -722,7 +722,7 @@ private fun CandidateGrid(
     onPick: (String) -> Unit,
 ) {
     Column {
-        Text(label, color = Muted, fontSize = 12.sp)
+        Text(label, color = DestinyTheme.muted, fontSize = 12.sp)
         Spacer(modifier = Modifier.height(8.dp))
         val perRow = if (options.size > 10) 6 else 5
         options.chunked(perRow).forEach { row ->
@@ -734,8 +734,8 @@ private fun CandidateGrid(
                         modifier = Modifier
                             .size(42.dp)
                             .clip(RoundedCornerShape(9.dp))
-                            .background(if (isSel) color.copy(alpha = 0.15f) else PageBg)
-                            .border(1.dp, if (isSel) color else Line, RoundedCornerShape(9.dp))
+                            .background(if (isSel) color.copy(alpha = 0.15f) else DestinyTheme.page)
+                            .border(1.dp, if (isSel) color else DestinyTheme.line, RoundedCornerShape(9.dp))
                             .clickable { onPick(ch) },
                         contentAlignment = Alignment.Center,
                     ) {
@@ -755,16 +755,16 @@ private fun YearField(value: String, placeholder: String, onChange: (String) -> 
         value = value,
         onValueChange = { s -> onChange(s.filter { it.isDigit() }.take(4)) },
         singleLine = true,
-        textStyle = TextStyle(fontSize = 13.sp, color = Ink, textAlign = TextAlign.Center),
+        textStyle = TextStyle(fontSize = 13.sp, color = DestinyTheme.ink, textAlign = TextAlign.Center),
         modifier = Modifier
             .width(54.dp)
-            .background(PageBg, RoundedCornerShape(8.dp))
-            .border(1.dp, Line, RoundedCornerShape(8.dp))
+            .background(DestinyTheme.page, RoundedCornerShape(8.dp))
+            .border(1.dp, DestinyTheme.line, RoundedCornerShape(8.dp))
             .padding(vertical = 6.dp),
         decorationBox = { inner ->
             Box(contentAlignment = Alignment.Center) {
                 if (value.isEmpty()) {
-                    Text(placeholder, color = Muted.copy(alpha = 0.55f), fontSize = 13.sp)
+                    Text(placeholder, color = DestinyTheme.muted.copy(alpha = 0.55f), fontSize = 13.sp)
                 }
                 inner()
             }
@@ -904,7 +904,7 @@ private fun SolarCalendarPicker(
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.width(308.dp)) {
             Text(
                 "‹",
-                color = Accent,
+                color = DestinyTheme.accent,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
@@ -914,7 +914,7 @@ private fun SolarCalendarPicker(
             )
             Text(
                 "${state.firstVisibleMonth.yearMonth.year}年${state.firstVisibleMonth.yearMonth.month.ordinal + 1}月",
-                color = Ink,
+                color = DestinyTheme.ink,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 textAlign = TextAlign.Center,
@@ -922,7 +922,7 @@ private fun SolarCalendarPicker(
             )
             Text(
                 "›",
-                color = Accent,
+                color = DestinyTheme.accent,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
@@ -941,7 +941,7 @@ private fun SolarCalendarPicker(
                     modifier = Modifier
                         .height(34.dp)
                         .clip(CircleShape)
-                        .background(if (selected) Accent else Color.Transparent)
+                        .background(if (selected) DestinyTheme.accent else Color.Transparent)
                         .clickable(enabled = inMonth) {
                             onPick(day.date.year, day.date.monthNumber, day.date.dayOfMonth)
                         },
@@ -951,8 +951,8 @@ private fun SolarCalendarPicker(
                         day.date.dayOfMonth.toString(),
                         color = when {
                             selected -> Color.White
-                            !inMonth -> Muted.copy(alpha = 0.4f)
-                            else -> Ink
+                            !inMonth -> DestinyTheme.muted.copy(alpha = 0.4f)
+                            else -> DestinyTheme.ink
                         },
                         fontSize = 13.sp,
                     )
@@ -963,7 +963,7 @@ private fun SolarCalendarPicker(
                     month.weekDays.first().forEach { wd ->
                         Text(
                             dayOfWeekCn(wd.date.dayOfWeek),
-                            color = Muted,
+                            color = DestinyTheme.muted,
                             fontSize = 11.sp,
                             textAlign = TextAlign.Center,
                             modifier = Modifier.weight(1f),
@@ -1026,7 +1026,7 @@ private fun WheelColumn(
             Box(modifier = Modifier.height(itemHeight), contentAlignment = Alignment.Center) {
                 Text(
                     items[i],
-                    color = if (selected) Ink else Muted,
+                    color = if (selected) DestinyTheme.ink else DestinyTheme.muted,
                     fontSize = if (selected) 17.sp else 14.sp,
                     fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
                 )

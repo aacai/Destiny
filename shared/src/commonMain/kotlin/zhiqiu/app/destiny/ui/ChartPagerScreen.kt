@@ -50,6 +50,10 @@ import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.profile.ProfileRepository
 import zhiqiu.app.destiny.ui.bazi.BaziSection
 import zhiqiu.app.destiny.ui.qizheng.QizhengSection
+import zhiqiu.app.destiny.ui.theme.DestinyColorMode
+import zhiqiu.app.destiny.ui.theme.DestinyTheme
+import zhiqiu.app.destiny.ui.theme.LocalDestinyAppThemes
+import zhiqiu.iztro.ui.IztroColorMode
 import zhiqiu.iztro.ui.Iztrolabe
 
 private val TAB_CATEGORY = listOf("bazi", "ziwei", "qizheng")
@@ -61,6 +65,8 @@ fun ChartPagerScreen(
     profile: Profile,
     repository: ProfileRepository,
     onBack: () -> Unit,
+    colorMode: DestinyColorMode = DestinyColorMode.Light,
+    onColorModeChange: (DestinyColorMode) -> Unit = {},
     onSaveQizhengPanZhi: (String) -> Unit = {},
 ) {
     var tab by remember { mutableIntStateOf(0) }
@@ -68,6 +74,9 @@ fun ChartPagerScreen(
     var noteDraft by remember(profile.id) { mutableStateOf(profile.note) }
     var pickCategory by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
+    val theme = DestinyTheme
+    val iztroMode = if (colorMode == DestinyColorMode.Dark) IztroColorMode.Dark else IztroColorMode.Light
+    val iztroThemeConfig = LocalDestinyAppThemes.current.iztro
 
     LaunchedEffect(tab) { drawerOpen = false }
     LaunchedEffect(profile.note) {
@@ -134,7 +143,7 @@ fun ChartPagerScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }
-                HorizontalDivider(thickness = 0.5.dp, color = Color(0xFFE2DED2))
+                HorizontalDivider(thickness = 0.5.dp, color = theme.line)
             }
         },
         bottomBar = {
@@ -198,6 +207,13 @@ fun ChartPagerScreen(
                     isLeapMonth = profile.isLeapMonth,
                     fixLeap = profile.fixLeap,
                     name = profile.name,
+                    colorMode = iztroMode,
+                    onColorModeChange = { mode ->
+                        onColorModeChange(
+                            if (mode == IztroColorMode.Dark) DestinyColorMode.Dark else DestinyColorMode.Light,
+                        )
+                    },
+                    themeConfig = iztroThemeConfig,
                     modifier = Modifier.fillMaxSize(),
                 )
                 2 -> QizhengSection(

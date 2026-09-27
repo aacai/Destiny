@@ -44,9 +44,6 @@ import zhiqiu.liuyao.ZhanShi
 import zhiqiu.liuyao.currentDayInfo
 import zhiqiu.liuyao.dayInfoFromSolar
 
-private val PageBg = Color(0xFFF5F3EE)
-
-/** 起卦确认快照：六爻定稿。其余（占问/占类/卦主/时间）结果页仍可改，活算。 */
 data class LiuYaoResult(
     val kinds: List<YaoKind>,
 )
@@ -56,7 +53,19 @@ data class LiuYaoResult(
  * 结果页隐藏全部输入，只展示题头、卦盘与完整经文译文。
  */
 @Composable
-fun LiuYaoScreen(onBack: () -> Unit, onOpenYijing: () -> Unit = {}) {
+fun LiuYaoScreen(
+    onBack: () -> Unit,
+    onOpenYijing: () -> Unit = {},
+    darkTheme: Boolean = false,
+    themeConfig: PanThemeConfig = PanThemeConfig.Default,
+) {
+    PanThemeProvider(darkTheme = darkTheme, config = themeConfig) {
+        LiuYaoScreenContent(onBack = onBack, onOpenYijing = onOpenYijing)
+    }
+}
+
+@Composable
+private fun LiuYaoScreenContent(onBack: () -> Unit, onOpenYijing: () -> Unit) {
     var question by remember { mutableStateOf("") }
     var guaZhu by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("男") }
@@ -149,7 +158,7 @@ private fun InputPage(
     onPaiPan: () -> Unit,
 ) {
     val unsetCount = kinds.count { it == null }
-    Column(modifier = Modifier.fillMaxSize().background(PageBg)) {
+    Column(modifier = Modifier.fillMaxSize().background(LocalPanColors.current.page)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

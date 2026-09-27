@@ -45,13 +45,8 @@ import compose.icons.feathericons.User
 import kotlinx.coroutines.delay
 import zhiqiu.app.destiny.db.ProfileImage
 import zhiqiu.app.destiny.profile.Profile
+import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import zhiqiu.app.destiny.time.TIME_INDEX_LABELS
-
-private val Paper = Color(0xFFF5F0E6)
-private val Rule = Color(0xFFD9D0C0)
-private val TextMain = Color(0xFF1A1A1A)
-private val TextSub = Color(0xFF6B6560)
-private val Stamp = Color(0xFF8B3A3A)
 
 private data class MemoGroup(
     val key: String,
@@ -76,6 +71,11 @@ fun MemoTabScreen(
     onPickImage: (category: String) -> Unit,
     onDeleteImage: (ProfileImage) -> Unit,
 ) {
+    val Paper = DestinyTheme.page
+    val Rule = DestinyTheme.line
+    val TextMain = DestinyTheme.ink
+    val TextSub = DestinyTheme.muted
+    val Stamp = DestinyTheme.danger
     var noteDraft by remember(profile.id) { mutableStateOf(profile.note) }
     var previewPath by remember { mutableStateOf<String?>(null) }
 
@@ -91,7 +91,7 @@ fun MemoTabScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Paper),
+            .background(DestinyTheme.page),
         contentPadding = PaddingValues(bottom = 24.dp),
     ) {
         item {
@@ -111,7 +111,7 @@ fun MemoTabScreen(
                 placeholder = {
                     Text(
                         "命局总论、流年大事、待验证的断语…",
-                        color = TextSub,
+                        color = DestinyTheme.muted,
                         fontSize = 15.sp,
                         lineHeight = 24.sp,
                     )
@@ -119,13 +119,13 @@ fun MemoTabScreen(
                 textStyle = androidx.compose.ui.text.TextStyle(
                     fontSize = 15.sp,
                     lineHeight = 24.sp,
-                    color = TextMain,
+                    color = DestinyTheme.ink,
                 ),
                 shape = RoundedCornerShape(4.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Stamp,
-                    unfocusedBorderColor = Rule,
-                    cursorColor = Stamp,
+                    focusedBorderColor = DestinyTheme.danger,
+                    unfocusedBorderColor = DestinyTheme.line,
+                    cursorColor = DestinyTheme.danger,
                     focusedContainerColor = Color.White,
                     unfocusedContainerColor = Color(0xFFFFFCF7),
                 ),
@@ -162,7 +162,7 @@ private fun ProfileBanner(profile: Profile) {
                 modifier = Modifier
                     .size(36.dp)
                     .clip(CircleShape)
-                    .background(Stamp.copy(alpha = 0.25f)),
+                    .background(DestinyTheme.danger.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center,
             ) {
                 androidx.compose.material3.Icon(
@@ -200,11 +200,11 @@ private fun ProfileBanner(profile: Profile) {
             Spacer(Modifier.height(8.dp))
             Text(
                 profile.groupName,
-                color = Stamp.copy(alpha = 0.9f),
+                color = DestinyTheme.danger.copy(alpha = 0.9f),
                 fontSize = 11.sp,
                 modifier = Modifier
                     .clip(RoundedCornerShape(2.dp))
-                    .background(Stamp.copy(alpha = 0.15f))
+                    .background(DestinyTheme.danger.copy(alpha = 0.15f))
                     .padding(horizontal = 8.dp, vertical = 2.dp),
             )
         }
@@ -221,13 +221,13 @@ private fun SectionLabel(text: String) {
     ) {
         Text(
             text,
-            color = Stamp,
+            color = DestinyTheme.danger,
             fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
             letterSpacing = 1.sp,
         )
         Spacer(Modifier.width(10.dp))
-        HorizontalDivider(modifier = Modifier.weight(1f), color = Rule, thickness = 0.5.dp)
+        HorizontalDivider(modifier = Modifier.weight(1f), color = DestinyTheme.line, thickness = 0.5.dp)
     }
 }
 
@@ -258,7 +258,7 @@ private fun AttachmentStrip(
     if (images.isEmpty()) {
         Text(
             "点左侧方框插入截图或照片",
-            color = TextSub,
+            color = DestinyTheme.muted,
             fontSize = 12.sp,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
         )
@@ -280,11 +280,11 @@ private fun AddTile(onClick: () -> Unit) {
             androidx.compose.material3.Icon(
                 imageVector = FeatherIcons.Image,
                 contentDescription = "添加图片",
-                tint = TextSub,
+                tint = DestinyTheme.muted,
                 modifier = Modifier.size(22.dp),
             )
             Spacer(Modifier.height(4.dp))
-            Text("添加", color = TextSub, fontSize = 11.sp)
+            Text("添加", color = DestinyTheme.muted, fontSize = 11.sp)
         }
     }
 }

@@ -5,6 +5,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -29,6 +30,11 @@ import zhiqiu.app.destiny.ui.ChartPagerScreen
 import zhiqiu.app.destiny.ui.ProfileListScreen
 import zhiqiu.app.destiny.ui.books.BookshelfScreen
 import zhiqiu.app.destiny.ui.books.ReaderScreen
+import zhiqiu.app.destiny.ui.theme.DestinyAppThemes
+import zhiqiu.app.destiny.ui.theme.DestinyColorMode
+import zhiqiu.app.destiny.ui.theme.DestinyTheme
+import zhiqiu.app.destiny.ui.theme.DestinyThemeProvider
+import zhiqiu.app.destiny.ui.theme.LocalDestinyAppThemes
 import zhiqiu.liuyao.ui.LiuYaoScreen
 import zhiqiu.liuyao.ui.ZhouyiBrowserScreen
 
@@ -99,101 +105,135 @@ fun App() {
 }
 
 @Composable
-fun App(repository: ProfileRepository) {
-    MaterialTheme {
-        val scope = rememberCoroutineScope()
-        val profiles by repository.observeAll().collectAsState(initial = emptyList())
-        val readerStore = remember(repository) { repository.readerStore }
-        val sharing = remember { BackupSharing(FileIoClient(createSharedHttpClient())) }
-        val navController = rememberNavController()
+fun App(
+    repository: ProfileRepository,
+    themes: DestinyAppThemes = DestinyAppThemes.Default,
+) {
+    val scope = rememberCoroutineScope()
+    val profiles by repository.observeAll().collectAsState(initial = emptyList())
+    val readerStore = remember(repository) { repository.readerStore }
+    val sharing = remember { BackupSharing(FileIoClient(createSharedHttpClient())) }
+    val navController = rememberNavController()
 
-        NavHost(
-            navController = navController,
-            startDestination = Routes.List,
-        ) {
-            composable(Routes.List) {
-                ProfileListScreen(
-                    profiles = profiles,
-                    onAdd = { navController.navigate(Routes.Add) },
-                    onOpen = { profile ->
-                        navController.navigate(Routes.chart(profile.id))
-                    },
-                    onDelete = { profile ->
-                        scope.launch { repository.delete(profile.id) }
-                    },
-                    onExportBackup = { password -> repository.exportBackupBytes(password) },
-                    onImportBackup = { bytes, password -> repository.importBackupBytes(bytes, password) },
-                    sharing = sharing,
-                    onOpenBooks = { navController.navigate(Routes.Books) },
-                    onOpenLiuyao = { navController.navigate(Routes.Liuyao) },
-                )
-            }
-            composable(Routes.Liuyao) {
-                LiuYaoScreen(
-                    onBack = { navController.popBackStack() },
-                    onOpenYijing = { navController.navigate(Routes.Yijing) },
-                )
-            }
-            composable(Routes.Yijing) {
-                ZhouyiBrowserScreen(onBack = { navController.popBackStack() })
-            }
-            composable(Routes.Books) {
-                BookshelfScreen(
-                    onBack = { navController.popBackStack() },
-                    onOpen = { bookId -> navController.navigate(Routes.reader(bookId)) },
-                )
-            }
-            composable(
-                route = Routes.Reader,
-                arguments = listOf(
-                    navArgument("bookId") { type = NavType.StringType },
-                ),
-            ) { entry ->
-                val bookId = entry.arguments?.read { getStringOrNull("bookId") }.orEmpty()
-                ReaderScreen(
-                    bookId = bookId,
-                    readerStore = readerStore,
-                    onBack = { navController.popBackStack() },
-                )
-            }
-            composable(Routes.Add) {
-                AddProfileScreen(
-                    onSave = { profile ->
-                        scope.launch {
-                            repository.upsert(profile)
-                            navController.popBackStack()
-                        }
-                    },
-                    onCancel = { navController.popBackStack() },
-                )
-            }
-            composable(
-                route = Routes.Chart,
-                arguments = listOf(
-                    navArgument("profileId") { type = NavType.StringType },
-                ),
-            ) { entry ->
-                val profileId = entry.arguments?.read { getStringOrNull("profileId") }
-                val profile = remember(profileId, profiles) {
-                    profiles.find { it.id == profileId }
-                }
-                if (profile == null) {
-                    LaunchedEffect(profileId) {
-                        navController.popBackStack()
-                    }
-                } else {
-                    ChartPagerScreen(
-                        profile = profile,
-                        repository = repository,
-                        onBack = { navController.popBackStack() },
-                        onSaveQizhengPanZhi = { panZhi ->
-                            scope.launch {
-                                repository.upsert(profile.copy(qizhengPanZhi = panZhi))
-                            }
+    var colorMode by remember { mutableStateOf(DestinyColorMode.Light) }
+    var colorModeReady by remember { mutableStateOf(false) }
+    LaunchedEffect(readerStore) {
+        colorMode = DestinyColorMode.fromPref(readerStore.get(DestinyColorMode.PrefKey))
+        colorModeReady = true
+    }
+
+    fun setColorMode(mode: DestinyColorMode) {
+        colorMode = mode
+        readerStore.put(DestinyColorMode.PrefKey, mode.prefValue)
+    }
+
+    if (!colorModeReady) return
+
+    CompositionLocalProvider(
+        LocalDestinyAppThemes provides themes,
+    ) {
+        DestinyThemeProvider(mode = colorMode, config = themes.app) {
+            val colors = DestinyTheme
+            MaterialTheme(colorScheme = colors.toMaterialColorScheme()) {
+                NavHost(
+                    navController = navController,
+                    startDestination = Routes.List,
+                ) {
+                composable(Routes.List) {
+                    ProfileListScreen(
+                        profiles = profiles,
+                        onAdd = { navController.navigate(Routes.Add) },
+                        onOpen = { profile ->
+                            navController.navigate(Routes.chart(profile.id))
                         },
+                        onDelete = { profile ->
+                            scope.launch { repository.delete(profile.id) }
+                        },
+                        onExportBackup = { password -> repository.exportBackupBytes(password) },
+                        onImportBackup = { bytes, password -> repository.importBackupBytes(bytes, password) },
+                        sharing = sharing,
+                        onOpenBooks = { navController.navigate(Routes.Books) },
+                        onOpenLiuyao = { navController.navigate(Routes.Liuyao) },
+                        colorMode = colorMode,
+                        onToggleColorMode = { setColorMode(colorMode.toggle()) },
                     )
                 }
+                composable(Routes.Liuyao) {
+                    LiuYaoScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenYijing = { navController.navigate(Routes.Yijing) },
+                        darkTheme = colorMode == DestinyColorMode.Dark,
+                        themeConfig = themes.pan,
+                    )
+                }
+                composable(Routes.Yijing) {
+                    ZhouyiBrowserScreen(
+                        onBack = { navController.popBackStack() },
+                        darkTheme = colorMode == DestinyColorMode.Dark,
+                        themeConfig = themes.pan,
+                    )
+                }
+                composable(Routes.Books) {
+                    BookshelfScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpen = { bookId -> navController.navigate(Routes.reader(bookId)) },
+                    )
+                }
+                composable(
+                    route = Routes.Reader,
+                    arguments = listOf(
+                        navArgument("bookId") { type = NavType.StringType },
+                    ),
+                ) { entry ->
+                    val bookId = entry.arguments?.read { getStringOrNull("bookId") }.orEmpty()
+                    ReaderScreen(
+                        bookId = bookId,
+                        readerStore = readerStore,
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Routes.Add) {
+                    AddProfileScreen(
+                        onSave = { profile ->
+                            scope.launch {
+                                repository.upsert(profile)
+                                navController.popBackStack()
+                            }
+                        },
+                        onCancel = { navController.popBackStack() },
+                    )
+                }
+                composable(
+                    route = Routes.Chart,
+                    arguments = listOf(
+                        navArgument("profileId") { type = NavType.StringType },
+                    ),
+                ) { entry ->
+                    val profileId = entry.arguments?.read { getStringOrNull("profileId") }
+                    val profile = remember(profileId, profiles) {
+                        profiles.find { it.id == profileId }
+                    }
+                    if (profile == null) {
+                        LaunchedEffect(profileId) {
+                            navController.popBackStack()
+                        }
+                    } else {
+                        ChartPagerScreen(
+                            profile = profile,
+                            repository = repository,
+                            onBack = { navController.popBackStack() },
+                            colorMode = colorMode,
+                            onColorModeChange = ::setColorMode,
+                            onSaveQizhengPanZhi = { panZhi ->
+                                scope.launch {
+                                    repository.upsert(profile.copy(qizhengPanZhi = panZhi))
+                                }
+                            },
+                        )
+                    }
+                }
             }
+        }
         }
     }
 }

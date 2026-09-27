@@ -48,6 +48,10 @@ import androidx.compose.ui.unit.min
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import zhiqiu.app.destiny.profile.Profile
+import zhiqiu.app.destiny.ui.theme.DestinyTheme
+import zhiqiu.app.destiny.ui.theme.LocalDestinyAppThemes
+import zhiqiu.app.destiny.ui.theme.LocalDestinyColorMode
+import zhiqiu.app.destiny.ui.theme.DestinyColorMode
 import zhiqiu.qizheng.HuaYaoSchool
 import zhiqiu.qizheng.PanZhiPresets
 import zhiqiu.app.destiny.qizheng.buildFromProfile
@@ -58,12 +62,6 @@ import zhiqiu.qizheng.ZodiacMode
 import zhiqiu.qizheng.ui.QizhengSettingsPage
 import zhiqiu.qizheng.ui.QizhengWheel
 
-private val Page = Color(0xFFFFFFFF)
-private val Ink = Color(0xFF222222)
-private val Muted = Color(0xFF757575)
-private val Line = Color(0xFFE0E0E0)
-private val ChipBg = Color(0xFFF5F5F5)
-private val Accent = Color(0xFF1B5E20)
 
 /**
  * 二十八宿染色：取 7 个高对比基色（色相均匀分散），按步长 3 循环映射到 28 宿。
@@ -88,6 +86,15 @@ fun QizhengSection(
     /** 切换盘制时回调（盘制名），用于持久化到档案 */
     onSavePanZhi: ((String) -> Unit)? = null,
 ) {
+    val theme = DestinyTheme
+    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
+    val qizhengThemeConfig = LocalDestinyAppThemes.current.qizheng
+    val Page = theme.page
+    val Ink = theme.ink
+    val Muted = theme.muted
+    val Line = theme.line
+    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
+    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
     var timeMode by remember { mutableStateOf(QzTimeMode.Demo) }
     var subTab by remember { mutableIntStateOf(0) }
     var cy by remember { mutableIntStateOf(2026) }
@@ -153,6 +160,8 @@ fun QizhengSection(
     // 独立设置页：整页替换排盘内容，返回后按新设置重排
     if (showSettings) {
         QizhengSettingsPage(
+            darkTheme = dark,
+            themeConfig = qizhengThemeConfig,
             coordIdx = coordIdx,
             xiuIdx = xiuIdx,
             fixedMing = fixedMing,
@@ -275,6 +284,8 @@ fun QizhengSection(
                             },
                     ) {
                         QizhengWheel(
+                    darkTheme = dark,
+                            themeConfig = qizhengThemeConfig,
                             chart = chart,
                             size = baseSize,
                             xiuColors = if (xiuTintEnabled) xiuColors else null,
@@ -434,9 +445,17 @@ fun QizhengSection(
 
 @Composable
 private fun MingChip(text: String, selected: Boolean, onClick: () -> Unit) {
+    val theme = DestinyTheme
+    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
+    val Page = theme.page
+    val Ink = theme.ink
+    val Muted = theme.muted
+    val Line = theme.line
+    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
+    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
     Box(
         modifier = Modifier
-            .background(if (selected) Color(0xFFE8F5E9) else ChipBg, RoundedCornerShape(4.dp))
+            .background(if (selected) (if (dark) Color(0xFF1E3A2F) else Color(0xFFE8F5E9)) else ChipBg, RoundedCornerShape(4.dp))
             .border(1.dp, if (selected) Accent else Line, RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 4.dp),
@@ -447,9 +466,17 @@ private fun MingChip(text: String, selected: Boolean, onClick: () -> Unit) {
 
 @Composable
 private fun TimeChip(text: String, selected: Boolean, onClick: () -> Unit) {
+    val theme = DestinyTheme
+    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
+    val Page = theme.page
+    val Ink = theme.ink
+    val Muted = theme.muted
+    val Line = theme.line
+    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
+    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
     Box(
         modifier = Modifier
-            .background(if (selected) Color(0xFFE8F5E9) else ChipBg, RoundedCornerShape(4.dp))
+            .background(if (selected) (if (dark) Color(0xFF1E3A2F) else Color(0xFFE8F5E9)) else ChipBg, RoundedCornerShape(4.dp))
             .border(1.dp, if (selected) Accent else Line, RoundedCornerShape(4.dp))
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 8.dp),
@@ -463,6 +490,14 @@ private fun TimeEditRow(
     year: Int, month: Int, day: Int, hour: Int, minute: Int,
     onChange: (Int, Int, Int, Int, Int) -> Unit,
 ) {
+    val theme = DestinyTheme
+    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
+    val Page = theme.page
+    val Ink = theme.ink
+    val Muted = theme.muted
+    val Line = theme.line
+    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
+    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -482,6 +517,14 @@ private fun TimeEditRow(
 
 @Composable
 private fun TinyIntField(value: Int, maxLen: Int, onValue: (Int) -> Unit) {
+    val theme = DestinyTheme
+    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
+    val Page = theme.page
+    val Ink = theme.ink
+    val Muted = theme.muted
+    val Line = theme.line
+    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
+    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
     OutlinedTextField(
         value = value.toString(),
         onValueChange = { raw ->
@@ -496,6 +539,14 @@ private fun TinyIntField(value: Int, maxLen: Int, onValue: (Int) -> Unit) {
 
 @Composable
 private fun ZoomBtn(label: String, onClick: () -> Unit) {
+    val theme = DestinyTheme
+    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
+    val Page = theme.page
+    val Ink = theme.ink
+    val Muted = theme.muted
+    val Line = theme.line
+    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
+    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
     Box(
         modifier = Modifier
             .size(32.dp)
@@ -514,6 +565,14 @@ private fun LimitGrid(
     modifier: Modifier = Modifier,
     columns: Int = 3,
 ) {
+    val theme = DestinyTheme
+    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
+    val Page = theme.page
+    val Ink = theme.ink
+    val Muted = theme.muted
+    val Line = theme.line
+    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
+    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
     val l = chart.limits
     val items = listOf(
         "大限" to l.daXian,
@@ -559,6 +618,14 @@ private fun LimitGrid(
 
 @Composable
 private fun PillarsPane(chart: QizhengChart) {
+    val theme = DestinyTheme
+    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
+    val Page = theme.page
+    val Ink = theme.ink
+    val Muted = theme.muted
+    val Line = theme.line
+    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
+    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
     Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -578,6 +645,14 @@ private fun PillarsPane(chart: QizhengChart) {
 
 @Composable
 private fun HuaYaoPane(chart: QizhengChart, school: HuaYaoSchool, onSchoolChange: (HuaYaoSchool) -> Unit) {
+    val theme = DestinyTheme
+    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
+    val Page = theme.page
+    val Ink = theme.ink
+    val Muted = theme.muted
+    val Line = theme.line
+    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
+    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
     Column(modifier = Modifier.fillMaxWidth().padding(4.dp)) {
         // 流派切换：果老化曜 / 天官化曜
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -626,6 +701,14 @@ private fun HuaYaoPane(chart: QizhengChart, school: HuaYaoSchool, onSchoolChange
  */
 @Composable
 private fun AspectsPane(chart: QizhengChart) {
+    val theme = DestinyTheme
+    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
+    val Page = theme.page
+    val Ink = theme.ink
+    val Muted = theme.muted
+    val Line = theme.line
+    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
+    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
     val fmt2 = { v: Double ->
         val t = kotlin.math.round(v * 100).toLong()
         val i = t / 100
@@ -696,6 +779,14 @@ private fun AspectsPane(chart: QizhengChart) {
  */
 @Composable
 private fun PatternsPane(chart: QizhengChart) {
+    val theme = DestinyTheme
+    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
+    val Page = theme.page
+    val Ink = theme.ink
+    val Muted = theme.muted
+    val Line = theme.line
+    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
+    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
     val xi = chart.patterns.filter { it.auspicious && it.hit }
     val ji = chart.patterns.filter { !it.auspicious && it.hit }
     var selected by remember { mutableStateOf<PatternView?>(null) }

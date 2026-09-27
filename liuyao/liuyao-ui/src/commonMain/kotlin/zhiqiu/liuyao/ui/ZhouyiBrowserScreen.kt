@@ -94,10 +94,21 @@ internal fun PinyinText(
 
 /** 易经浏览：64 卦目录 → 单卦全文（卦辞/大象/彖/爻辞/文言）。 */
 @Composable
-fun ZhouyiBrowserScreen(onBack: () -> Unit) {
+fun ZhouyiBrowserScreen(
+    onBack: () -> Unit,
+    darkTheme: Boolean = false,
+    themeConfig: PanThemeConfig = PanThemeConfig.Default,
+) {
+    PanThemeProvider(darkTheme = darkTheme, config = themeConfig) {
+        ZhouyiBrowserContent(onBack = onBack)
+    }
+}
+
+@Composable
+private fun ZhouyiBrowserContent(onBack: () -> Unit) {
     var selected by remember { mutableStateOf<HexagramEntry?>(null) }
     var showPinyin by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(PanCardBg)) {
+    Column(modifier.fillMaxSize().background(PanCardBg)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

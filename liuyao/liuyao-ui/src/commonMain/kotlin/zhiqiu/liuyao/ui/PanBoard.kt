@@ -20,10 +20,13 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -38,14 +41,89 @@ import zhiqiu.liuyao.InstalledYao
 import zhiqiu.liuyao.LiuYaoChart
 import zhiqiu.liuyao.yaoPlaceName
 
-internal val PanCardBg = Color(0xFFFFFFFF)
-internal val PanInk = Color(0xFF222222)
-internal val PanMuted = Color(0xFF8A8578)
-internal val PanLine = Color(0xFFE2DED2)
-internal val PanAccent = Color(0xFF26A6A6)
-internal val YongShenGold = Color(0xFFD9A441)
-internal val ShiMark = Color(0xFFB3261E)
-internal val PillarRed = Color(0xFFD32F2F)
+data class PanColors(
+    val page: Color,
+    val card: Color,
+    val ink: Color,
+    val muted: Color,
+    val line: Color,
+    val accent: Color,
+    val yongShenGold: Color,
+    val shiMark: Color,
+    val pillarRed: Color,
+)
+
+/** 内置日间六爻色板 */
+val LightPanColors = PanColors(
+    page = Color(0xFFF5F3EE),
+    card = Color(0xFFFFFFFF),
+    ink = Color(0xFF222222),
+    muted = Color(0xFF8A8578),
+    line = Color(0xFFE2DED2),
+    accent = Color(0xFF26A6A6),
+    yongShenGold = Color(0xFFD9A441),
+    shiMark = Color(0xFFB3261E),
+    pillarRed = Color(0xFFD32F2F),
+)
+
+/** 内置夜间六爻色板 */
+val DarkPanColors = PanColors(
+    page = Color(0xFF1C1B19),
+    card = Color(0xFF2A2825),
+    ink = Color(0xFFE8E4DC),
+    muted = Color(0xFF9E988C),
+    line = Color(0xFF3F3C36),
+    accent = Color(0xFF4DB6B6),
+    yongShenGold = Color(0xFFFFD54F),
+    shiMark = Color(0xFFEF9A9A),
+    pillarRed = Color(0xFFEF5350),
+)
+
+/** 成套六爻主题：lightTheme / darkTheme 可整体替换 */
+data class PanThemeConfig(
+    val lightTheme: PanColors = LightPanColors,
+    val darkTheme: PanColors = DarkPanColors,
+) {
+    fun colors(darkTheme: Boolean): PanColors = if (darkTheme) this.darkTheme else lightTheme
+
+    companion object {
+        val Default = PanThemeConfig()
+    }
+}
+
+val LocalPanColors = staticCompositionLocalOf { LightPanColors }
+
+val LocalPanThemeConfig = staticCompositionLocalOf { PanThemeConfig.Default }
+
+@Composable
+fun PanThemeProvider(
+    darkTheme: Boolean,
+    config: PanThemeConfig = PanThemeConfig.Default,
+    content: @Composable () -> Unit,
+) {
+    CompositionLocalProvider(
+        LocalPanThemeConfig provides config,
+        LocalPanColors provides config.colors(darkTheme),
+        content = content,
+    )
+}
+
+internal val PanCardBg: Color
+    @Composable @ReadOnlyComposable get() = LocalPanColors.current.card
+internal val PanInk: Color
+    @Composable @ReadOnlyComposable get() = LocalPanColors.current.ink
+internal val PanMuted: Color
+    @Composable @ReadOnlyComposable get() = LocalPanColors.current.muted
+internal val PanLine: Color
+    @Composable @ReadOnlyComposable get() = LocalPanColors.current.line
+internal val PanAccent: Color
+    @Composable @ReadOnlyComposable get() = LocalPanColors.current.accent
+internal val YongShenGold: Color
+    @Composable @ReadOnlyComposable get() = LocalPanColors.current.yongShenGold
+internal val ShiMark: Color
+    @Composable @ReadOnlyComposable get() = LocalPanColors.current.shiMark
+internal val PillarRed: Color
+    @Composable @ReadOnlyComposable get() = LocalPanColors.current.pillarRed
 
 /** 各列固定宽度（dp），保证每行、每卦都严格对齐 */
 private val W_SHEN = 26.dp   // 六神

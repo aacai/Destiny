@@ -32,18 +32,11 @@ import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.sin
 
-private val Line = Color(0xFF212121)
-private val Soft = Color(0xFF9E9E9E)
-private val Tick = Color(0xFF424242)
-private val Ink = Color(0xFF111111)
 private val StarGreen = Color(0xFF2E7D32)
 private val Red = Color(0xFFC62828)
 private val MercuryMag = Color(0xFFC2185B)
 private val MoonTeal = Color(0xFF00897B)
 private val SunGold = Color(0xFFF9A825)
-private val Paper = Color(0xFFFFFFFF)
-private val Cream = Color(0xFFFDFBF4)
-private val Hairline = Color(0xFFC9C4B8)
 private val AccentGreen = Color(0xFF1B5E20)
 
 private const val WRing = 1.8f
@@ -61,7 +54,17 @@ fun QizhengWheel(
     modifier: Modifier = Modifier,
     xiuColors: List<Color>? = null,
     onXiuClick: ((Int) -> Unit)? = null,
+    darkTheme: Boolean = false,
+    themeConfig: QizhengThemeConfig = QizhengThemeConfig.Default,
 ) {
+    val c = themeConfig.colors(darkTheme)
+    val Paper = c.paper
+    val Cream = c.cream
+    val Hairline = c.hairline
+    val Line = c.line
+    val Soft = c.soft
+    val Tick = c.tick
+    val Ink = c.ink
     val measurer = rememberTextMeasurer()
     val basePx = with(LocalDensity.current) { size.toPx() }
     val cX = basePx / 2f
@@ -286,7 +289,7 @@ fun QizhengWheel(
                 val pTick = pt(realAng, rTickBase + tickMaxLen * 0.62f)
                 drawLine(Soft, p, pTick, strokeWidth = 0.9f, cap = StrokeCap.Round)
 
-                val style = planetStyle(star.key)
+                val style = planetStyle(star.key, Paper)
                 if (style.badge) {
                     drawCircle(style.fill, starRad, p)
                     // 彩色星徽描白边，与宿环色格分离更清晰
@@ -520,15 +523,15 @@ private fun shortDelta(a0: Double, a1: Double): Double {
 
 private data class PlanetDraw(val badge: Boolean, val fill: Color, val text: Color)
 
-private fun planetStyle(key: String): PlanetDraw = when (key) {
+private fun planetStyle(key: String, paper: Color): PlanetDraw = when (key) {
     "水" -> PlanetDraw(true, MercuryMag, Color.White)
     "月" -> PlanetDraw(true, MoonTeal, Color.White)
     "日" -> PlanetDraw(true, SunGold, Color(0xFF3E2723))
     "土" -> PlanetDraw(true, Red, Color.White)
     "火" -> PlanetDraw(true, Color(0xFFE57373), Color.White)
-    "木" -> PlanetDraw(false, Paper, StarGreen)
-    "金" -> PlanetDraw(false, Paper, StarGreen)
+    "木" -> PlanetDraw(false, paper, StarGreen)
+    "金" -> PlanetDraw(false, paper, StarGreen)
     "罗", "计" -> PlanetDraw(true, Color(0xFF5D4037), Color.White)
-    "孛", "炁" -> PlanetDraw(false, Paper, StarGreen)
-    else -> PlanetDraw(false, Paper, StarGreen)
+    "孛", "炁" -> PlanetDraw(false, paper, StarGreen)
+    else -> PlanetDraw(false, paper, StarGreen)
 }

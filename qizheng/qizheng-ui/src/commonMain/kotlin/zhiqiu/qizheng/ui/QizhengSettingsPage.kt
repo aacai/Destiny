@@ -28,14 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-private val Page = Color(0xFFFFFFFF)
-private val Ink = Color(0xFF222222)
-private val Muted = Color(0xFF757575)
-private val Line = Color(0xFFE0E0E0)
-private val ChipBg = Color(0xFFF5F5F5)
-private val ChipOn = Color(0xFFE8F5E9)
-private val Accent = Color(0xFF1B5E20)
-
 /**
  * 七政四余设置页（独立整页，不含宿主概念）。
  *
@@ -44,6 +36,8 @@ private val Accent = Color(0xFF1B5E20)
  */
 @Composable
 fun QizhengSettingsPage(
+    darkTheme: Boolean = false,
+    themeConfig: QizhengThemeConfig = QizhengThemeConfig.Default,
     /** 0 黄道回归 1 黄道恒星 2 赤道恒星 */
     coordIdx: Int,
     /** 0 果老星宗 1 回归今宿 2 回归古宿 3 古宿岁差 4 郑案今宿 */
@@ -61,6 +55,14 @@ fun QizhengSettingsPage(
     onXiuTintChange: (Boolean) -> Unit,
     onBack: () -> Unit,
 ) {
+    val c = themeConfig.colors(darkTheme)
+    val Page = c.page
+    val Ink = c.ink
+    val Muted = c.muted
+    val Line = c.hairline
+    val ChipBg = c.chipBg
+    val ChipOn = c.chipOn
+    val Accent = c.accent
     Column(
         modifier = Modifier
             .fillMaxSize()
