@@ -22,6 +22,7 @@ import androidx.navigation.navArgument
 import androidx.savedstate.read
 import kotlinx.coroutines.launch
 import zhiqiu.app.destiny.profile.ProfileRepository
+import zhiqiu.app.destiny.platform.NativeTitleBarSync
 import zhiqiu.app.destiny.sharing.BackupSharing
 import zhiqiu.app.destiny.sharing.FileIoClient
 import zhiqiu.app.destiny.sharing.createSharedHttpClient
@@ -133,6 +134,7 @@ fun App(
         LocalDestinyAppThemes provides themes,
     ) {
         DestinyThemeProvider(mode = colorMode, config = themes.app) {
+            NativeTitleBarSync(colorMode)
             val colors = DestinyTheme
             MaterialTheme(colorScheme = colors.toMaterialColorScheme()) {
                 NavHost(

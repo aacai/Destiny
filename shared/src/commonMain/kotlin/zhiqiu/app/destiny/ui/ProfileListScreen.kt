@@ -49,6 +49,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -82,6 +83,7 @@ import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import zhiqiu.app.destiny.db.ReaderPrefEntity
+import zhiqiu.app.destiny.platform.TrafficLightInsetStart
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.sharing.BackupSharing
 import zhiqiu.app.destiny.sharing.generateQrCodePng
@@ -212,7 +214,7 @@ fun ProfileListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
+                    Column(modifier = Modifier.padding(start = TrafficLightInsetStart)) {
                         Text("档案", color = DestinyTheme.ink, fontWeight = FontWeight.Bold)
                         Text(
                             if (q.isBlank()) "共 ${profiles.size} 个档案"
@@ -299,9 +301,26 @@ fun ProfileListScreen(
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("还没有档案", color = DestinyTheme.muted)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(onClick = onAdd) { Text("添加档案", color = DestinyTheme.accent) }
+                    Box(
+                        modifier = Modifier
+                            .size(64.dp)
+                            .clip(CircleShape)
+                            .background(Accent.copy(alpha = 0.10f)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = FeatherIcons.Plus,
+                            contentDescription = null,
+                            tint = Accent,
+                            modifier = Modifier.size(28.dp),
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                    Text("还没有档案", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("点击右上角 + 添加第一个档案", color = Muted, fontSize = 13.sp)
+                    Spacer(modifier = Modifier.height(14.dp))
+                    TextButton(onClick = onAdd) { Text("添加档案", color = Accent) }
                 }
             }
         } else {
@@ -328,16 +347,16 @@ fun ProfileListScreen(
                 )
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (sorted.isEmpty()) {
                         item {
                             Box(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp),
+                                modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                                 contentAlignment = Alignment.Center,
                             ) {
-                                Text("没有匹配「$q」的档案", color = DestinyTheme.muted, fontSize = 14.sp)
+                                Text("没有匹配「$q」的档案", color = Muted, fontSize = 13.sp)
                             }
                         }
                     }
@@ -566,31 +585,32 @@ private fun ImportDialog(
 
 @Composable
 private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
+    val theme = DestinyTheme
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
-            .background(DestinyTheme.card, RoundedCornerShape(10.dp))
-            .border(1.dp, DestinyTheme.line, RoundedCornerShape(10.dp))
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(theme.panel)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             imageVector = FeatherIcons.Search,
             contentDescription = null,
-            tint = DestinyTheme.muted,
+            tint = theme.muted,
             modifier = Modifier.size(16.dp),
         )
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(10.dp))
         Box(modifier = Modifier.weight(1f)) {
             if (query.isEmpty()) {
-                Text("搜索名字、日期、四柱…", color = DestinyTheme.muted, fontSize = 14.sp)
+                Text("搜索名字、日期、四柱…", color = theme.muted, fontSize = 14.sp)
             }
             BasicTextField(
                 value = query,
                 onValueChange = onQueryChange,
                 singleLine = true,
-                textStyle = TextStyle(fontSize = 14.sp, color = DestinyTheme.ink),
+                textStyle = TextStyle(fontSize = 14.sp, color = theme.ink),
                 modifier = Modifier.fillMaxWidth(),
             )
         }
@@ -599,10 +619,12 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
             Icon(
                 imageVector = FeatherIcons.X,
                 contentDescription = "清除",
-                tint = DestinyTheme.muted,
+                tint = theme.muted,
                 modifier = Modifier
                     .size(16.dp)
-                    .clickable { onQueryChange("") },
+                    .clip(CircleShape)
+                    .clickable { onQueryChange("") }
+                    .padding(2.dp),
             )
         }
     }
@@ -614,41 +636,39 @@ private fun SortRow(
     ascending: Boolean,
     onSelect: (SortKey) -> Unit,
 ) {
+    val theme = DestinyTheme
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(theme.panel)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         SortKey.entries.forEach { key ->
             val active = key == current
             Row(
                 modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(9.dp))
+                    .background(if (active) theme.card else Color.Transparent)
                     .clickable { onSelect(key) }
-                    .background(
-                        if (active) DestinyTheme.accent.copy(alpha = 0.12f) else DestinyTheme.card,
-                        RoundedCornerShape(8.dp),
-                    )
-                    .border(
-                        1.dp,
-                        if (active) DestinyTheme.accent else DestinyTheme.line,
-                        RoundedCornerShape(8.dp),
-                    )
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     key.label,
-                    color = if (active) DestinyTheme.accent else DestinyTheme.muted,
-                    fontSize = 12.sp,
+                    color = if (active) theme.accent else theme.muted,
+                    fontSize = 13.sp,
                     fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
                 )
                 if (active) {
-                    Spacer(modifier = Modifier.width(2.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         if (ascending) "↑" else "↓",
-                        color = DestinyTheme.accent,
+                        color = theme.accent,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
@@ -664,29 +684,29 @@ private fun ProfileRow(
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val theme = DestinyTheme
+    val accentBg = if (profile.gender == "女") theme.female else theme.male
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(DestinyTheme.card, RoundedCornerShape(12.dp))
-            .border(1.dp, DestinyTheme.line, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
+            .background(theme.card)
+            .border(1.dp, theme.line.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
+            .padding(start = 14.dp, end = 6.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        // 性别徽章
         Box(
             modifier = Modifier
-                .size(34.dp)
-                .background(
-                    (if (profile.gender == "女") DestinyTheme.female else DestinyTheme.male).copy(alpha = 0.15f),
-                    CircleShape,
-                ),
+                .size(38.dp)
+                .clip(CircleShape)
+                .background(accentBg.copy(alpha = 0.14f)),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 (profile.name.ifBlank { "未" }).take(1),
-                color = if (profile.gender == "女") DestinyTheme.female else DestinyTheme.male,
-                fontSize = 15.sp,
+                color = accentBg,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
             )
         }
@@ -695,36 +715,45 @@ private fun ProfileRow(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     profile.name.ifBlank { "未命名" },
-                    color = DestinyTheme.ink,
-                    fontSize = 16.sp,
+                    color = theme.ink,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    profile.gender,
-                    color = if (profile.gender == "女") DestinyTheme.female else DestinyTheme.male,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                if (profile.groupName.isNotBlank() && profile.groupName != "默认") {
+                if (profile.gender.isNotBlank()) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        "· ${profile.groupName}",
-                        color = DestinyTheme.muted,
+                        profile.gender,
+                        color = if (profile.gender == "女") theme.female else theme.male,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(
+                                (if (profile.gender == "女") theme.female else theme.male)
+                                    .copy(alpha = 0.10f)
+                            )
+                            .padding(horizontal = 5.dp, vertical = 1.dp),
                     )
                 }
+                if (profile.groupName.isNotBlank() && profile.groupName != "默认") {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("· ${profile.groupName}", color = theme.muted, fontSize = 11.sp)
+                }
             }
-            Spacer(modifier = Modifier.height(3.dp))
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 "${profile.solarDateDisplay.ifBlank { profile.birthday }} · ${timeIndexLabel(profile.timeIndex)}",
-                color = DestinyTheme.muted,
+                color = theme.muted,
                 fontSize = 12.sp,
             )
             if (profile.baziSummary.isNotBlank()) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(profile.baziSummary, color = DestinyTheme.accent, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    profile.baziSummary,
+                    color = theme.accent,
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.Monospace,
+                )
             }
         }
         @OptIn(ExperimentalMaterial3Api::class)
@@ -737,8 +766,8 @@ private fun ProfileRow(
                 Icon(
                     imageVector = FeatherIcons.Trash2,
                     contentDescription = "删除",
-                    tint = DestinyTheme.danger,
-                    modifier = Modifier.size(20.dp),
+                    tint = theme.danger,
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }

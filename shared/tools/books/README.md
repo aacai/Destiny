@@ -31,3 +31,9 @@ python3 clean_ditiansui.py          # 清洗阐微正文
 python3 clean_book_texts.py
 python3 clean_book_texts.py --only lixuzhongmingshu bazitiyao qianliminggao
 ```
+
+- 繁体转简体（需 `pip3 install --user opencc-python-reimplemented`）：
+
+```bash
+python3 trad_to_simp.py
+```

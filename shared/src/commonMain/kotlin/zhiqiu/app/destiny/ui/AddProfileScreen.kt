@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,13 +51,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
+import compose.icons.feathericons.AlignLeft
+import compose.icons.feathericons.Calendar
 import compose.icons.feathericons.ChevronDown
+import compose.icons.feathericons.RefreshCw
+import compose.icons.feathericons.User
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -66,6 +72,8 @@ import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import zhiqiu.app.destiny.time.TIME_INDEX_LABELS
 import zhiqiu.iztro.bazi.lookup.BaziCandidate
+import zhiqiu.iztro.calendar.Calendar
+import zhiqiu.iztro.calendar.LunarDate
 import zhiqiu.iztro.bazi.lookup.BaziPillars
 import zhiqiu.iztro.bazi.lookup.StemBranch
 import zhiqiu.iztro.bazi.lookup.reverseLookup
@@ -120,7 +128,6 @@ fun AddProfileScreen(
     var yearTo by remember { mutableStateOf("2099") }
     var clockHour by remember { mutableIntStateOf(initial?.clockHour ?: 12) }
     var clockMinute by remember { mutableIntStateOf(initial?.clockMinute ?: 0) }
-    var showTimePicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf(false) }
     // 输入框显示「日期 + 时刻」，手输时自动解析出日期/时刻/时辰
     var dateText by remember {
@@ -238,100 +245,103 @@ fun AddProfileScreen(
         ) {
             // ── 基本信息 ──
             SectionCard("基本信息") {
-                FieldBox(label = null, value = name, onValueChange = { name = it }, placeholder = "姓名 · 如：张三")
+                FieldBox(
+                    value = name,
+                    onValueChange = { name = it },
+                    placeholder = "姓名 · 如：张三",
+                    label = "姓名",
+                    leadingIcon = FeatherIcons.User,
+                )
                 Spacer(modifier = Modifier.height(12.dp))
-                FieldBox(label = "备注", value = note, onValueChange = { note = it }, placeholder = "备注（可选）")
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("分组", color = DestinyTheme.muted, fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FieldBox(
+                    value = note,
+                    onValueChange = { note = it },
+                    placeholder = "备注（可选）",
+                    label = "备注",
+                    leadingIcon = FeatherIcons.AlignLeft,
+                )
+                Spacer(modifier = Modifier.height(14.dp))
+                FieldLabel("分组")
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                ) {
                     listOf("默认", "家人", "朋友", "案例", "名人").forEach { g ->
-                        val selected = groupName == g
-                        Text(
-                            g,
-                            color = if (selected) Color.White else DestinyTheme.ink,
-                            fontSize = 12.sp,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(if (selected) DestinyTheme.accent else DestinyTheme.page)
-                                .border(1.dp, if (selected) DestinyTheme.accent else DestinyTheme.line, RoundedCornerShape(8.dp))
-                                .clickable { groupName = g }
-                                .padding(horizontal = 11.dp, vertical = 7.dp),
-                        )
+                        GroupChip(text = g, selected = groupName == g, onClick = { groupName = g })
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
-                Text("性别", color = DestinyTheme.muted, fontSize = 12.sp)
-                Spacer(modifier = Modifier.height(6.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    listOf("男" to DestinyTheme.male, "女" to DestinyTheme.female).forEach { (g, color) ->
-                        val selected = gender == g
-                        Row(
-                            modifier = Modifier
-                                .clickable { gender = g }
-                                .background(
-                                    if (selected) color.copy(alpha = 0.12f) else DestinyTheme.page,
-                                    RoundedCornerShape(10.dp),
-                                )
-                                .border(
-                                    1.dp,
-                                    if (selected) color else DestinyTheme.line,
-                                    RoundedCornerShape(10.dp),
-                                )
-                                .padding(horizontal = 22.dp, vertical = 9.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(9.dp)
-                                    .background(color, CircleShape),
-                            )
-                            Spacer(modifier = Modifier.width(7.dp))
-                            Text(
-                                g,
-                                color = if (selected) color else DestinyTheme.muted,
-                                fontSize = 14.sp,
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            )
-                        }
-                    }
-                }
+                Spacer(modifier = Modifier.height(14.dp))
+                FieldLabel("性别")
+                Spacer(modifier = Modifier.height(8.dp))
+                SegmentedControl(
+                    options = listOf("男", "女"),
+                    selectedIndex = if (gender == "女") 1 else 0,
+                    selectedColorAt = { if (it == 1) FemaleDot else MaleDot },
+                    onSelect = { gender = if (it == 1) "女" else "男" },
+                )
             }
 
             // ── 出生时间 ──
             SectionCard("出生时间") {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    InputMode.entries.forEach { m ->
-                        val selected = mode == m
-                        Text(
-                            m.label,
-                            color = if (selected) Color.White else DestinyTheme.ink,
-                            fontSize = 13.sp,
-                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                            modifier = Modifier
-                                .clickable { mode = m }
-                                .background(if (selected) DestinyTheme.accent else DestinyTheme.page, RoundedCornerShape(8.dp))
-                                .padding(horizontal = 16.dp, vertical = 7.dp),
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
+                SegmentedControl(
+                    options = InputMode.entries.map { it.label },
+                    selectedIndex = InputMode.entries.indexOf(mode),
+                    onSelect = { mode = InputMode.entries[it] },
+                )
+                Spacer(modifier = Modifier.height(14.dp))
                 if (mode != InputMode.Bazi) {
                     FieldBox(
-                        label = if (mode == InputMode.Solar) {
-                            "公历日期 · 时刻（2026-8-29 14:05 或 202608291405，也可点箭头选择）"
-                        } else {
-                            "农历日期 · 时刻（手输，或点右侧箭头选择）"
-                        },
+                        label = "出生日期 · 具体时刻",
                         value = dateText,
                         onValueChange = {
                             dateText = it
                             syncDateTimeText(it)
                         },
                         placeholder = "YYYY-M-D HH:MM",
+                        leadingIcon = FeatherIcons.Calendar,
+                        helper = if (mode == InputMode.Solar) {
+                            "支持 2026-8-29 14:05 或 202608291405，或点右侧图标选择"
+                        } else {
+                            "农历年-月-日，点右侧图标滚轮选择，可在弹窗内切换闰月"
+                        },
                         onPickerClick = { showDatePicker = true },
                     )
+                    if (mode == InputMode.Lunar) {
+                        val (ly, lm, ld) = parseBirthdayParts(birthday)
+                        val lunarText = runCatching {
+                            val solar = Calendar.lunar2solar(birthday, isLeapMonth)
+                            val cn = LunarDate(
+                                lunarYear = ly?.toIntOrNull() ?: 0,
+                                lunarMonth = lm?.toIntOrNull() ?: 1,
+                                lunarDay = ld?.toIntOrNull() ?: 1,
+                                isLeap = isLeapMonth,
+                            ).format(useChinese = true)
+                            val week = com.tyme.solar.SolarDay
+                                .fromYmd(solar.solarYear, solar.solarMonth, solar.solarDay)
+                                .getWeek().toString()
+                            "农历$cn · 对应公历 $solar · 周$week"
+                        }.getOrNull()
+                        if (lunarText != null) {
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Accent.copy(alpha = 0.10f), RoundedCornerShape(10.dp))
+                                    .padding(horizontal = 12.dp, vertical = 9.dp),
+                            ) {
+                                Icon(
+                                    FeatherIcons.RefreshCw,
+                                    contentDescription = null,
+                                    tint = Accent,
+                                    modifier = Modifier.size(15.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(lunarText, color = Ink, fontSize = 12.sp, lineHeight = 16.sp)
+                            }
+                        }
+                    }
                 } else {
                     // 四柱点选器（参考问真八字）：干/支圆圈 + 候选字联动过滤
                     BaziPillarRow(bazi, editingSlot, onEdit = { editingSlot = it })
@@ -499,42 +509,6 @@ fun AddProfileScreen(
         }
     }
 
-    // 具体时刻选择（滚轮式，时 + 分）
-    if (showTimePicker) {
-        var selHour by remember { mutableIntStateOf(clockHour.coerceIn(0, 23)) }
-        var selMinute by remember { mutableIntStateOf(clockMinute.coerceIn(0, 59)) }
-        AlertDialog(
-            onDismissRequest = { showTimePicker = false },
-            confirmButton = {
-                TextButton(onClick = {
-                    clockHour = selHour
-                    clockMinute = selMinute
-                    showTimePicker = false
-                }) { Text("确定", color = DestinyTheme.accent) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) { Text("取消", color = DestinyTheme.muted) }
-            },
-            title = { Text("具体时刻", fontSize = 16.sp, fontWeight = FontWeight.Bold) },
-            text = {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                ) {
-                    WheelColumn(
-                        items = (0..23).map { it.toString().padStart(2, '0') },
-                        startIndex = selHour,
-                        onCenterChange = { selHour = it },
-                    )
-                    WheelColumn(
-                        items = (0..59).map { it.toString().padStart(2, '0') },
-                        startIndex = selMinute,
-                        onCenterChange = { selMinute = it },
-                    )
-                }
-            },
-        )
-    }
     // 日期时间选择弹窗：公历=日历，农历=滚轮；时辰/具体时刻=滚轮
     if (showDatePicker) {
         val (py, pm, pd) = parseBirthdayParts(birthday)
@@ -586,79 +560,168 @@ fun AddProfileScreen(
     }
 }
 
-/** 分组卡片：标题 + 内容 */
+/** 分组卡片：accent 标题条 + 内容 */
 @Composable
 private fun SectionCard(title: String, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(DestinyTheme.card, RoundedCornerShape(12.dp))
-            .border(1.dp, DestinyTheme.line, RoundedCornerShape(12.dp))
+            .background(DestinyTheme.card, RoundedCornerShape(16.dp))
+            .border(1.dp, DestinyTheme.line, RoundedCornerShape(16.dp))
             .padding(16.dp),
     ) {
-        Text(title, color = DestinyTheme.ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(12.dp))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(width = 3.dp, height = 15.dp)
+                    .background(DestinyTheme.accent, RoundedCornerShape(2.dp)),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(title, color = DestinyTheme.ink, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(14.dp))
         content()
     }
 }
 
-/** 白底圆角输入框（label 可空；可带下拉箭头，点箭头打开选择器） */
+/** 表单小标题 */
+@Composable
+private fun FieldLabel(text: String) {
+    Text(text, color = DestinyTheme.muted, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+}
+
+/** 填充式输入框：可选前缀图标 / 标题 / 说明文字 / 右侧选择器图标 */
 @Composable
 private fun FieldBox(
-    label: String?,
     value: String,
     onValueChange: (String) -> Unit,
-    placeholder: String = "",
+    placeholder: String,
+    label: String? = null,
+    leadingIcon: ImageVector? = null,
+    helper: String? = null,
     onPickerClick: (() -> Unit)? = null,
 ) {
     Column {
         if (label != null) {
-            Text(label, color = DestinyTheme.muted, fontSize = 12.sp)
+            FieldLabel(label)
             Spacer(modifier = Modifier.height(6.dp))
         }
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            singleLine = true,
-            textStyle = TextStyle(fontSize = 15.sp, color = DestinyTheme.ink),
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(DestinyTheme.page, RoundedCornerShape(10.dp))
+                .background(DestinyTheme.panel, RoundedCornerShape(10.dp))
                 .border(1.dp, DestinyTheme.line, RoundedCornerShape(10.dp))
-                .padding(start = 12.dp, end = if (onPickerClick != null) 38.dp else 12.dp, top = 11.dp, bottom = 11.dp),
-            decorationBox = { inner ->
-                Box {
-                    // 占位文字直接叠在输入行上，始终单行高度
-                    if (value.isEmpty() && placeholder.isNotEmpty()) {
-                        Text(
-                            placeholder,
-                            color = DestinyTheme.muted,
-                            fontSize = 15.sp,
-                            maxLines = 1,
-                            modifier = Modifier.align(Alignment.CenterStart),
-                        )
-                    }
-                    inner()
-                    if (onPickerClick != null) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.CenterEnd)
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable(onClick = onPickerClick)
-                                .padding(4.dp),
-                        ) {
-                            Icon(
-                                FeatherIcons.ChevronDown,
-                                contentDescription = "打开选择器",
-                                tint = DestinyTheme.accent,
-                                modifier = Modifier.size(18.dp),
+                .padding(start = 12.dp, end = if (onPickerClick != null) 6.dp else 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (leadingIcon != null) {
+                Icon(
+                    leadingIcon,
+                    contentDescription = null,
+                    tint = DestinyTheme.muted,
+                    modifier = Modifier.size(16.dp),
+                )
+                Spacer(modifier = Modifier.width(9.dp))
+            }
+            BasicTextField(
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                textStyle = TextStyle(fontSize = 15.sp, color = DestinyTheme.ink),
+                modifier = Modifier.weight(1f).padding(vertical = 12.dp),
+                decorationBox = { inner ->
+                    Box {
+                        if (value.isEmpty() && placeholder.isNotEmpty()) {
+                            Text(
+                                placeholder,
+                                color = DestinyTheme.muted,
+                                fontSize = 15.sp,
+                                maxLines = 1,
+                                modifier = Modifier.align(Alignment.CenterStart),
                             )
                         }
+                        inner()
                     }
+                },
+            )
+            if (onPickerClick != null) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .clickable(onClick = onPickerClick)
+                        .padding(6.dp),
+                ) {
+                    Icon(
+                        FeatherIcons.ChevronDown,
+                        contentDescription = "打开选择器",
+                        tint = DestinyTheme.accent,
+                        modifier = Modifier.size(18.dp),
+                    )
                 }
-            },
-        )
+            }
+        }
+        if (helper != null) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(helper, color = DestinyTheme.muted, fontSize = 11.sp, lineHeight = 15.sp)
+        }
     }
+}
+
+/** 分段控件：整行等分，选中项填充 [selectedColorAt]（默认 accent） */
+@Composable
+private fun SegmentedControl(
+    options: List<String>,
+    selectedIndex: Int,
+    onSelect: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    selectedColorAt: ((Int) -> Color)? = null,
+) {
+    val accent = DestinyTheme.accent
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(DestinyTheme.page, RoundedCornerShape(10.dp))
+            .border(1.dp, DestinyTheme.line, RoundedCornerShape(10.dp))
+            .padding(3.dp),
+    ) {
+        options.forEachIndexed { i, label ->
+            val selected = i == selectedIndex
+            val selColor = selectedColorAt?.invoke(i) ?: accent
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (selected) selColor else Color.Transparent, RoundedCornerShape(8.dp))
+                    .clickable { onSelect(i) }
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    label,
+                    color = if (selected) Color.White else DestinyTheme.muted,
+                    fontSize = 13.sp,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                )
+            }
+        }
+    }
+}
+
+/** 分组胶囊 chip */
+@Composable
+private fun GroupChip(text: String, selected: Boolean, onClick: () -> Unit) {
+    Text(
+        text,
+        color = if (selected) Color.White else DestinyTheme.ink,
+        fontSize = 12.sp,
+        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+        modifier = Modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (selected) DestinyTheme.accent else DestinyTheme.page, RoundedCornerShape(20.dp))
+            .border(1.dp, if (selected) DestinyTheme.accent else DestinyTheme.line, RoundedCornerShape(20.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 13.dp, vertical = 7.dp),
+    )
 }
 
 /** 四柱点选器：年/月/日/时 四列，干支圆圈，点击选中编辑槽位 */

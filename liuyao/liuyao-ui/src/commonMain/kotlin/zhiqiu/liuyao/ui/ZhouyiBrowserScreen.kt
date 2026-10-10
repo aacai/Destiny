@@ -108,7 +108,7 @@ fun ZhouyiBrowserScreen(
 private fun ZhouyiBrowserContent(onBack: () -> Unit) {
     var selected by remember { mutableStateOf<HexagramEntry?>(null) }
     var showPinyin by remember { mutableStateOf(false) }
-    Column(modifier.fillMaxSize().background(PanCardBg)) {
+    Column(Modifier.fillMaxSize().background(PanCardBg)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

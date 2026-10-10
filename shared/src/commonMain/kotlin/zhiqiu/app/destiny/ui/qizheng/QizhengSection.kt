@@ -852,13 +852,13 @@ private fun PatternColumn(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         if (items.isEmpty()) {
-            Text("无", fontSize = 15.sp, color = Muted)
+            Text("无", fontSize = 15.sp, color = DestinyTheme.muted)
         } else {
             items.forEach { p ->
                 Text(
                     p.name,
                     fontSize = 15.sp,
-                    color = Ink,
+                    color = DestinyTheme.ink,
                     modifier = Modifier.clickable { onPick(p) },
                 )
             }

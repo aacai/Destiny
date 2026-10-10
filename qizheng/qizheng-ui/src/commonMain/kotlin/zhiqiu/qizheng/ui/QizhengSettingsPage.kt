@@ -89,35 +89,39 @@ fun QizhengSettingsPage(
             Spacer(modifier = Modifier.width(44.dp))
         }
 
-        GroupLabel("盘制（坐标系）")
+        GroupLabel("盘制（坐标系）", c)
         ChipRow(
             labels = listOf("黄道回归", "黄道恒星", "赤道恒星"),
             selected = coordIdx,
+            c = c,
             onSelect = onCoordChange,
         )
 
-        GroupLabel("宿制")
+        GroupLabel("宿制", c)
         ChipRow(
             labels = listOf("果老星宗", "回归今宿", "回归古宿", "古宿岁差", "郑案今宿"),
             selected = xiuIdx,
+            c = c,
             onSelect = onXiuChange,
         )
 
-        GroupLabel("固定命宫")
+        GroupLabel("固定命宫", c)
         ChipRow(
             labels = listOf("自动") + "子丑寅卯辰巳午未申酉戌亥".map { it.toString() },
             selected = fixedMing + 1,
+            c = c,
             onSelect = { onFixedMingChange(it - 1) },
         )
 
-        GroupLabel("化曜流派")
+        GroupLabel("化曜流派", c)
         ChipRow(
             labels = listOf("果老化曜", "天官化曜"),
             selected = huaYaoIdx,
+            c = c,
             onSelect = onHuaYaoChange,
         )
 
-        GroupLabel("盘面")
+        GroupLabel("盘面", c)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -141,10 +145,10 @@ fun QizhengSettingsPage(
 }
 
 @Composable
-private fun GroupLabel(text: String) {
+private fun GroupLabel(text: String, c: QizhengColors) {
     Text(
         text,
-        color = Muted,
+        color = c.muted,
         fontSize = 11.sp,
         fontWeight = FontWeight.SemiBold,
         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
@@ -155,6 +159,7 @@ private fun GroupLabel(text: String) {
 private fun ChipRow(
     labels: List<String>,
     selected: Int,
+    c: QizhengColors,
     onSelect: (Int) -> Unit,
 ) {
     Row(
@@ -168,14 +173,14 @@ private fun ChipRow(
             val on = selected == i
             Box(
                 modifier = Modifier
-                    .background(if (on) ChipOn else ChipBg, RoundedCornerShape(6.dp))
-                    .border(1.dp, if (on) Accent else Line, RoundedCornerShape(6.dp))
+                    .background(if (on) c.chipOn else c.chipBg, RoundedCornerShape(6.dp))
+                    .border(1.dp, if (on) c.accent else c.hairline, RoundedCornerShape(6.dp))
                     .clickable { onSelect(i) }
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             ) {
                 Text(
                     label,
-                    color = if (on) Accent else Ink,
+                    color = if (on) c.accent else c.ink,
                     fontSize = 13.sp,
                     fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal,
                 )
