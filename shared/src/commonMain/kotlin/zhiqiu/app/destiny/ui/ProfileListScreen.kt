@@ -28,7 +28,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.PlainTooltip
@@ -274,21 +273,6 @@ fun ProfileListScreen(
                 },
             )
         },
-        floatingActionButton = {
-            TooltipBox(
-                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-                tooltip = { PlainTooltip { Text("添加档案") } },
-                state = rememberTooltipState(),
-            ) {
-                FloatingActionButton(
-                    onClick = onAdd,
-                    containerColor = DestinyTheme.accent,
-                    contentColor = Color.White,
-                ) {
-                    Icon(imageVector = FeatherIcons.Plus, contentDescription = "添加档案")
-                }
-            }
-        },
     ) { padding ->
         Column(
             modifier = Modifier
@@ -296,6 +280,7 @@ fun ProfileListScreen(
                 .padding(padding),
         ) {
             ToolStrip(
+                onAdd = onAdd,
                 onOpenLiuyao = onOpenLiuyao,
                 onOpenXiaoLiuRen = onOpenXiaoLiuRen,
                 onOpenBooks = onOpenBooks,
@@ -310,7 +295,8 @@ fun ProfileListScreen(
                             modifier = Modifier
                                 .size(64.dp)
                                 .clip(CircleShape)
-                                .background(Accent.copy(alpha = 0.10f)),
+                                .background(Accent.copy(alpha = 0.10f))
+                                .clickable(onClick = onAdd),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
@@ -323,7 +309,7 @@ fun ProfileListScreen(
                         Spacer(modifier = Modifier.height(14.dp))
                         Text("还没有档案", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text("点击右下角 + 添加第一个档案", color = Muted, fontSize = 13.sp)
+                        Text("点击「新建档案」添加第一个档案", color = Muted, fontSize = 13.sp)
                     }
                 }
             } else {
@@ -345,7 +331,7 @@ fun ProfileListScreen(
                 )
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 88.dp),
+                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (sorted.isEmpty()) {
@@ -581,9 +567,10 @@ private fun ImportDialog(
     )
 }
 
-/** 模块入口：六爻、小六壬、书架是平级功能，带文字才认得出，不挤进顶栏图标位。 */
+/** 功能入口：建档是主操作，六爻/小六壬/书架是平级模块，带文字才认得出。 */
 @Composable
 private fun ToolStrip(
+    onAdd: () -> Unit,
     onOpenLiuyao: () -> Unit,
     onOpenXiaoLiuRen: () -> Unit,
     onOpenBooks: () -> Unit,
@@ -595,6 +582,7 @@ private fun ToolStrip(
             .padding(bottom = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        ToolCard(FeatherIcons.Plus, "新建档案", "排盘建档", onAdd, primary = true)
         ToolCard(FeatherIcons.Hexagon, "六爻", "摇卦断事", onOpenLiuyao)
         ToolCard(FeatherIcons.Compass, "小六壬", "掌诀起课", onOpenXiaoLiuRen)
         ToolCard(FeatherIcons.BookOpen, "书架", "古籍原文", onOpenBooks)
@@ -607,26 +595,36 @@ private fun RowScope.ToolCard(
     title: String,
     hint: String,
     onClick: () -> Unit,
+    primary: Boolean = false,
 ) {
     val theme = DestinyTheme
+    val tone = if (primary) Color.White else theme.ink
     Column(
         modifier = Modifier
             .weight(1f)
             .clip(RoundedCornerShape(14.dp))
-            .background(theme.card)
-            .border(1.dp, theme.line.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+            .background(if (primary) theme.accent else theme.card)
+            .border(
+                1.dp,
+                if (primary) theme.accent else theme.line.copy(alpha = 0.6f),
+                RoundedCornerShape(14.dp),
+            )
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 11.dp),
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = theme.accent,
+            tint = tone,
             modifier = Modifier.size(17.dp),
         )
         Spacer(modifier = Modifier.height(7.dp))
-        Text(title, color = theme.ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        Text(hint, color = theme.muted, fontSize = 11.sp)
+        Text(title, color = tone, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(
+            hint,
+            color = if (primary) Color.White.copy(alpha = 0.75f) else theme.muted,
+            fontSize = 11.sp,
+        )
     }
 }
 
