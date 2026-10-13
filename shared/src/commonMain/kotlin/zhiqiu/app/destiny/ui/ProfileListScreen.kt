@@ -62,6 +62,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.BookOpen
+import compose.icons.feathericons.Compass
 import compose.icons.feathericons.Download
 import compose.icons.feathericons.Hexagon
 import compose.icons.feathericons.Link
@@ -137,6 +138,7 @@ fun ProfileListScreen(
     sharing: BackupSharing,
     onOpenBooks: () -> Unit = {},
     onOpenLiuyao: () -> Unit = {},
+    onOpenXiaoLiuRen: () -> Unit = {},
     colorMode: DestinyColorMode = DestinyColorMode.Light,
     onToggleColorMode: () -> Unit = {},
 ) {
@@ -265,6 +267,11 @@ fun ProfileListScreen(
                         },
                     )
                     TipIconButton(
+                        icon = FeatherIcons.Compass,
+                        contentDescription = "小六壬",
+                        onClick = onOpenXiaoLiuRen,
+                    )
+                    TipIconButton(
                         icon = FeatherIcons.Hexagon,
                         contentDescription = "六爻",
                         onClick = onOpenLiuyao,
@@ -318,9 +325,7 @@ fun ProfileListScreen(
                     Spacer(modifier = Modifier.height(14.dp))
                     Text("还没有档案", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(6.dp))
-                    Text("点击右上角 + 添加第一个档案", color = Muted, fontSize = 13.sp)
-                    Spacer(modifier = Modifier.height(14.dp))
-                    TextButton(onClick = onAdd) { Text("添加档案", color = Accent) }
+                    Text("点击右下角 + 添加第一个档案", color = Muted, fontSize = 13.sp)
                 }
             }
         } else {

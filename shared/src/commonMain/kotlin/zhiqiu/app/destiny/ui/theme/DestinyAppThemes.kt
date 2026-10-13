@@ -5,6 +5,7 @@ import zhiqiu.iztro.bazi.ui.BaziThemeConfig
 import zhiqiu.iztro.ui.IztroThemeConfig
 import zhiqiu.liuyao.ui.PanThemeConfig
 import zhiqiu.qizheng.ui.QizhengThemeConfig
+import zhiqiu.xiaoliuren.ui.XlrThemeConfig
 
 /**
  * 宿主成套主题：一次注入各盘 lightTheme / darkTheme。
@@ -28,6 +29,7 @@ data class DestinyAppThemes(
     val bazi: BaziThemeConfig = BaziThemeConfig.Default,
     val pan: PanThemeConfig = PanThemeConfig.Default,
     val qizheng: QizhengThemeConfig = QizhengThemeConfig.Default,
+    val xlr: XlrThemeConfig = XlrThemeConfig.Default,
 ) {
     companion object {
         val Default = DestinyAppThemes()

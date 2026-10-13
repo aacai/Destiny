@@ -68,6 +68,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import zhiqiu.app.destiny.chart.computeBaziSummary
 import zhiqiu.app.destiny.chart.resolvedSolarDate
+import zhiqiu.app.destiny.platform.TrafficLightInsetStart
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import zhiqiu.app.destiny.time.TIME_INDEX_LABELS
@@ -230,7 +231,11 @@ fun AddProfileScreen(
                         fontWeight = FontWeight.Bold,
                     )
                 },
-                navigationIcon = { IosBackButton(onClick = onCancel) },
+                navigationIcon = {
+                    Row(modifier = Modifier.padding(start = TrafficLightInsetStart)) {
+                        IosBackButton(onClick = onCancel)
+                    }
+                },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DestinyTheme.page),
             )
         },

@@ -49,6 +49,12 @@ project(":liuyao-core").projectDir = file("liuyao/liuyao-core")
 include(":liuyao-ui")
 project(":liuyao-ui").projectDir = file("liuyao/liuyao-ui")
 
+include(":xiaoliuren-core")
+project(":xiaoliuren-core").projectDir = file("xiaoliuren/xiaoliuren-core")
+
+include(":xiaoliuren-ui")
+project(":xiaoliuren-ui").projectDir = file("xiaoliuren/xiaoliuren-ui")
+
 include(":crypto-core")
 project(":crypto-core").projectDir = file("crypto/crypto-core")
 

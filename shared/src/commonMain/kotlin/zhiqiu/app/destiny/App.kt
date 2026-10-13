@@ -23,6 +23,7 @@ import androidx.savedstate.read
 import kotlinx.coroutines.launch
 import zhiqiu.app.destiny.profile.ProfileRepository
 import zhiqiu.app.destiny.platform.NativeTitleBarSync
+import zhiqiu.app.destiny.platform.TrafficLightInsetStart
 import zhiqiu.app.destiny.sharing.BackupSharing
 import zhiqiu.app.destiny.sharing.FileIoClient
 import zhiqiu.app.destiny.sharing.createSharedHttpClient
@@ -38,6 +39,7 @@ import zhiqiu.app.destiny.ui.theme.DestinyThemeProvider
 import zhiqiu.app.destiny.ui.theme.LocalDestinyAppThemes
 import zhiqiu.liuyao.ui.LiuYaoScreen
 import zhiqiu.liuyao.ui.ZhouyiBrowserScreen
+import zhiqiu.xiaoliuren.ui.XiaoLiuRenScreen
 
 private object Routes {
     const val List = "list"
@@ -47,6 +49,7 @@ private object Routes {
     const val Reader = "reader/{bookId}"
     const val Liuyao = "liuyao"
     const val Yijing = "yijing"
+    const val XiaoLiuRen = "xiaoliuren"
 
     fun chart(profileId: String) = "chart/$profileId"
     fun reader(bookId: String) = "reader/$bookId"
@@ -156,8 +159,17 @@ fun App(
                         sharing = sharing,
                         onOpenBooks = { navController.navigate(Routes.Books) },
                         onOpenLiuyao = { navController.navigate(Routes.Liuyao) },
+                        onOpenXiaoLiuRen = { navController.navigate(Routes.XiaoLiuRen) },
                         colorMode = colorMode,
                         onToggleColorMode = { setColorMode(colorMode.toggle()) },
+                    )
+                }
+                composable(Routes.XiaoLiuRen) {
+                    XiaoLiuRenScreen(
+                        onBack = { navController.popBackStack() },
+                        darkTheme = colorMode == DestinyColorMode.Dark,
+                        themeConfig = themes.xlr,
+                        titleBarInset = TrafficLightInsetStart,
                     )
                 }
                 composable(Routes.Liuyao) {
