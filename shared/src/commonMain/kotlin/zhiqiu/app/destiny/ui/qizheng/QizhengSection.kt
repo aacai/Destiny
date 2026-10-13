@@ -95,6 +95,7 @@ fun QizhengSection(
     val Line = theme.line
     val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
     val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
+    val Danger = theme.danger
     var timeMode by remember { mutableStateOf(QzTimeMode.Demo) }
     var subTab by remember { mutableIntStateOf(0) }
     var cy by remember { mutableIntStateOf(2026) }
@@ -197,12 +198,25 @@ fun QizhengSection(
             verticalAlignment = Alignment.Top,
         ) {
             Column {
-                Text(
-                    "盘制 ${chart.panZhi}",
-                    color = Accent,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        "盘制 ${chart.panZhi}",
+                        color = Accent,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        "未人工核对",
+                        color = Danger,
+                        fontSize = 10.sp,
+                        modifier = Modifier
+                            .background(Danger.copy(alpha = 0.10f), RoundedCornerShape(3.dp))
+                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                    )
+                }
                 Text(chart.panZhiDetail, color = Muted, fontSize = 10.sp)
                 if (chart.shenBranch != null) {
                     Text("身宫 ${chart.shenBranch}", color = Muted, fontSize = 10.sp)
