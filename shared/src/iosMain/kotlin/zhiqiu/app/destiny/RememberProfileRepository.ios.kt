@@ -16,6 +16,7 @@ actual fun createProfileRepository(): ProfileRepository {
     return ProfileRepository(getRoomDatabase(getDatabaseBuilder()), imageStorage)
 }
 
+@OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
 actual fun deleteAppData() {
     val dir = documentDirectory()
     val fm = NSFileManager.defaultManager
