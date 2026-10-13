@@ -145,15 +145,7 @@ fun ProfileListScreen(
     onToggleColorMode: () -> Unit = {},
 ) {
     val scope = rememberCoroutineScope()
-    val PageBg = DestinyTheme.page
-    val CardBg = DestinyTheme.card
-    val Ink = DestinyTheme.ink
     val Muted = DestinyTheme.muted
-    val Line = DestinyTheme.line
-    val Accent = DestinyTheme.accent
-    val MaleDot = DestinyTheme.male
-    val FemaleDot = DestinyTheme.female
-    val Danger = DestinyTheme.danger
     var query by rememberSaveable { mutableStateOf("") }
     var sortKey by rememberSaveable { mutableStateOf(SortKey.CREATED) }
     var ascending by rememberSaveable { mutableStateOf(false) }
@@ -285,72 +277,43 @@ fun ProfileListScreen(
                 onOpenXiaoLiuRen = onOpenXiaoLiuRen,
                 onOpenBooks = onOpenBooks,
             )
-            if (profiles.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            SearchBar(
+                query = query,
+                onQueryChange = { query = it },
+            )
+            SortRow(
+                current = sortKey,
+                ascending = ascending,
+                onSelect = { key ->
+                    if (sortKey == key) {
+                        ascending = !ascending
+                    } else {
+                        sortKey = key
+                        ascending = key != SortKey.BIRTH
+                    }
+                },
+            )
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (q.isNotBlank() && sorted.isEmpty()) {
+                    item {
                         Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(CircleShape)
-                                .background(Accent.copy(alpha = 0.10f))
-                                .clickable(onClick = onAdd),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(
-                                imageVector = FeatherIcons.Plus,
-                                contentDescription = null,
-                                tint = Accent,
-                                modifier = Modifier.size(28.dp),
-                            )
+                            Text("没有匹配「$q」的档案", color = Muted, fontSize = 13.sp)
                         }
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text("还没有档案", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text("点击「新建档案」添加第一个档案", color = Muted, fontSize = 13.sp)
                     }
                 }
-            } else {
-                SearchBar(
-                    query = query,
-                    onQueryChange = { query = it },
-                )
-                SortRow(
-                    current = sortKey,
-                    ascending = ascending,
-                    onSelect = { key ->
-                        if (sortKey == key) {
-                            ascending = !ascending
-                        } else {
-                            sortKey = key
-                            ascending = key != SortKey.BIRTH
-                        }
-                    },
-                )
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    if (sorted.isEmpty()) {
-                        item {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Text("没有匹配「$q」的档案", color = Muted, fontSize = 13.sp)
-                            }
-                        }
-                    }
-                    items(sorted, key = { it.id }) { profile ->
-                        ProfileRow(
-                            profile = profile,
-                            onClick = { onOpen(profile) },
-                            onDelete = { pendingDelete = profile },
-                        )
-                    }
+                items(sorted, key = { it.id }) { profile ->
+                    ProfileRow(
+                        profile = profile,
+                        onClick = { onOpen(profile) },
+                        onDelete = { pendingDelete = profile },
+                    )
                 }
             }
         }
