@@ -31,5 +31,5 @@ actual fun NativeTitleBarSync(mode: DestinyColorMode) {
     }
 }
 
-actual val TrafficLightInsetStart: Dp
-    get() = if (isMacOs) 78.dp else 0.dp
+actual val TitleBarBandHeight: Dp
+    get() = if (isMacOs) 28.dp else 0.dp

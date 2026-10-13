@@ -38,7 +38,6 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import zhiqiu.xiaoliuren.EARTHLY_BRANCHES
@@ -66,15 +65,14 @@ fun XiaoLiuRenScreen(
     onBack: () -> Unit,
     darkTheme: Boolean = false,
     themeConfig: XlrThemeConfig = XlrThemeConfig.Default,
-    titleBarInset: Dp = 0.dp,
 ) {
     XlrThemeProvider(darkTheme = darkTheme, config = themeConfig) {
-        ScreenContent(onBack = onBack, titleBarInset = titleBarInset)
+        ScreenContent(onBack = onBack)
     }
 }
 
 @Composable
-private fun ScreenContent(onBack: () -> Unit, titleBarInset: Dp) {
+private fun ScreenContent(onBack: () -> Unit) {
     val now = remember { castNow() }
     val seed = requireNotNull(now.lunar)
     var mode by remember { mutableStateOf(TimeMode.NOW) }
@@ -104,9 +102,7 @@ private fun ScreenContent(onBack: () -> Unit, titleBarInset: Dp) {
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = titleBarInset),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -123,14 +119,6 @@ private fun ScreenContent(onBack: () -> Unit, titleBarInset: Dp) {
             Spacer(modifier = Modifier.weight(1f))
             Text("小六壬 · 马前课", color = XlrTheme.ink, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.weight(1f))
-        }
-        Spacer(modifier = Modifier.height(6.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            Tag("倪海厦《天纪》", XlrTheme.accent)
-            Tag("未人工核对", XlrTheme.unlucky)
         }
 
         Spacer(modifier = Modifier.height(12.dp))

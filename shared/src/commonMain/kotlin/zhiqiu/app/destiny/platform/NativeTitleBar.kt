@@ -11,5 +11,8 @@ import zhiqiu.app.destiny.ui.theme.DestinyColorMode
 @Composable
 expect fun NativeTitleBarSync(mode: DestinyColorMode)
 
-/** 桌面 macOS 全屏内容模式下，顶栏需要为红绿灯按钮让出的水平内缩；其他平台 0.dp。 */
-expect val TrafficLightInsetStart: Dp
+/**
+ * macOS 全屏内容模式下红绿灯按钮占用的顶部色带高度，由宿主统一留出，
+ * 各页面顶栏因此不必再逐个避让；其他平台 0.dp。
+ */
+expect val TitleBarBandHeight: Dp

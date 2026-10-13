@@ -1,5 +1,8 @@
 package zhiqiu.app.destiny
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -14,6 +17,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -23,7 +27,7 @@ import androidx.savedstate.read
 import kotlinx.coroutines.launch
 import zhiqiu.app.destiny.profile.ProfileRepository
 import zhiqiu.app.destiny.platform.NativeTitleBarSync
-import zhiqiu.app.destiny.platform.TrafficLightInsetStart
+import zhiqiu.app.destiny.platform.TitleBarBandHeight
 import zhiqiu.app.destiny.sharing.BackupSharing
 import zhiqiu.app.destiny.sharing.FileIoClient
 import zhiqiu.app.destiny.sharing.createSharedHttpClient
@@ -141,6 +145,11 @@ fun App(
             val colors = DestinyTheme
             MaterialTheme(colorScheme = colors.toMaterialColorScheme()) {
                 NavHost(
+                    // 红绿灯色带由宿主统一留出，各页面顶栏不必各自避让
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(colors.page)
+                        .padding(top = TitleBarBandHeight),
                     navController = navController,
                     startDestination = Routes.List,
                 ) {
@@ -169,7 +178,6 @@ fun App(
                         onBack = { navController.popBackStack() },
                         darkTheme = colorMode == DestinyColorMode.Dark,
                         themeConfig = themes.xlr,
-                        titleBarInset = TrafficLightInsetStart,
                     )
                 }
                 composable(Routes.Liuyao) {

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +25,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -72,6 +75,7 @@ import compose.icons.feathericons.Share2
 import compose.icons.feathericons.Trash2
 import compose.icons.feathericons.Upload
 import compose.icons.feathericons.Moon
+import compose.icons.feathericons.MoreVertical
 import compose.icons.feathericons.Sun
 import compose.icons.feathericons.X
 import zhiqiu.app.destiny.ui.theme.DestinyColorMode
@@ -84,7 +88,6 @@ import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import zhiqiu.app.destiny.db.ReaderPrefEntity
-import zhiqiu.app.destiny.platform.TrafficLightInsetStart
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.sharing.BackupSharing
 import zhiqiu.app.destiny.sharing.generateQrCodePng
@@ -156,6 +159,7 @@ fun ProfileListScreen(
     var sortKey by rememberSaveable { mutableStateOf(SortKey.CREATED) }
     var ascending by rememberSaveable { mutableStateOf(false) }
     var showExport by remember { mutableStateOf(false) }
+    var showMenu by remember { mutableStateOf(false) }
     var exportMsg by remember { mutableStateOf("") }
     var pendingDelete by remember { mutableStateOf<Profile?>(null) }
     var showImport by remember { mutableStateOf(false) }
@@ -216,7 +220,7 @@ fun ProfileListScreen(
         topBar = {
             TopAppBar(
                 title = {
-                    Column(modifier = Modifier.padding(start = TrafficLightInsetStart)) {
+                    Column {
                         Text("档案", color = DestinyTheme.ink, fontWeight = FontWeight.Bold)
                         Text(
                             if (q.isBlank()) "共 ${profiles.size} 个档案"
@@ -233,54 +237,40 @@ fun ProfileListScreen(
                         contentDescription = if (colorMode == DestinyColorMode.Dark) "日间模式" else "夜间模式",
                         onClick = onToggleColorMode,
                     )
-                    TipIconButton(
-                        icon = FeatherIcons.Upload,
-                        contentDescription = "导出",
-                        onClick = {
-                            exportMsg = ""
-                            showExport = true
-                        },
-                    )
-                    TipIconButton(
-                        icon = FeatherIcons.Download,
-                        contentDescription = "导入",
-                        onClick = {
-                            importMsg = ""
-                            showImport = true
-                        },
-                    )
-                    TipIconButton(
-                        icon = FeatherIcons.Share2,
-                        contentDescription = "分享",
-                        onClick = {
-                            shareMsg = ""
-                            shareQr.value = null
-                            showShare = true
-                        },
-                    )
-                    TipIconButton(
-                        icon = FeatherIcons.Link,
-                        contentDescription = "导入链接",
-                        onClick = {
-                            linkImportMsg = ""
-                            showLinkImport = true
-                        },
-                    )
-                    TipIconButton(
-                        icon = FeatherIcons.Compass,
-                        contentDescription = "小六壬",
-                        onClick = onOpenXiaoLiuRen,
-                    )
-                    TipIconButton(
-                        icon = FeatherIcons.Hexagon,
-                        contentDescription = "六爻",
-                        onClick = onOpenLiuyao,
-                    )
-                    TipIconButton(
-                        icon = FeatherIcons.BookOpen,
-                        contentDescription = "书架",
-                        onClick = onOpenBooks,
-                    )
+                    Box {
+                        TipIconButton(
+                            icon = FeatherIcons.MoreVertical,
+                            contentDescription = "数据与备份",
+                            onClick = { showMenu = !showMenu },
+                        )
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false },
+                            containerColor = DestinyTheme.card,
+                        ) {
+                            MenuAction(FeatherIcons.Upload, "导出备份") {
+                                showMenu = false
+                                exportMsg = ""
+                                showExport = true
+                            }
+                            MenuAction(FeatherIcons.Download, "导入备份") {
+                                showMenu = false
+                                importMsg = ""
+                                showImport = true
+                            }
+                            MenuAction(FeatherIcons.Share2, "分享到链接") {
+                                showMenu = false
+                                shareMsg = ""
+                                shareQr.value = null
+                                showShare = true
+                            }
+                            MenuAction(FeatherIcons.Link, "从链接导入") {
+                                showMenu = false
+                                linkImportMsg = ""
+                                showLinkImport = true
+                            }
+                        }
+                    }
                 },
             )
         },
@@ -300,40 +290,43 @@ fun ProfileListScreen(
             }
         },
     ) { padding ->
-        if (profiles.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center,
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .clip(CircleShape)
-                            .background(Accent.copy(alpha = 0.10f)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = FeatherIcons.Plus,
-                            contentDescription = null,
-                            tint = Accent,
-                            modifier = Modifier.size(28.dp),
-                        )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+        ) {
+            ToolStrip(
+                onOpenLiuyao = onOpenLiuyao,
+                onOpenXiaoLiuRen = onOpenXiaoLiuRen,
+                onOpenBooks = onOpenBooks,
+            )
+            if (profiles.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(Accent.copy(alpha = 0.10f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = FeatherIcons.Plus,
+                                contentDescription = null,
+                                tint = Accent,
+                                modifier = Modifier.size(28.dp),
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text("还没有档案", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("点击右下角 + 添加第一个档案", color = Muted, fontSize = 13.sp)
                     }
-                    Spacer(modifier = Modifier.height(14.dp))
-                    Text("还没有档案", color = Ink, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("点击右下角 + 添加第一个档案", color = Muted, fontSize = 13.sp)
                 }
-            }
-        } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-            ) {
+            } else {
                 SearchBar(
                     query = query,
                     onQueryChange = { query = it },
@@ -584,6 +577,71 @@ private fun ImportDialog(
                     Text(message, fontSize = 12.sp, color = DestinyTheme.accent)
                 }
             }
+        },
+    )
+}
+
+/** 模块入口：六爻、小六壬、书架是平级功能，带文字才认得出，不挤进顶栏图标位。 */
+@Composable
+private fun ToolStrip(
+    onOpenLiuyao: () -> Unit,
+    onOpenXiaoLiuRen: () -> Unit,
+    onOpenBooks: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .padding(bottom = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        ToolCard(FeatherIcons.Hexagon, "六爻", "摇卦断事", onOpenLiuyao)
+        ToolCard(FeatherIcons.Compass, "小六壬", "掌诀起课", onOpenXiaoLiuRen)
+        ToolCard(FeatherIcons.BookOpen, "书架", "古籍原文", onOpenBooks)
+    }
+}
+
+@Composable
+private fun RowScope.ToolCard(
+    icon: ImageVector,
+    title: String,
+    hint: String,
+    onClick: () -> Unit,
+) {
+    val theme = DestinyTheme
+    Column(
+        modifier = Modifier
+            .weight(1f)
+            .clip(RoundedCornerShape(14.dp))
+            .background(theme.card)
+            .border(1.dp, theme.line.copy(alpha = 0.6f), RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = theme.accent,
+            modifier = Modifier.size(17.dp),
+        )
+        Spacer(modifier = Modifier.height(7.dp))
+        Text(title, color = theme.ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Text(hint, color = theme.muted, fontSize = 11.sp)
+    }
+}
+
+@Composable
+private fun MenuAction(icon: ImageVector, text: String, onClick: () -> Unit) {
+    DropdownMenuItem(
+        text = { Text(text, color = DestinyTheme.ink, fontSize = 13.sp) },
+        onClick = onClick,
+        leadingIcon = {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = DestinyTheme.accent,
+                modifier = Modifier.size(16.dp),
+            )
         },
     )
 }

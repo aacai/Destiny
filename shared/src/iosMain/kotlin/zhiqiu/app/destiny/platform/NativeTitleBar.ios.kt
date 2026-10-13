@@ -8,4 +8,4 @@ import zhiqiu.app.destiny.ui.theme.DestinyColorMode
 @Composable
 actual fun NativeTitleBarSync(mode: DestinyColorMode) = Unit
 
-actual val TrafficLightInsetStart: Dp = 0.dp
+actual val TitleBarBandHeight: Dp = 0.dp
