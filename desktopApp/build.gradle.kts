@@ -16,14 +16,19 @@ dependencies {
     implementation(libs.compose.uiToolingPreview)
 }
 
+val appVersion: String by rootProject.extra
+
 compose.desktop {
     application {
         mainClass = "zhiqiu.app.destiny.MainKt"
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "zhiqiu.app.destiny"
-            packageVersion = "1.0.0"
+            // ktor 的 java 引擎是反射加载的，jdeps 看不见，不点名就没有 java.net.http
+            modules("java.net.http")
+            packageName = "Destiny"
+            packageVersion = appVersion
+            linux { packageName = "destiny" }
         }
     }
 }

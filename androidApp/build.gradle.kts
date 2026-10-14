@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.androidApplication)
@@ -10,6 +11,26 @@ kotlin {
         jvmTarget = JvmTarget.JVM_11
     }
 }
+
+val appVersion: String by rootProject.extra
+val appVersionCode = appVersion.split(".").fold(0) { acc, part -> acc * 100 + part.toInt() }
+
+// 签名材料放在 androidApp/signing.properties（已忽略），CI 用 KEYSTORE_* 环境变量注入；
+// 两边都没有时 release 退回 debug 签名，保证任何人 clone 下来都能 assembleRelease。
+val signingPropsFile = rootProject.file("androidApp/signing.properties")
+val signingProps = Properties()
+if (signingPropsFile.exists()) {
+    signingPropsFile.inputStream().use { signingProps.load(it) }
+}
+
+fun signingProp(name: String, envName: String): String? =
+    System.getenv(envName) ?: signingProps.getProperty(name)
+
+val hasSigningConfig = signingProp("storeFile", "KEYSTORE_FILE") != null &&
+    signingProp("storePassword", "KEYSTORE_PASSWORD") != null &&
+    signingProp("keyAlias", "KEY_ALIAS") != null &&
+    signingProp("keyPassword", "KEY_PASSWORD") != null
+
 dependencies {
     implementation(project(":shared"))
 
@@ -27,18 +48,31 @@ android {
         applicationId = "zhiqiu.app.destiny"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = appVersionCode
+        versionName = appVersion
     }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    signingConfigs {
+        create("release") {
+            if (hasSigningConfig) {
+                storeFile = file(signingProp("storeFile", "KEYSTORE_FILE")!!)
+                storePassword = signingProp("storePassword", "KEYSTORE_PASSWORD")
+                keyAlias = signingProp("keyAlias", "KEY_ALIAS")
+                keyPassword = signingProp("keyPassword", "KEY_PASSWORD")
+            } else {
+                initWith(getByName("debug"))
+            }
+        }
+    }
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

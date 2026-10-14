@@ -32,6 +32,8 @@ local.properties
 captures/
 *.keystore
 *.jks
+androidApp/signing.properties
+keyconf.txt
 
 # ========== Android ==========
 .externalNativeBuild/

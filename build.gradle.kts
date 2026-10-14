@@ -12,6 +12,9 @@ plugins {
     alias(libs.plugins.kotlinSerialization) apply false
 }
 
+// 版本号唯一来源：Android versionName/versionCode、桌面包版本、CI 产物改名都从这里派生。
+extra["appVersion"] = "0.0.1"
+
 subprojects {
     configurations.configureEach {
         resolutionStrategy.eachDependency {
