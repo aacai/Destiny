@@ -1,5 +1,6 @@
 package zhiqiu.app.destiny.sharing
 
+import okio.ByteString.Companion.decodeBase64
 import qrcode.QRCode
 
 /**
@@ -14,7 +15,19 @@ import qrcode.QRCode
  * @return PNG 图片字节，可直接用 Coil3 渲染或写入文件
  */
 fun generateQrCodePng(content: String, cellSize: Int = 8): ByteArray =
-    QRCode.ofSquares()
-        .withSize(cellSize)
-        .build(content)
-        .renderToBytes(format = "PNG")
+    asPngBytes(
+        QRCode.ofSquares()
+            .withSize(cellSize)
+            .build(content)
+            .renderToBytes(format = "PNG")
+    )
+
+private const val PNG_FIRST_BYTE = 0x89.toByte()
+
+/** wasm/js 变体没有光栅化后端，库返回 `data:image/png;base64,…` 文本而非图片字节 */
+private fun asPngBytes(rendered: ByteArray): ByteArray {
+    if (rendered.firstOrNull() == PNG_FIRST_BYTE) return rendered
+    val base64 = rendered.decodeToString().substringAfter(',')
+    return base64.decodeBase64()?.toByteArray()
+        ?: throw IllegalStateException("二维码渲染结果不是 PNG，也不是 base64 data URI")
+}
