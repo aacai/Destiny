@@ -1,21 +1,14 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# androidApp 的 R8 规则：只放 App 级（崩溃可读性、Kotlin 通用坑）。
+# 业务模块自己的规则写在模块的 consumer rules 里（见 shared/consumer-rules.pro），
+# 随 AAR 自动合并到这里；Manifest 里的 Activity/Application 由 AGP 生成的 aapt_rules 兜底。
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# ---- 崩溃堆栈可读 ----
+# 保留文件名+行号，源码文件名统一改名避免泄露路径；
+# 反混淆用 build/outputs/mapping/release/mapping.txt。
+-keepattributes SourceFile,LineNumberTable
+-renamesourcefileattribute SourceFile
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
-
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# Kotlin 编译 when-over-enum 生成的映射表：类被内联/改名后字段名仍需可读。
+-keepclassmembers class **$WhenMappings {
+    <fields>;
+}

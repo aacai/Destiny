@@ -37,6 +37,12 @@ kotlin {
        compilerOptions {
            jvmTarget = JvmTarget.JVM_11
        }
+       optimization {
+           consumerKeepRules.apply {
+               publish = true
+               file(project.file("consumer-rules.pro"))
+           }
+       }
        androidResources {
            enable = true
        }
