@@ -141,6 +141,14 @@ room3 {
     schemaDirectory("$projectDir/schemas")
 }
 
+// Compose 的这项检查（CMP-4906）针对的是「自己产出 wasm 可执行体的 Web 应用」：
+// 没有 executable 时 Skiko 无法被 webpack 打进测试包，Compose UI 测试会失败。
+// shared 是库，可执行体在 :webApp；这里的 wasm 测试又都是纯逻辑用例，不渲染 UI，
+// 加 binaries.executable() 反而要给库补一个假的 main 入口。
+tasks.matching { it.name == "checkComposeUiTestConfigurationForWasmJs" }.configureEach {
+    enabled = false
+}
+
 dependencies {
     androidRuntimeClasspath(libs.compose.uiTooling)
     add("kspAndroid", libs.androidx.room3.compiler)
