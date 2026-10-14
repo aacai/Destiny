@@ -17,6 +17,8 @@ dependencies {
 }
 
 val appVersion: String by rootProject.extra
+// jpackage 拒绝主版本为 0 的 app-version，0.x 阶段派生成 1.x；产物文件名由 CI 按 appVersion 重命名
+val macPackageVersion = "1." + appVersion.substringAfter('.')
 
 compose.desktop {
     application {
@@ -29,6 +31,7 @@ compose.desktop {
             packageName = "Destiny"
             packageVersion = appVersion
             linux { packageName = "destiny" }
+            macOS { packageVersion = macPackageVersion }
         }
     }
 }
