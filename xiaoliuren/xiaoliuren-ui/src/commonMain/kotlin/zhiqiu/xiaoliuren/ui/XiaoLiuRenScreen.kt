@@ -13,17 +13,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -86,6 +90,7 @@ private fun ScreenContent(onBack: () -> Unit) {
     var countHour by remember { mutableStateOf(now.hourCount.toString()) }
     // 「此刻」每次进入或点刷新都重新取设备时间
     var snapshot by remember { mutableStateOf(now) }
+    var showRule by remember { mutableStateOf(false) }
 
     val reported = listOf(countMonth, countDay, countHour).map { reportedNumber(it) }
     val chart = when (mode) {
@@ -119,6 +124,17 @@ private fun ScreenContent(onBack: () -> Unit) {
             Spacer(modifier = Modifier.weight(1f))
             Text("小六壬 · 马前课", color = XlrTheme.ink, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.weight(1f))
+            Box(
+                modifier = Modifier
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(XlrTheme.panel)
+                    .border(1.dp, XlrTheme.line, CircleShape)
+                    .clickable { showRule = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("？", color = XlrTheme.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -288,6 +304,137 @@ private fun ScreenContent(onBack: () -> Unit) {
 
         VerdictCard(chart = chart)
         Spacer(modifier = Modifier.height(24.dp))
+    }
+
+    if (showRule) {
+        RuleDialog(chart = chart, onDismiss = { showRule = false })
+    }
+}
+
+/** 取数来源、推演法则与六宫速查；文案与 core 的 castCounts／advanceFrom 同式。 */
+@Composable
+private fun RuleDialog(chart: XiaoLiuRenChart, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.widthIn(max = 520.dp),
+        containerColor = XlrTheme.card,
+        tonalElevation = 0.dp,
+        titleContentColor = XlrTheme.ink,
+        textContentColor = XlrTheme.ink,
+        title = { Text("取数与规则", color = XlrTheme.ink, fontSize = 18.sp, fontWeight = FontWeight.Bold) },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                RuleSection("取数") {
+                    Bullet("此刻", "取设备时间的农历月、农历日与时辰。")
+                    Bullet("农历", "手选农历月日与时辰；闰月按本月计，只标注、不改落宫。")
+                    Bullet("报数", "随口报三个数，依次作月、日、时之数，推演与农历同式。")
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("时辰之数：子时为一，顺至亥时为十二，故辰时数五位。", color = XlrTheme.muted, fontSize = 12.sp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "本课 ${chart.castText} → 三数 ${chart.monthCount}・${chart.dayCount}・${chart.hourCount}",
+                        color = XlrTheme.accent,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                }
+                RuleSection("推演") {
+                    Text(
+                        "掌诀六位顺时针一周：大安 → 留连 → 速喜 → 赤口 → 小吉 → 空亡，再回大安。",
+                        color = XlrTheme.ink,
+                        fontSize = 12.sp,
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "自起算宫起记「一」，顺数 N 位即落第 N 宫；满六位回绕，故落宫序 =（起算序 + N − 1）mod 6。",
+                        color = XlrTheme.ink,
+                        fontSize = 12.sp,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    chart.steps.forEachIndexed { i, step ->
+                        Text(
+                            "${i + 1}. ${step.start.label}起，数至${step.countText}（${step.count} 位）→ ${step.land.label}",
+                            color = XlrTheme.muted,
+                            fontSize = 12.sp,
+                            modifier = Modifier.padding(bottom = 3.dp),
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        "只以第三步落宫断事，月宫、日宫是中途立足点，不单独论吉凶。",
+                        color = XlrTheme.muted,
+                        fontSize = 12.sp,
+                    )
+                }
+                RuleSection("六宫") {
+                    Palace.ORDER.forEachIndexed { i, palace ->
+                        val tone = XlrTheme.palaceColor(palace.luck.auspicious)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(ORDER_MARKS[i], color = XlrTheme.muted, fontSize = 12.sp, modifier = Modifier.width(18.dp))
+                            Text(
+                                palace.label,
+                                color = tone,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.width(52.dp),
+                            )
+                            Text(
+                                "${palace.wuxing}·${palace.beast} ${palace.direction}",
+                                color = XlrTheme.muted,
+                                fontSize = 11.sp,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(palace.state, color = XlrTheme.muted, fontSize = 11.sp, modifier = Modifier.width(70.dp))
+                            Tag(palace.luck.label, tone)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        "谋事之数取各宫本数：大安、小吉一五七，留连二八十，速喜、空亡三六九，赤口四七十。",
+                        color = XlrTheme.muted,
+                        fontSize = 11.sp,
+                    )
+                }
+                RuleSection("出处") {
+                    Text(
+                        "起课法与断语依倪海厦《天纪》口授，断曰取自通行《小六壬》口诀；推演一按原式，未增删吉凶。",
+                        color = XlrTheme.muted,
+                        fontSize = 11.sp,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭", color = XlrTheme.accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            }
+        },
+    )
+}
+
+@Composable
+private fun RuleSection(title: String, content: @Composable () -> Unit) {
+    Text(title, color = XlrTheme.accent, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+    Spacer(modifier = Modifier.height(8.dp))
+    content()
+    Spacer(modifier = Modifier.height(14.dp))
+}
+
+@Composable
+private fun Bullet(term: String, detail: String) {
+    Row(modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+        Text(term, color = XlrTheme.ink, fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.width(42.dp))
+        Text(detail, color = XlrTheme.muted, fontSize = 12.sp, modifier = Modifier.weight(1f))
     }
 }
 
