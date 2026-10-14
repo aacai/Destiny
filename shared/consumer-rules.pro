@@ -37,6 +37,10 @@
     kotlinx.serialization.KSerializer serializer(...);
 }
 
+# AGP 自带那份只锁 serializer() 入口，$$serializer 类自身的成员还会被改名/裁掉；
+# envelope/payload 序列器一旦缺了 Object 桥接方法，导入备份解到即崩。整类锁死。
+-keepclassmembers class zhiqiu.app.destiny.**$$serializer { *; }
+
 # ---- Room3 ----
 # builder 用 Class.forName("<Database 全名>_Impl") 反射拿生成实现，
 # 生成的 *_Impl 必须保留包名+类名（允许成员改名）。
