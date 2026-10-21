@@ -49,6 +49,8 @@ compose.desktop {
             macOS { packageVersion = macPackageVersion }
         }
 
+        // 只有 createReleaseDistributable / packageRelease* 这条任务链会过 ProGuard，
+        // 跑 debug 的 packageDmg 时这份规则根本不参与。
         buildTypes.release.proguard {
             configurationFiles.from(project.file("proguard-desktop.pro"))
         }

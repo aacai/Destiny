@@ -30,7 +30,9 @@
 }
 
 # ProGuard 不读 META-INF/services，ServiceLoader 找的实现类在静态图里没有引用，会被整类删掉。
-# 这几条对应实测丢过的：Coil 的 ktor 网络取图器、Ktor 的 kotlinx-serialization 扩展、Ktor 引擎容器。
+# 这几条对应实测丢过的：Coil 的 ktor 网络取图器、Ktor 的 kotlinx-serialization 扩展、Ktor 引擎容器、
+# filekit 在 Linux 上走的 D-Bus 传输（macOS 用不到，但同一份规则也打进 deb 包）。
+# 漏一条不会编译报错，运行时才炸，所以改完依赖要核对：包里 META-INF/services 列的类必须都还在。
 -keep class * implements coil3.util.FetcherServiceLoaderTarget {
     <init>();
 }
@@ -38,6 +40,9 @@
     <init>();
 }
 -keep class * implements io.ktor.client.HttpClientEngineContainer {
+    <init>();
+}
+-keep class * implements org.freedesktop.dbus.spi.transport.ITransportProvider {
     <init>();
 }
 
