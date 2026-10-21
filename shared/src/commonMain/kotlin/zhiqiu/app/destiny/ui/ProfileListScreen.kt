@@ -827,7 +827,7 @@ private fun ShareDialog(
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
-                    "生成备份包并上传到 Litterbox，得到一个 72 小时内有效的分享链接（到期后自动删除，请尽快导入）。",
+                    "生成备份包并上传到临时文件服务（x0.at），得到一个分享链接（至少保留 3 天、最长 100 天；主服务不可用时会自动改用备用服务，有效期更短），请尽快导入。",
                     fontSize = 12.sp,
                     color = DestinyTheme.muted,
                 )
@@ -913,7 +913,7 @@ private fun LinkImportDialog(
         text = {
             Column {
                 Text(
-                    "粘贴他人分享的 Litterbox 链接（72 小时内有效），下载并导入。",
+                    "粘贴他人分享的临时文件链接（x0.at 链接 3~100 天内有效），下载并导入。",
                     fontSize = 12.sp,
                     color = DestinyTheme.muted,
                 )
