@@ -38,39 +38,63 @@ compose.desktop {
             linux { packageName = "destiny" }
             macOS { packageVersion = macPackageVersion }
         }
+
+        buildTypes.release.proguard {
+            configurationFiles.from(project.file("proguard-desktop.pro"))
+        }
     }
 }
 
-// macOS 的 skiko runtime jar 是双架构的：插件只把本机那份解成 Contents/app 里的 dylib，
-// 另一半还留在 jar 里进包；启动参数里的 -Dskiko.library.path=$APPDIR 让运行时只读解出来的那份。
-// Linux / Windows 的 jar 只有本机架构，解完就空了，那边没活可干。
-tasks.matching { it.name == "createDistributable" }.configureEach {
-    val appImagesDir = layout.buildDirectory.dir("compose/binaries/main/app")
+// 打包只留当前操作系统用得上的二进制：
+// skiko 的 runtime jar 里还压着另一半架构的 dylib（插件只解本机那份到同级目录），
+// sqlite-jdbc 的 jar 里则压着 linux/osx/windows 三份 native，各平台各出各的包，多出来的纯属占地方。
+val hostSqliteNative = when {
+    System.getProperty("os.name").lowercase().startsWith("mac") -> "osx"
+    System.getProperty("os.name").lowercase().startsWith("windows") -> "windows"
+    else -> "linux"
+}
+
+tasks.matching { it.name == "createDistributable" || it.name == "createReleaseDistributable" }.configureEach {
+    val binaries = layout.buildDirectory.dir("compose/binaries").get().asFile
+    val sqliteNative = hostSqliteNative
+    // 逻辑必须整个待在 doLast 里：引用脚本顶层函数会让 configuration cache 存不下来
     doLast {
-        appImagesDir.get().asFile.walkTopDown()
-            .filter { it.isFile && it.name.startsWith("skiko-awt-runtime-") && it.name.endsWith(".jar") }
-            .forEach { jar ->
-                val unpacked = jar.parentFile.list()?.toSet() ?: emptySet()
-                val stripped = File(jar.parentFile, "${jar.name}.stripped")
-                var dropped = 0
-                ZipInputStream(jar.inputStream()).use { input ->
-                    ZipOutputStream(stripped.outputStream()).use { output ->
-                        while (true) {
-                            val entry = input.nextEntry ?: break
-                            if (entry.name.startsWith("libskiko-") && entry.name !in unpacked) {
-                                dropped++
-                            } else {
-                                output.putNextEntry(ZipEntry(entry.name))
-                                input.copyTo(output)
-                                output.closeEntry()
-                            }
+        fun strip(jar: File, drop: (String) -> Boolean) {
+            val stripped = File(jar.parentFile, "${jar.name}.stripped")
+            var dropped = 0
+            ZipInputStream(jar.inputStream()).use { input ->
+                ZipOutputStream(stripped.outputStream()).use { output ->
+                    while (true) {
+                        val entry = input.nextEntry ?: break
+                        if (drop(entry.name)) {
+                            dropped++
+                        } else {
+                            output.putNextEntry(ZipEntry(entry.name))
+                            input.copyTo(output)
+                            output.closeEntry()
                         }
                     }
                 }
-                if (dropped == 0) stripped.delete()
-                else {
-                    jar.delete()
-                    stripped.renameTo(jar)
+            }
+            if (dropped == 0) stripped.delete()
+            else {
+                jar.delete()
+                stripped.renameTo(jar)
+            }
+        }
+
+        binaries.walkTopDown()
+            .filter { it.isDirectory && it.name == "app" && File(it, "Destiny.app").isDirectory }
+            .flatMap { (File(it, "Destiny.app/Contents/app")).listFiles()?.asList() ?: emptyList() }
+            .filter { it.isFile }
+            .forEach { jar ->
+                if (jar.name.startsWith("skiko-awt-runtime-")) {
+                    // 启动参数 -Dskiko.library.path=$APPDIR 让运行时只读解出来的那份 dylib
+                    val unpacked = jar.parentFile.list()?.toSet() ?: emptySet()
+                    strip(jar) { it.startsWith("libskiko-") && it !in unpacked }
+                }
+                if (jar.name.startsWith("sqlite-bundled-jvm-")) {
+                    strip(jar) { it.startsWith("natives/") && !it.startsWith("natives/$sqliteNative") }
                 }
             }
     }
@@ -78,32 +102,36 @@ tasks.matching { it.name == "createDistributable" }.configureEach {
 
 // jpackage 的 dmg 会往卷根塞背景图、卷图标、.DS_Store 和 .fseventsd，
 // Applications 还是 Finder alias 而不是软链。app 镜像已经建好，最后这层壳自己用 hdiutil 打。
-val packageDmgFromAppImage = tasks.register<Exec>("packageDmgFromAppImage") {
-    dependsOn("createDistributable")
+fun registerDmgFromAppImage(binaryDirName: String, taskName: String, createTask: String) =
+    tasks.register<Exec>(taskName) {
+        dependsOn(createTask)
 
-    val appImages = layout.buildDirectory.dir("compose/binaries/main/app").get().asFile
-    val staging = layout.buildDirectory.dir("compose/tmp/dmgStaging").get().asFile
-    val dmg = layout.buildDirectory.file("compose/binaries/main/dmg/Destiny-$macPackageVersion.dmg").get().asFile
+        val appImages = layout.buildDirectory.dir("compose/binaries/$binaryDirName/app").get().asFile
+        val staging = layout.buildDirectory.dir("compose/tmp/${binaryDirName}DmgStaging").get().asFile
+        val dmg = layout.buildDirectory.file("compose/binaries/$binaryDirName/dmg/Destiny-$macPackageVersion.dmg").get().asFile
 
-    inputs.dir(appImages)
-    outputs.file(dmg)
+        inputs.dir(appImages)
+        outputs.file(dmg)
 
-    commandLine(
-        "sh", "-c",
-        """
-        set -eu
-        rm -rf '$staging'
-        mkdir -p '${dmg.parent}' '${staging.parent}'
-        cp -R '${appImages}/.' '$staging/'
-        ln -s /Applications '$staging/Applications'
-        rm -f '$dmg'
-        hdiutil create -volname Destiny -srcfolder '$staging' -ov -format UDZO -imagekey zlib-level=9 '$dmg'
-        """.trimIndent(),
-    )
-}
+        commandLine(
+            "sh", "-c",
+            """
+            set -eu
+            rm -rf '$staging'
+            mkdir -p '${dmg.parent}' '${staging.parent}'
+            cp -R '${appImages}/.' '$staging/'
+            ln -s /Applications '$staging/Applications'
+            rm -f '$dmg'
+            hdiutil create -volname Destiny -srcfolder '$staging' -ov -format UDZO -imagekey zlib-level=9 '$dmg'
+            """.trimIndent(),
+        )
+    }
 
-tasks.matching { it.name == "packageDmg" }.configureEach {
+val dmgMain = registerDmgFromAppImage("main", "packageDmgFromAppImage", "createDistributable")
+val dmgRelease = registerDmgFromAppImage("main-release", "packageReleaseDmgFromAppImage", "createReleaseDistributable")
+
+tasks.matching { it.name == "packageDmg" || it.name == "packageReleaseDmg" }.configureEach {
     // 不关掉它的话，jpackage 会把上面刚打好的那份盖回去。
     onlyIf { false }
-    dependsOn(packageDmgFromAppImage)
+    dependsOn(if (name == "packageDmg") dmgMain else dmgRelease)
 }
