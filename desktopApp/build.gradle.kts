@@ -26,8 +26,18 @@ val macPackageVersion = "1." + appVersion.substringAfter('.')
 compose.desktop {
     application {
         mainClass = "zhiqiu.app.destiny.MainKt"
-        // 数据量小、分配慢，G1 的并发线程和辅助结构在这里不值那份常驻内存
-        jvmArgs += listOf("-Xms32m", "-Xmx512m", "-XX:+UseSerialGC")
+        // 单机小工具的 JVM 默认值全按服务器调：-Xms 取物理内存的 1/64（16G 机器上 256M）一开机就占住，
+        // G1 的 remember-set、240M code cache、不设限的 Metaspace 也一样留着，而实际堆只用十几 M。
+        jvmArgs += listOf(
+            "-Xms32m",
+            "-Xmx512m",
+            "-XX:SoftMaxHeapSize=192m",
+            "-XX:MinHeapFreeRatio=1",
+            "-XX:MaxHeapFreeRatio=10",
+            "-XX:MaxMetaspaceSize=256m",
+            "-XX:ReservedCodeCacheSize=96m",
+            "-XX:+UseSerialGC",
+        )
 
         nativeDistributions {
             targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
@@ -57,8 +67,16 @@ val hostSqliteNative = when {
 tasks.matching { it.name == "createDistributable" || it.name == "createReleaseDistributable" }.configureEach {
     val binaries = layout.buildDirectory.dir("compose/binaries").get().asFile
     val sqliteNative = hostSqliteNative
+    val outward = appVersion
+    val packed = macPackageVersion
     // 逻辑必须整个待在 doLast 里：引用脚本顶层函数会让 configuration cache 存不下来
     doLast {
+        fun runTool(vararg command: String) {
+            val process = ProcessBuilder(command.toList()).redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().readText()
+            if (process.waitFor() != 0) throw GradleException("${command.first()} 失败：$output")
+        }
+
         fun strip(jar: File, drop: (String) -> Boolean) {
             val stripped = File(jar.parentFile, "${jar.name}.stripped")
             var dropped = 0
@@ -97,6 +115,31 @@ tasks.matching { it.name == "createDistributable" || it.name == "createReleaseDi
                     strip(jar) { it.startsWith("natives/") && !it.startsWith("natives/$sqliteNative") }
                 }
             }
+
+        // jpackage 不接受首段为 0 的 app-version，只能先拿 1.x 过校验，再把版本号写回真实值。
+        // 后处理动了包里的文件，签名 seal 会失效，所以按包内原有 entitlements 重签一次。
+        binaries.walkTopDown()
+            .filter { it.isDirectory && it.name.endsWith(".app") }
+            .forEach { app ->
+                val plist = File(app, "Contents/Info.plist").path
+                for (key in listOf("CFBundleShortVersionString", "CFBundleVersion")) {
+                    runTool("plutil", "-replace", key, "-string", outward, plist)
+                }
+                val cfg = File(app, "Contents/app/${app.nameWithoutExtension}.cfg")
+                if (cfg.isFile) {
+                    cfg.writeText(cfg.readText().replace("-Djpackage.app-version=$packed", "-Djpackage.app-version=$outward"))
+                }
+                val ent = File(app.parentFile, "${app.name}.entitlements.plist")
+                // 转储 entitlements 时 stderr 不能并进文件：codesign 会打一行 "Executable=…"，进了就是非法 blob。
+                val dumped = ProcessBuilder("codesign", "-d", "--entitlements", ":-", app.path)
+                    .redirectOutput(ent)
+                    .redirectError(ProcessBuilder.Redirect.DISCARD)
+                    .start()
+                    .waitFor() == 0 && ent.length() > 0
+                val entitlements = if (dumped) listOf("--entitlements", ent.path) else emptyList()
+                runTool("codesign", "--force", "--options", "runtime", "--sign", "-", *entitlements.toTypedArray(), app.path)
+                ent.delete()
+            }
     }
 }
 
@@ -108,7 +151,7 @@ fun registerDmgFromAppImage(binaryDirName: String, taskName: String, createTask:
 
         val appImages = layout.buildDirectory.dir("compose/binaries/$binaryDirName/app").get().asFile
         val staging = layout.buildDirectory.dir("compose/tmp/${binaryDirName}DmgStaging").get().asFile
-        val dmg = layout.buildDirectory.file("compose/binaries/$binaryDirName/dmg/Destiny-$macPackageVersion.dmg").get().asFile
+        val dmg = layout.buildDirectory.file("compose/binaries/$binaryDirName/dmg/Destiny-$appVersion.dmg").get().asFile
 
         inputs.dir(appImages)
         outputs.file(dmg)
@@ -117,11 +160,10 @@ fun registerDmgFromAppImage(binaryDirName: String, taskName: String, createTask:
             "sh", "-c",
             """
             set -eu
-            rm -rf '$staging'
+            rm -rf '$staging' '${dmg.parent}'
             mkdir -p '${dmg.parent}' '${staging.parent}'
             cp -R '${appImages}/.' '$staging/'
             ln -s /Applications '$staging/Applications'
-            rm -f '$dmg'
             hdiutil create -volname Destiny -srcfolder '$staging' -ov -format UDZO -imagekey zlib-level=9 '$dmg'
             """.trimIndent(),
         )

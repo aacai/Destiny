@@ -3,6 +3,10 @@
 # 插件自带的 default-compose-desktop-rules.pro（kotlin/skia/skiko/coroutines），
 # 库自己的规则一个都不认，所以反射入口要在这里点名。
 
+# okio 的扩展函数带 @JvmName 后缀（buffer$5ae116e 这种），ProGuard 的内联/特化改写
+# 会把返回类型收窄成实现类，字节码校验当场 VerifyError。整包留着最省事，也就几百 K。
+-keep class okio.** { *; }
+
 # filekit-dialogs-compose 是对着旧版 skiko 编的，
 # Image.encodeToData(EncodedImageFormat, int) 这个签名在 0.150 里已经没了。
 # 不调那条图片编码路径就没影响，但 ProGuard 把未解析引用当错误拦下来。
