@@ -139,6 +139,13 @@ jobs:
       - name: Build desktop package
         run: ./gradlew :desktopApp:${{ matrix.task }} --stacktrace
 
+      # jpackage / ProGuard 失败时真正的报错写在插件自己的日志里，action 输出只有一行 exit code
+      - name: Surface packaging error logs on failure
+        if: failure()
+        run: |
+          find desktopApp/build/compose/logs \( -name 'jpackage-*-err.txt' -o -name 'jpackage-*-out.txt' \) -print -exec cat {} \; 2>/dev/null || true
+          find desktopApp/build/compose/logs -path '*proguardReleaseJars*' -name '*.txt' -print -exec cat {} \; 2>/dev/null || true
+
       - name: Rename packages to Destiny-<version>-<arch>
         run: |
           VER=$(sed -nE 's/^extra\["appVersion"\] = "([^"]+)".*/\1/p' build.gradle.kts | head -1)
