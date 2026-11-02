@@ -55,6 +55,18 @@ project(":xiaoliuren-core").projectDir = file("xiaoliuren/xiaoliuren-core")
 include(":xiaoliuren-ui")
 project(":xiaoliuren-ui").projectDir = file("xiaoliuren/xiaoliuren-ui")
 
+include(":meihua-core")
+project(":meihua-core").projectDir = file("meihua/meihua-core")
+
+include(":meihua-ui")
+project(":meihua-ui").projectDir = file("meihua/meihua-ui")
+
+include(":qimen-core")
+project(":qimen-core").projectDir = file("qimen/qimen-core")
+
+include(":qimen-ui")
+project(":qimen-ui").projectDir = file("qimen/qimen-ui")
+
 include(":crypto-core")
 project(":crypto-core").projectDir = file("crypto/crypto-core")
 

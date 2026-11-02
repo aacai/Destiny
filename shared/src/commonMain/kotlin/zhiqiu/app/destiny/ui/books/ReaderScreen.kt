@@ -17,9 +17,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -218,7 +218,7 @@ fun ReaderScreen(
     }
 
     Column(
-        modifier = Modifier.fillMaxSize().background(theme.bg),
+        modifier = Modifier.fillMaxSize().background(theme.bg).safeDrawingPadding(),
     ) {
         // 顶部菜单：占位布局，不遮挡正文
         AnimatedVisibility(visible = menuVisible, enter = fadeIn(), exit = fadeOut()) {
@@ -226,7 +226,6 @@ fun ReaderScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(theme.bar)
-                    .statusBarsPadding()
                     .padding(horizontal = 4.dp, vertical = 2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -328,7 +327,6 @@ fun ReaderScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(theme.bar)
-                        .navigationBarsPadding()
                         .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,

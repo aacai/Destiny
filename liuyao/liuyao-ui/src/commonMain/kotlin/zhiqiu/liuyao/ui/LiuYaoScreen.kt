@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -67,6 +68,7 @@ fun LiuYaoScreen(
 @Composable
 private fun LiuYaoScreenContent(onBack: () -> Unit, onOpenYijing: () -> Unit) {
     var question by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
     var guaZhu by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("男") }
     var topic by remember { mutableStateOf(ZhanShi.NONE) }
@@ -113,6 +115,8 @@ private fun LiuYaoScreenContent(onBack: () -> Unit, onOpenYijing: () -> Unit) {
             kinds = r.kinds,
             question = question,
             onQuestion = { question = it },
+            note = note,
+            onNote = { note = it },
             topic = topic,
             onTopic = {
                 topic = it
@@ -158,7 +162,9 @@ private fun InputPage(
     onPaiPan: () -> Unit,
 ) {
     val unsetCount = kinds.count { it == null }
-    Column(modifier = Modifier.fillMaxSize().background(LocalPanColors.current.page)) {
+    val widthClass = rememberWindowWidthSizeClass()
+    val hPad = if (widthClass == WindowWidthSizeClass.Compact) 12.dp else 16.dp
+    Column(modifier = Modifier.fillMaxSize().background(LocalPanColors.current.page).safeDrawingPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -176,7 +182,7 @@ private fun InputPage(
 
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = hPad, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Column(
@@ -336,19 +342,25 @@ internal fun DayEditor(dayInfo: DayInfo?, onChange: (DayInfo?) -> Unit) {
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            MiniField(value = y, label = "年", width = 58) { y = it; apply(it, mo, d, h, mi) }
-            MiniField(value = mo, label = "月", width = 44) { mo = it; apply(y, it, d, h, mi) }
-            MiniField(value = d, label = "日", width = 44) { d = it; apply(y, mo, it, h, mi) }
-            // 时刻：滚轮选择（借鉴档案页「具体时刻」）
-            TimeTrigger(
-                hour = h.toIntOrNull() ?: 0,
-                minute = mi.toIntOrNull() ?: 0,
-                onClick = { showTimePicker = true },
-            )
-            Spacer(Modifier.weight(1f))
+            Row(
+                modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                MiniField(value = y, label = "年", width = 58) { y = it; apply(it, mo, d, h, mi) }
+                MiniField(value = mo, label = "月", width = 44) { mo = it; apply(y, it, d, h, mi) }
+                MiniField(value = d, label = "日", width = 44) { d = it; apply(y, mo, it, h, mi) }
+                // 时刻：滚轮选择（借鉴档案页「具体时刻」）
+                TimeTrigger(
+                    hour = h.toIntOrNull() ?: 0,
+                    minute = mi.toIntOrNull() ?: 0,
+                    onClick = { showTimePicker = true },
+                )
+            }
             TextButton(onClick = {
                 runCatching { currentDayInfo() }.getOrNull()?.let {
                     onChange(it)
@@ -358,7 +370,7 @@ internal fun DayEditor(dayInfo: DayInfo?, onChange: (DayInfo?) -> Unit) {
         }
         if (dayInfo != null) {
             Text(
-                "${dayInfo.dateTimeLabel}　${dayInfo.monthLabel}月 ${dayInfo.dayLabel}日",
+                "${dayInfo.clockLine()}　${dayInfo.monthLabel}月 ${dayInfo.dayLabel}日",
                 color = PanAccent,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,

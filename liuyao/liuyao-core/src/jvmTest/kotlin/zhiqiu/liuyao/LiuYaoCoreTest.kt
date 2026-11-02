@@ -126,6 +126,8 @@ class LiuYaoCoreTest {
         assertTrue(chart.original.yaos[2].isYing)
         // 甲子日：桃花在酉。乾卦无酉支，无桃花临爻
         assertTrue(chart.original.yaos.none { ShenSha.TAO_HUA in it.shenSha })
+        // 乾为天五亲俱全，无伏神
+        assertTrue(chart.fuShen.isEmpty())
     }
 
     @Test
@@ -160,17 +162,41 @@ class LiuYaoCoreTest {
         assertTrue(c1.shenSha.isEmpty())
         assertTrue(chart.changed!!.yaos[5].isShi)
         assertTrue(chart.changed!!.yaos[2].isYing)
+        // 姤卦无妻财，伏在本宫乾二爻甲寅木之下
+        val fu = chart.fuShen[2]
+        assertNotNull(fu)
+        assertEquals(SixKin.WEALTH, fu.sixKin)
+        assertEquals("甲寅", fu.ganzhi.label)
+        assertEquals(1, chart.fuShen.size)
     }
 
     @Test
     fun shensha_jiaziDay() {
-        val m = shenShaBranches(Stem.JIA, Branch.ZI)
+        // 甲子日、丙午年、乙酉月（与 jiaziDay 测试占时一致）
+        val m = shenShaBranches(
+            dayStem = Stem.JIA,
+            dayBranch = Branch.ZI,
+            yearBranch = Branch.WU,
+            monthBranch = Branch.YOU,
+        )
         assertEquals(setOf(Branch.YIN), m[ShenSha.YI_MA])
         assertEquals(setOf(Branch.YOU), m[ShenSha.TAO_HUA])
         assertEquals(setOf(Branch.MAO), m[ShenSha.YANG_REN])
         assertEquals(setOf(Branch.CHOU, Branch.WEI), m[ShenSha.TIAN_YI])
         assertEquals(setOf(Branch.CHEN), m[ShenSha.HUA_GAI])
         assertEquals(setOf(Branch.SI), m[ShenSha.JIE_SHA])
+        assertEquals(setOf(Branch.YIN), m[ShenSha.LU])
+        assertEquals(setOf(Branch.SI), m[ShenSha.WEN_CHANG])
+        assertEquals(setOf(Branch.CHEN), m[ShenSha.JIN_YU])
+        assertEquals(setOf(Branch.ZI), m[ShenSha.JIANG_XING])
+        assertEquals(setOf(Branch.HAI), m[ShenSha.WANG_SHEN])
+        assertEquals(setOf(Branch.WU), m[ShenSha.ZAI_SHA])
+        assertEquals(setOf(Branch.YOU), m[ShenSha.FEI_REN])
+        // 午年红鸾在酉，天喜在卯
+        assertEquals(setOf(Branch.YOU), m[ShenSha.HONG_LUAN])
+        assertEquals(setOf(Branch.MAO), m[ShenSha.TIAN_XI])
+        // 酉月天医在申
+        assertEquals(setOf(Branch.SHEN), m[ShenSha.TIAN_YI_YUE])
     }
 
     @Test
@@ -205,6 +231,30 @@ class LiuYaoCoreTest {
             listOf(3, 4, 6),
             study.original.yaos.filter { it.isYongShen }.map { it.position }.sorted(),
         )
+    }
+
+    @Test
+    fun panTitle_marksChongHe() {
+        assertEquals("兑为泽(兑-六冲)", hexagramOf(Trigram.DUI, Trigram.DUI).panTitle())
+        assertEquals("雷水解(震)", hexagramOf(Trigram.ZHEN, Trigram.KAN).panTitle())
+        assertEquals("地天泰(坤-六合)", hexagramOf(Trigram.KUN, Trigram.QIAN).panTitle())
+        assertEquals("乾为天(乾-六冲)", hexagramOf(Trigram.QIAN, Trigram.QIAN).panTitle())
+        assertEquals("天雷无妄(巽-六冲)", HEXAGRAM_CATALOG.first { it.fullName == "天雷无妄" }.panTitle())
+        assertEquals("天地否(乾-六合)", hexagramOf(Trigram.QIAN, Trigram.KUN).panTitle())
+    }
+
+    @Test
+    fun nayinTable_sixtyJiazi() {
+        assertEquals(30, NAYIN_TABLE.size)
+        assertEquals("甲子 乙丑", NAYIN_TABLE.first().pair)
+        assertEquals("海中金", NAYIN_TABLE.first().name)
+        assertEquals("壬戌 癸亥", NAYIN_TABLE.last().pair)
+        assertEquals("大海水", NAYIN_TABLE.last().name)
+    }
+
+    @Test
+    fun clockLine_weekAndLunar() {
+        assertEquals("2026-09-06 12:00 星期日(八月初五)", jiaziDay().clockLine())
     }
 
     @Test

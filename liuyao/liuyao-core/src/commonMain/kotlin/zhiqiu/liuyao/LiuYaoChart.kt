@@ -36,6 +36,11 @@ data class LiuYaoChart(
     val dayInfo: DayInfo,
     val selection: ZhanSelection,
     val gender: String,
+    /**
+     * 伏神：本卦缺的六亲，按本宫卦同爻位装出来。
+     * 键是爻位（1=初…6=上），伏在该爻的飞神之下。
+     */
+    val fuShen: Map<Int, InstalledYao> = emptyMap(),
 ) {
     val hasChange: Boolean get() = changed != null
     /** 用神描述，如「妻财·九二甲寅」；无用神返回空。 */
@@ -70,7 +75,7 @@ fun buildChart(
 
     val palaceElement = originalEntry.palace.element
     val targetKins = yongShenKins(selection.topic, gender)
-    val shaBranches = shenShaBranches(dayInfo.dayStem, dayInfo.dayBranch)
+    val shaBranches = shenShaBranches(dayInfo)
 
     fun installYao(
         entry: HexagramEntry,
@@ -127,5 +132,36 @@ fun buildChart(
         dayInfo = dayInfo,
         selection = selection,
         gender = gender,
+        fuShen = fuShenOf(originalEntry, originalYaos),
     )
+}
+
+/**
+ * 本卦缺哪一亲，就到本宫卦里找该亲所在的爻，伏在同一爻位下。
+ * 本宫自己就缺的亲（纳甲里没有）不会硬造。
+ */
+fun fuShenOf(original: HexagramEntry, originalYaos: List<InstalledYao>): Map<Int, InstalledYao> {
+    val present = originalYaos.map { it.sixKin }.toSet()
+    val missing = SixKin.entries.filter { it !in present }.toSet()
+    if (missing.isEmpty()) return emptyMap()
+    val ben = hexagramOf(original.palace.host, original.palace.host)
+    val palaceElement = original.palace.element
+    return (1..6).mapNotNull { position ->
+        val gz = najiaOf(ben, position)
+        val kin = sixKinOf(palaceElement, gz.element)
+        if (kin !in missing) return@mapNotNull null
+        position to InstalledYao(
+            position = position,
+            isYang = ben.bitsBottomUp[position - 1] == 1,
+            kind = null,
+            ganzhi = gz,
+            sixKin = kin,
+            sixGod = null,
+            shenSha = emptyList(),
+            isShi = false,
+            isYing = false,
+            isYongShen = false,
+            isMoving = false,
+        )
+    }.toMap()
 }

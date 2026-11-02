@@ -112,6 +112,39 @@ fun hexagramOf(bitsBottomUp: List<Int>): HexagramEntry =
 fun hexagramOf(upper: Trigram, lower: Trigram): HexagramEntry =
     HEXAGRAM_CATALOG.first { it.upper == upper && it.lower == lower }
 
+private val LIU_HE: Set<Set<Branch>> = setOf(
+    setOf(Branch.ZI, Branch.CHOU),
+    setOf(Branch.YIN, Branch.HAI),
+    setOf(Branch.MAO, Branch.XU),
+    setOf(Branch.CHEN, Branch.YOU),
+    setOf(Branch.SI, Branch.SHEN),
+    setOf(Branch.WU, Branch.WEI),
+)
+
+private fun Branch.clashes(other: Branch): Boolean = (ordinal + 6) % 12 == other.ordinal
+
+private fun Branch.combines(other: Branch): Boolean = setOf(this, other) in LIU_HE
+
+/**
+ * 初与四、二与五、三与上全冲为六冲，全合为六合。
+ * 兑为泽三对皆冲，故标题作「兑为泽(兑-六冲)」；雷水解皆非，故只作「雷水解(震)」。
+ */
+fun HexagramEntry.chongHeLabel(): String? {
+    fun branch(position: Int) = najiaOf(this, position).branch
+    val pairs = listOf(1 to 4, 2 to 5, 3 to 6).map { (a, b) -> branch(a) to branch(b) }
+    return when {
+        pairs.all { (a, b) -> a.clashes(b) } -> "六冲"
+        pairs.all { (a, b) -> a.combines(b) } -> "六合"
+        else -> null
+    }
+}
+
+/** 卦盘标题：有六冲/六合时写成「兑为泽(兑-六冲)」，否则「雷水解(震)」。 */
+fun HexagramEntry.panTitle(): String {
+    val tag = chongHeLabel()
+    return if (tag == null) "$fullName(${palace.label})" else "$fullName(${palace.label}-$tag)"
+}
+
 /** 纳甲：取某卦第 position 爻（1=初…6=上）的干支。 */
 fun najiaOf(entry: HexagramEntry, position: Int): Ganzhi {
     require(position in 1..6)

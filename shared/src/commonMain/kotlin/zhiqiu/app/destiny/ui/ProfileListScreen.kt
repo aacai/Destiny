@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -64,6 +64,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.BookOpen
+import compose.icons.feathericons.Aperture
+import compose.icons.feathericons.Grid
 import compose.icons.feathericons.Compass
 import compose.icons.feathericons.Download
 import compose.icons.feathericons.Hexagon
@@ -141,6 +143,9 @@ fun ProfileListScreen(
     onOpenBooks: () -> Unit = {},
     onOpenLiuyao: () -> Unit = {},
     onOpenXiaoLiuRen: () -> Unit = {},
+    onOpenMeiHua: () -> Unit = {},
+    onOpenQimen: () -> Unit = {},
+    onOpenAbout: () -> Unit = {},
     colorMode: DestinyColorMode = DestinyColorMode.Light,
     onToggleColorMode: () -> Unit = {},
 ) {
@@ -260,6 +265,10 @@ fun ProfileListScreen(
                                 linkImportMsg = ""
                                 showLinkImport = true
                             }
+                            MenuAction(FeatherIcons.BookOpen, "关于") {
+                                showMenu = false
+                                onOpenAbout()
+                            }
                         }
                     }
                 },
@@ -275,6 +284,8 @@ fun ProfileListScreen(
                 onAdd = onAdd,
                 onOpenLiuyao = onOpenLiuyao,
                 onOpenXiaoLiuRen = onOpenXiaoLiuRen,
+                onOpenMeiHua = onOpenMeiHua,
+                onOpenQimen = onOpenQimen,
                 onOpenBooks = onOpenBooks,
             )
             SearchBar(
@@ -530,17 +541,20 @@ private fun ImportDialog(
     )
 }
 
-/** 功能入口：建档是主操作，六爻/小六壬/书架是平级模块，带文字才认得出。 */
+/** 功能入口横滑，避免工具变多之后把字挤没。 */
 @Composable
 private fun ToolStrip(
     onAdd: () -> Unit,
     onOpenLiuyao: () -> Unit,
     onOpenXiaoLiuRen: () -> Unit,
+    onOpenMeiHua: () -> Unit,
+    onOpenQimen: () -> Unit,
     onOpenBooks: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 16.dp)
             .padding(bottom = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -548,12 +562,14 @@ private fun ToolStrip(
         ToolCard(FeatherIcons.Plus, "新建档案", "排盘建档", onAdd, primary = true)
         ToolCard(FeatherIcons.Hexagon, "六爻", "摇卦断事", onOpenLiuyao)
         ToolCard(FeatherIcons.Compass, "小六壬", "掌诀起课", onOpenXiaoLiuRen)
+        ToolCard(FeatherIcons.Aperture, "梅花", "易数起卦", onOpenMeiHua)
+        ToolCard(FeatherIcons.Grid, "奇门", "时家排盘", onOpenQimen)
         ToolCard(FeatherIcons.BookOpen, "书架", "古籍原文", onOpenBooks)
     }
 }
 
 @Composable
-private fun RowScope.ToolCard(
+private fun ToolCard(
     icon: ImageVector,
     title: String,
     hint: String,
@@ -564,7 +580,7 @@ private fun RowScope.ToolCard(
     val tone = if (primary) Color.White else theme.ink
     Column(
         modifier = Modifier
-            .weight(1f)
+            .width(104.dp)
             .clip(RoundedCornerShape(14.dp))
             .background(if (primary) theme.accent else theme.card)
             .border(

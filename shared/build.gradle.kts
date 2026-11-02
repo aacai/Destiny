@@ -88,6 +88,10 @@ kotlin {
             implementation(project(":liuyao-ui"))
             implementation(project(":xiaoliuren-core"))
             implementation(project(":xiaoliuren-ui"))
+            implementation(project(":meihua-core"))
+            implementation(project(":meihua-ui"))
+            implementation(project(":qimen-core"))
+            implementation(project(":qimen-ui"))
             implementation(project(":crypto-core"))
             implementation(project(":iztro-core"))
             implementation(project(":iztro-ui"))
@@ -117,6 +121,7 @@ kotlin {
         jvmTest.dependencies {
             implementation(libs.kotlin.testJunit)
             implementation(libs.androidx.sqlite.bundled)
+            implementation(libs.ktor.client.mock)
         }
 
         val wasmJsMain by getting {

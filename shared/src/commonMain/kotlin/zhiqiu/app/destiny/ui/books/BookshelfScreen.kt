@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -32,16 +32,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.ArrowLeft
-import zhiqiu.app.destiny.ui.books.BookPalette.Ink
-import zhiqiu.app.destiny.ui.books.BookPalette.Muted
-import zhiqiu.app.destiny.ui.books.BookPalette.PageBg
+import zhiqiu.app.destiny.ui.theme.DestinyTheme
 
-/** 书架：番茄风浅灰底 + 彩色封面网格 */
-internal object BookPalette {
-    val PageBg = Color(0xFFF6F5F2)
-    val Ink = Color(0xFF222222)
-    val Muted = Color(0xFF8A8578)
-}
+/** 书架：跟随应用主题（日/夜）的浅底 + 彩色封面网格 */
 @Composable
 fun BookshelfScreen(
     onBack: () -> Unit,
@@ -50,26 +43,26 @@ fun BookshelfScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(PageBg)
-            .statusBarsPadding(),
+            .background(DestinyTheme.page)
+            .safeDrawingPadding(),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(imageVector = FeatherIcons.ArrowLeft, contentDescription = "返回", tint = Ink)
+                Icon(imageVector = FeatherIcons.ArrowLeft, contentDescription = "返回", tint = DestinyTheme.ink)
             }
             Text(
                 "书架",
-                color = Ink,
+                color = DestinyTheme.ink,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
             )
             Spacer(modifier = Modifier.padding(horizontal = 6.dp))
             Text(
                 "命 · 卜 · 山 · 医 · 相",
-                color = Muted,
+                color = DestinyTheme.muted,
                 fontSize = 12.sp,
             )
         }
@@ -133,14 +126,14 @@ private fun BookCover(meta: BookMeta, onClick: () -> Unit) {
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             meta.title,
-            color = Ink,
+            color = DestinyTheme.ink,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
         )
         Text(
             "古籍 · 全本",
-            color = Muted,
+            color = DestinyTheme.muted,
             fontSize = 11.sp,
         )
     }

@@ -4,6 +4,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import zhiqiu.iztro.bazi.ui.BaziThemeConfig
 import zhiqiu.iztro.ui.IztroThemeConfig
 import zhiqiu.liuyao.ui.PanThemeConfig
+import zhiqiu.meihua.ui.MhThemeConfig
 import zhiqiu.qizheng.ui.QizhengThemeConfig
 import zhiqiu.xiaoliuren.ui.XlrThemeConfig
 
@@ -30,6 +31,7 @@ data class DestinyAppThemes(
     val pan: PanThemeConfig = PanThemeConfig.Default,
     val qizheng: QizhengThemeConfig = QizhengThemeConfig.Default,
     val xlr: XlrThemeConfig = XlrThemeConfig.Default,
+    val mh: MhThemeConfig = MhThemeConfig.Default,
 ) {
     companion object {
         val Default = DestinyAppThemes()

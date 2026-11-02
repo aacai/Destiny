@@ -3,21 +3,23 @@ package zhiqiu.liuyao.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -31,14 +33,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import zhiqiu.liuyao.HexagramEntry
+import zhiqiu.liuyao.Branch
 import zhiqiu.liuyao.InstalledHexagram
 import zhiqiu.liuyao.InstalledYao
 import zhiqiu.liuyao.LiuYaoChart
+import zhiqiu.liuyao.panTitle
 import zhiqiu.liuyao.yaoPlaceName
 
 data class PanColors(
@@ -125,21 +127,22 @@ internal val ShiMark: Color
 internal val PillarRed: Color
     @Composable @ReadOnlyComposable get() = LocalPanColors.current.pillarRed
 
-/** 各列固定宽度（dp），保证每行、每卦都严格对齐 */
-private val W_SHEN = 26.dp   // 六神
-private val W_KIN = 28.dp    // 六亲
-private val W_GZ = 36.dp     // 干支
-private val W_WX = 16.dp     // 五行
-private val W_YAO = 52.dp    // 卦象（爻画 + 动变标记）
-private val W_SY = 22.dp     // 世 / 应 / 用
+/** 列序：六神、伏神、本卦、变卦。行高统一，四列才齐。 */
+private val W_GOD = 36.dp
+private val W_LINE = 72.dp
+private val W_FU = 72.dp
+private val ROW_H = 22.dp
+private val TITLE_H = 20.dp
 
-/** 单爻横画：阳爻一横，阴爻两段；动爻右侧附 ○/×。动变标记常驻占位，保证爻画列对齐。 */
+/** 单爻横画：阳爻一横，阴爻两段；动爻右侧附 ○/×。 */
 @Composable
 fun YaoGlyph(
     isYang: Boolean,
     mark: String?,
     modifier: Modifier = Modifier,
     width: Dp = 32.dp,
+    /** 静爻也留出 ○/× 空位，起卦下拉里各选项爻画才对齐。卦盘上不留，世应紧挨爻画。 */
+    reserveMark: Boolean = true,
 ) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         if (isYang) {
@@ -165,162 +168,221 @@ fun YaoGlyph(
                 )
             }
         }
-        Spacer(Modifier.width(3.dp))
-        // 动变标记常驻占位：动爻显示 ○/×，静爻留白，使爻画横向位置恒定
-        Box(Modifier.width(14.dp), contentAlignment = Alignment.CenterStart) {
-            Text(mark ?: "", color = ShiMark, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        if (reserveMark || mark != null) {
+            Spacer(Modifier.width(3.dp))
+            Box(
+                Modifier.then(if (reserveMark) Modifier.width(14.dp) else Modifier),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (mark != null) MovingMark(mark)
+            }
         }
     }
 }
 
-/** 列头：卦名（宫·世系），如「地水师（坎宫·归魂卦）」。 */
-private fun hexTitle(entry: HexagramEntry): String =
-    "${entry.fullName}（${entry.palace.label}宫·${entry.type.label}卦）"
+/** 动爻：老阳空心圆，老阴叉。圆是描边，不跟世应抢红色。 */
+@Composable
+private fun MovingMark(mark: String) {
+    when (mark) {
+        "○" -> Box(
+            Modifier
+                .size(12.dp)
+                .border(1.5.dp, PanInk, CircleShape),
+        )
+        else -> Text(mark, color = PanInk, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+    }
+}
 
 /**
- * 排盘卡片：本卦（及变卦）以固定列宽表格呈现，列标题为
- * 「六神 六亲 干支 五行 卦象 世应」，自上而下 上爻→初爻。
- *
- * 响应式：内容宽度足够时本卦与变卦左右并排；不足（手机）时上下堆叠，保证横向永不放不下。
+ * 排盘：从左到右「六神、伏神、本卦、变卦」。
+ * 有动爻时变卦固定在右侧，窄屏可横滑，不再折到下面。
+ * [highlightBranches] 来自题头点选的神煞地支，本卦变卦同支爻一并高亮。
  */
 @Composable
-fun ChartCard(chart: LiuYaoChart, modifier: Modifier = Modifier) {
+fun ChartCard(
+    chart: LiuYaoChart,
+    modifier: Modifier = Modifier,
+    highlightBranches: Set<Branch> = emptySet(),
+) {
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
             .background(PanCardBg, RoundedCornerShape(12.dp))
             .border(1.dp, PanLine, RoundedCornerShape(12.dp))
-            .padding(10.dp),
+            .padding(horizontal = 8.dp, vertical = 10.dp),
     ) {
-        val sideBySide = chart.changed != null && maxWidth >= 350.dp
-        if (sideBySide && chart.changed != null) {
-            Row(modifier = Modifier.fillMaxWidth()) {
+        val originalTopDown = chart.original.yaos.sortedByDescending { it.position }
+        val changed = chart.changed
+        val changedTopDown = changed?.yaos?.sortedByDescending { it.position }
+        val showFu = chart.fuShen.isNotEmpty()
+        val overhead = W_GOD + 4.dp + (if (showFu) W_FU + 4.dp else 0.dp) + (if (changed != null) 8.dp else 0.dp)
+        val slots = if (changed != null) 2 else 1
+        val each = (maxWidth - overhead) / slots
+        val scroll = changed != null && each < 148.dp
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .then(if (scroll) Modifier.horizontalScroll(rememberScrollState()) else Modifier),
+            verticalAlignment = Alignment.Top,
+        ) {
+            SixGodColumn(yaos = originalTopDown)
+            if (showFu) {
+                Spacer(Modifier.width(4.dp))
+                FuShenColumn(byPosition = chart.fuShen, yaos = originalTopDown)
+            }
+            Spacer(Modifier.width(4.dp))
+            HexTable(
+                hex = chart.original,
+                yaos = originalTopDown,
+                highlightBranches = highlightBranches,
+                modifier = if (scroll) Modifier.width(156.dp) else Modifier.weight(1f),
+            )
+            if (changed != null && changedTopDown != null) {
+                Spacer(Modifier.width(8.dp))
                 HexTable(
-                    title = hexTitle(chart.original.entry),
-                    hex = chart.original,
-                    movingPositions = chart.movingPositions,
-                    withShen = true,
-                    modifier = Modifier.weight(1f),
-                )
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .fillMaxHeight()
-                        .background(PanLine),
-                )
-                HexTable(
-                    title = hexTitle(chart.changed!!.entry),
-                    hex = chart.changed!!,
-                    movingPositions = chart.movingPositions,
-                    withShen = false,
-                    modifier = Modifier.weight(1f),
+                    hex = changed,
+                    yaos = changedTopDown,
+                    highlightBranches = highlightBranches,
+                    modifier = if (scroll) Modifier.width(156.dp) else Modifier.weight(1f),
                 )
             }
-        } else {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+        }
+        if (changed == null) {
+            Text("静卦无动爻，无变卦。", color = PanMuted, fontSize = 12.sp)
+        }
+        }
+    }
+}
+
+/** 左列：标题「六神」+ 上爻→初爻的玄武…青龙，行高与卦爻对齐。 */
+@Composable
+private fun SixGodColumn(yaos: List<InstalledYao>) {
+    Column(Modifier.width(W_GOD)) {
+        Box(
+            Modifier.fillMaxWidth().height(TITLE_H),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text("六神", color = PanInk, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(4.dp))
+        yaos.forEach { yao ->
+            Box(
+                Modifier.fillMaxWidth().height(ROW_H),
+                contentAlignment = Alignment.CenterStart,
             ) {
-                HexTable(
-                    title = hexTitle(chart.original.entry),
-                    hex = chart.original,
-                    movingPositions = chart.movingPositions,
-                    withShen = true,
-                    modifier = Modifier.fillMaxWidth(),
+                Text(
+                    yao.sixGod?.label ?: "　",
+                    color = PanInk,
+                    fontSize = 13.sp,
+                    maxLines = 1,
                 )
-                chart.changed?.let { changed ->
-                    HorizontalDivider(thickness = 0.5.dp, color = PanLine)
-                    HexTable(
-                        title = hexTitle(changed.entry),
-                        hex = changed,
-                        movingPositions = chart.movingPositions,
-                        withShen = false,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                } ?: Text("静卦无动爻，无变卦。", color = PanMuted, fontSize = 12.sp)
             }
         }
     }
 }
 
-/** 单卦表：标题 + 列头 + 六爻（上→初）。 */
+/** 伏神列：缺的六亲写在飞神同一行，没有的行留空。 */
+@Composable
+private fun FuShenColumn(
+    byPosition: Map<Int, InstalledYao>,
+    yaos: List<InstalledYao>,
+) {
+    Column(Modifier.width(W_FU)) {
+        Box(
+            Modifier.fillMaxWidth().height(TITLE_H),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text("伏神", color = PanInk, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(4.dp))
+        yaos.forEach { yao ->
+            val fu = byPosition[yao.position]
+            Box(
+                Modifier.fillMaxWidth().height(ROW_H),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                if (fu != null) {
+                    Text(
+                        "${fu.sixKin.label}${fu.ganzhi.label}${fu.ganzhi.element.label}",
+                        color = ShiMark,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** 单卦：标题 + 六爻（上→初），不含六神、伏神列。 */
 @Composable
 private fun HexTable(
-    title: String,
     hex: InstalledHexagram,
-    movingPositions: List<Int>,
-    withShen: Boolean,
+    yaos: List<InstalledYao>,
+    highlightBranches: Set<Branch>,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier) {
-        Text(title, color = PanInk, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+        Box(
+            Modifier.fillMaxWidth().height(TITLE_H),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Text(
+                hex.entry.panTitle(),
+                color = PanInk,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+            )
+        }
         Spacer(Modifier.height(4.dp))
-        HeaderRow(withShen)
-        Spacer(Modifier.height(3.dp))
-        hex.yaos.sortedByDescending { it.position }.forEach { yao ->
+        yaos.forEach { yao ->
             DataRow(
                 yao = yao,
-                moved = yao.position in movingPositions,
-                withShen = withShen,
+                highlighted = yao.ganzhi.branch in highlightBranches,
             )
-            Spacer(Modifier.height(3.dp))
         }
     }
 }
 
 @Composable
-private fun HeaderRow(withShen: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (withShen) Cell("六神", W_SHEN, PanMuted, 11.sp, true)
-        Cell("六亲", W_KIN, PanMuted, 11.sp, true)
-        Cell("干支", W_GZ, PanMuted, 11.sp, true)
-        Cell("五行", W_WX, PanMuted, 11.sp, true)
-        Cell("卦象", W_YAO, PanMuted, 11.sp, true)
-        Cell("世应", W_SY, PanMuted, 11.sp, true)
-    }
-}
-
-@Composable
-private fun DataRow(yao: InstalledYao, moved: Boolean, withShen: Boolean) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        if (withShen) {
-            Cell(yao.sixGod?.label ?: "　", W_SHEN, PanMuted, 11.sp)
-        }
-        val yong = yao.isYongShen
-        Cell(
-            text = yao.sixKin.label,
-            width = W_KIN,
-            color = if (yong) YongShenGold else PanInk,
-            size = 12.sp,
-            bold = yong,
-        )
-        Cell(yao.ganzhi.label, W_GZ, PanInk, 12.sp)
-        Cell(yao.ganzhi.element.label, W_WX, PanMuted, 11.sp)
-        Box(Modifier.width(W_YAO), contentAlignment = Alignment.CenterStart) {
-            YaoGlyph(isYang = yao.isYang, mark = yao.kind?.mark)
-        }
-        Cell(shiYingMark(yao), W_SY, ShiMark, 12.sp, bold = yong)
-    }
-}
-
-/** 固定列宽单元格：文字居中，跨行严格对齐。 */
-@Composable
-private fun Cell(
-    text: String,
-    width: Dp,
-    color: Color,
-    size: androidx.compose.ui.unit.TextUnit,
-    bold: Boolean = false,
-) {
-    Box(Modifier.width(width), contentAlignment = Alignment.Center) {
+private fun DataRow(yao: InstalledYao, highlighted: Boolean) {
+    val yong = yao.isYongShen
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(ROW_H)
+            .background(
+                if (highlighted) PanAccent.copy(alpha = 0.16f) else Color.Transparent,
+                RoundedCornerShape(4.dp),
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(
-            text,
-            color = color,
-            fontSize = size,
-            fontWeight = if (bold) FontWeight.Bold else FontWeight.Normal,
+            "${yao.sixKin.label}${yao.ganzhi.label}${yao.ganzhi.element.label}",
+            color = when {
+                highlighted -> PanAccent
+                yong -> YongShenGold
+                else -> PanInk
+            },
+            fontSize = 12.sp,
+            fontWeight = if (highlighted || yong) FontWeight.Bold else FontWeight.Normal,
             maxLines = 1,
-            textAlign = TextAlign.Center,
+            modifier = Modifier.width(W_LINE),
         )
+        YaoGlyph(isYang = yao.isYang, mark = yao.kind?.mark, width = 28.dp, reserveMark = false)
+        val mark = shiYingMark(yao)
+        if (mark.isNotEmpty()) {
+            Text(
+                mark,
+                color = ShiMark,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                modifier = Modifier.padding(start = 2.dp),
+            )
+        }
     }
 }
 

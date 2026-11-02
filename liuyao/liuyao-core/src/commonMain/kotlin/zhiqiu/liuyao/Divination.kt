@@ -90,6 +90,12 @@ data class DayInfo(
             append(':')
             append(minute.toString().padStart(2, '0'))
         }
+
+    /** 如 2026-10-26 23:53 星期一(九月十七)。 */
+    fun clockLine(): String {
+        val week = if (weekLabel.startsWith("星期")) weekLabel else "星期$weekLabel"
+        return "$dateTimeLabel $week($lunarLabel)"
+    }
 }
 
 /**

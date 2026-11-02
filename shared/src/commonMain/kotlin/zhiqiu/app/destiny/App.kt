@@ -31,6 +31,7 @@ import zhiqiu.app.destiny.platform.TitleBarBandHeight
 import zhiqiu.app.destiny.sharing.BackupSharing
 import zhiqiu.app.destiny.sharing.FileIoClient
 import zhiqiu.app.destiny.sharing.createSharedHttpClient
+import zhiqiu.app.destiny.ui.AboutScreen
 import zhiqiu.app.destiny.ui.AddProfileScreen
 import zhiqiu.app.destiny.ui.ChartPagerScreen
 import zhiqiu.app.destiny.ui.ProfileListScreen
@@ -43,6 +44,8 @@ import zhiqiu.app.destiny.ui.theme.DestinyThemeProvider
 import zhiqiu.app.destiny.ui.theme.LocalDestinyAppThemes
 import zhiqiu.liuyao.ui.LiuYaoScreen
 import zhiqiu.liuyao.ui.ZhouyiBrowserScreen
+import zhiqiu.meihua.ui.MeiHuaScreen
+import zhiqiu.qimen.ui.QimenScreen
 import zhiqiu.xiaoliuren.ui.XiaoLiuRenScreen
 
 private object Routes {
@@ -53,7 +56,10 @@ private object Routes {
     const val Reader = "reader/{bookId}"
     const val Liuyao = "liuyao"
     const val Yijing = "yijing"
+    const val About = "about"
     const val XiaoLiuRen = "xiaoliuren"
+    const val MeiHua = "meihua"
+    const val Qimen = "qimen"
 
     fun chart(profileId: String) = "chart/$profileId"
     fun reader(bookId: String) = "reader/$bookId"
@@ -169,15 +175,34 @@ fun App(
                         onOpenBooks = { navController.navigate(Routes.Books) },
                         onOpenLiuyao = { navController.navigate(Routes.Liuyao) },
                         onOpenXiaoLiuRen = { navController.navigate(Routes.XiaoLiuRen) },
+                        onOpenMeiHua = { navController.navigate(Routes.MeiHua) },
+                        onOpenQimen = { navController.navigate(Routes.Qimen) },
                         colorMode = colorMode,
                         onToggleColorMode = { setColorMode(colorMode.toggle()) },
+                        onOpenAbout = { navController.navigate(Routes.About) },
                     )
+                }
+                composable(Routes.About) {
+                    AboutScreen(onBack = { navController.popBackStack() })
                 }
                 composable(Routes.XiaoLiuRen) {
                     XiaoLiuRenScreen(
                         onBack = { navController.popBackStack() },
                         darkTheme = colorMode == DestinyColorMode.Dark,
                         themeConfig = themes.xlr,
+                    )
+                }
+                composable(Routes.MeiHua) {
+                    MeiHuaScreen(
+                        onBack = { navController.popBackStack() },
+                        darkTheme = colorMode == DestinyColorMode.Dark,
+                        themeConfig = themes.mh,
+                    )
+                }
+                composable(Routes.Qimen) {
+                    QimenScreen(
+                        onBack = { navController.popBackStack() },
+                        darkTheme = colorMode == DestinyColorMode.Dark,
                     )
                 }
                 composable(Routes.Liuyao) {
