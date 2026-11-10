@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -53,6 +54,7 @@ import zhiqiu.xiaoliuren.cast
 import zhiqiu.xiaoliuren.castCounts
 import zhiqiu.xiaoliuren.castNow
 import zhiqiu.xiaoliuren.lunarDayLabel
+import kotlin.random.Random
 
 private enum class TimeMode(val label: String) {
     NOW("此刻"),
@@ -69,14 +71,26 @@ fun XiaoLiuRenScreen(
     onBack: () -> Unit,
     darkTheme: Boolean = false,
     themeConfig: XlrThemeConfig = XlrThemeConfig.Default,
+    onSave: (XiaoLiuRenSave) -> Unit = {},
 ) {
     XlrThemeProvider(darkTheme = darkTheme, config = themeConfig) {
-        ScreenContent(onBack = onBack)
+        ScreenContent(onBack = onBack, onSave = onSave)
     }
 }
 
+/**
+ * 小六壬的一次存档：仅携带与宿主无关的中性字段，由调用方（shared）组装成各自的 Profile。
+ * [id] 首次存档时生成并回写，便于再次保存时原地更新而非新增重复记录。
+ */
+data class XiaoLiuRenSave(
+    val id: String,
+    val name: String,
+    val note: String,
+    val groupName: String,
+)
+
 @Composable
-private fun ScreenContent(onBack: () -> Unit) {
+private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) {
     val now = remember { castNow() }
     val seed = requireNotNull(now.lunar)
     var mode by remember { mutableStateOf(TimeMode.NOW) }
@@ -91,6 +105,8 @@ private fun ScreenContent(onBack: () -> Unit) {
     // 「此刻」每次进入或点刷新都重新取设备时间
     var snapshot by remember { mutableStateOf(now) }
     var showRule by remember { mutableStateOf(false) }
+    var savedId by remember { mutableStateOf<String?>(null) }
+    var savedHint by remember { mutableStateOf(false) }
 
     val reported = listOf(countMonth, countDay, countHour).map { reportedNumber(it) }
     val chart = when (mode) {
@@ -103,6 +119,7 @@ private fun ScreenContent(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxSize()
             .background(XlrTheme.page)
+            .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
@@ -303,6 +320,45 @@ private fun ScreenContent(onBack: () -> Unit) {
         Spacer(modifier = Modifier.height(12.dp))
 
         VerdictCard(chart = chart)
+        Spacer(modifier = Modifier.height(16.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(XlrTheme.accent)
+                .clickable {
+                    val id = savedId ?: newXlrId()
+                    val summary = buildString {
+                        appendLine("【课式】${chart.castText}")
+                        appendLine("【落宫】${chart.palace.label}（${chart.palace.luck.label}）")
+                        appendLine("【断曰】${chart.palace.poem.joinToString(" ")}")
+                    }
+                    onSave(
+                        XiaoLiuRenSave(
+                            id = id,
+                            name = question.trim().ifBlank { "小六壬·${chart.castText}" },
+                            note = summary,
+                            groupName = "小六壬",
+                        ),
+                    )
+                    savedId = id
+                    savedHint = true
+                }
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("保存此课", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        }
+        if (savedHint) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                "已存入档案，可在「档案」页查看并批注",
+                color = XlrTheme.muted,
+                fontSize = 12.sp,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+            )
+        }
         Spacer(modifier = Modifier.height(24.dp))
     }
 
@@ -663,6 +719,11 @@ private fun RowScope.ReportedField(caption: String, role: String, text: String, 
         Spacer(modifier = Modifier.height(4.dp))
         Text(role, color = XlrTheme.muted, fontSize = 10.sp)
     }
+}
+
+/** 生成 32 位小写字母数字 id（与 ProfileRepository.newId 同式），用于首次存档时固定本记录的 id，便于再次保存时原地更新而非新增。 */
+private fun newXlrId(): String = buildString {
+    repeat(32) { append("abcdefghijklmnopqrstuvwxyz0123456789"[Random.nextInt(36)]) }
 }
 
 /** 报数只取数字，空或越界时回落到 1，保证任何时候都有课式。 */

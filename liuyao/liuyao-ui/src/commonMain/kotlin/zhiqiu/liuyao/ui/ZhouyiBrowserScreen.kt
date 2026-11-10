@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -108,7 +109,7 @@ fun ZhouyiBrowserScreen(
 private fun ZhouyiBrowserContent(onBack: () -> Unit) {
     var selected by remember { mutableStateOf<HexagramEntry?>(null) }
     var showPinyin by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().background(PanCardBg)) {
+    Column(Modifier.fillMaxSize().background(PanCardBg).safeDrawingPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,

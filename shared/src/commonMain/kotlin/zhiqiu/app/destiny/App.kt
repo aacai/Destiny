@@ -25,6 +25,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.savedstate.read
 import kotlinx.coroutines.launch
+import kotlin.time.Clock
+import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.profile.ProfileRepository
 import zhiqiu.app.destiny.platform.NativeTitleBarSync
 import zhiqiu.app.destiny.platform.TitleBarBandHeight
@@ -46,6 +48,7 @@ import zhiqiu.liuyao.ui.LiuYaoScreen
 import zhiqiu.liuyao.ui.ZhouyiBrowserScreen
 import zhiqiu.meihua.ui.MeiHuaScreen
 import zhiqiu.qimen.ui.QimenScreen
+import zhiqiu.xiaoliuren.ui.XiaoLiuRenSave
 import zhiqiu.xiaoliuren.ui.XiaoLiuRenScreen
 
 private object Routes {
@@ -190,6 +193,25 @@ fun App(
                         onBack = { navController.popBackStack() },
                         darkTheme = colorMode == DestinyColorMode.Dark,
                         themeConfig = themes.xlr,
+                        onSave = { save ->
+                            scope.launch {
+                                val now = Clock.System.now().toEpochMilliseconds()
+                                repository.upsert(
+                                    Profile(
+                                        id = save.id,
+                                        name = save.name,
+                                        gender = "",
+                                        birthdayType = "",
+                                        birthday = "",
+                                        timeIndex = 0,
+                                        note = save.note,
+                                        groupName = save.groupName,
+                                        createdAt = now,
+                                        updatedAt = now,
+                                    ),
+                                )
+                            }
+                        },
                     )
                 }
                 composable(Routes.MeiHua) {

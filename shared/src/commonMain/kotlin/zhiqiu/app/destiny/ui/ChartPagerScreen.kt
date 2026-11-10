@@ -69,7 +69,7 @@ fun ChartPagerScreen(
     onColorModeChange: (DestinyColorMode) -> Unit = {},
     onSaveQizhengPanZhi: (String) -> Unit = {},
 ) {
-    var tab by remember { mutableIntStateOf(0) }
+    var tab by remember { mutableIntStateOf(if (profile.birthday.isBlank()) 3 else 0) }
     var drawerOpen by remember { mutableStateOf(false) }
     var noteDraft by remember(profile.id) { mutableStateOf(profile.note) }
     var pickCategory by remember { mutableStateOf<String?>(null) }
@@ -148,24 +148,26 @@ fun ChartPagerScreen(
         },
         bottomBar = {
             NavigationBar {
-                NavigationBarItem(
-                    selected = tab == 0,
-                    onClick = { tab = 0 },
-                    icon = { Icon(FeatherIcons.BookOpen, contentDescription = "八字") },
-                    label = { Text("八字") },
-                )
-                NavigationBarItem(
-                    selected = tab == 1,
-                    onClick = { tab = 1 },
-                    icon = { Icon(FeatherIcons.Star, contentDescription = "紫微") },
-                    label = { Text("紫微") },
-                )
-                NavigationBarItem(
-                    selected = tab == 2,
-                    onClick = { tab = 2 },
-                    icon = { Icon(FeatherIcons.Compass, contentDescription = "七政") },
-                    label = { Text("七政") },
-                )
+                if (profile.birthday.isNotBlank()) {
+                    NavigationBarItem(
+                        selected = tab == 0,
+                        onClick = { tab = 0 },
+                        icon = { Icon(FeatherIcons.BookOpen, contentDescription = "八字") },
+                        label = { Text("八字") },
+                    )
+                    NavigationBarItem(
+                        selected = tab == 1,
+                        onClick = { tab = 1 },
+                        icon = { Icon(FeatherIcons.Star, contentDescription = "紫微") },
+                        label = { Text("紫微") },
+                    )
+                    NavigationBarItem(
+                        selected = tab == 2,
+                        onClick = { tab = 2 },
+                        icon = { Icon(FeatherIcons.Compass, contentDescription = "七政") },
+                        label = { Text("七政") },
+                    )
+                }
                 NavigationBarItem(
                     selected = tab == 3,
                     onClick = { tab = 3 },
@@ -175,7 +177,7 @@ fun ChartPagerScreen(
             }
         },
         floatingActionButton = {
-            if (tab in 0..2 && !drawerOpen) {
+            if (tab in 0..2 && !drawerOpen && profile.birthday.isNotBlank()) {
                 FloatingActionButton(
                     onClick = {
                         noteDraft = profile.note
@@ -197,9 +199,26 @@ fun ChartPagerScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
+            val hasBirth = profile.birthday.isNotBlank()
             when (tab) {
-                0 -> BaziSection(profile)
-                1 -> Iztrolabe(
+                0 -> if (hasBirth) BaziSection(profile) else MemoTabScreen(
+                    profile = profile,
+                    imagesByCategory = imagesByCategory,
+                    resolvePath = { image -> repository.imageAbsolutePath(image.relativePath) },
+                    onNoteSaved = { text ->
+                        scope.launch(Dispatchers.Default) {
+                            repository.upsert(profile.copy(note = text))
+                        }
+                    },
+                    onPickImage = { cat ->
+                        pickCategory = cat
+                        pickerLauncher.launch()
+                    },
+                    onDeleteImage = { image ->
+                        scope.launch(Dispatchers.Default) { repository.removeImage(image) }
+                    },
+                )
+                1 -> if (hasBirth) Iztrolabe(
                     birthday = profile.birthday,
                     birthTime = profile.timeIndex,
                     gender = profile.gender,
@@ -215,10 +234,42 @@ fun ChartPagerScreen(
                     },
                     themeConfig = iztroThemeConfig,
                     modifier = Modifier.fillMaxSize(),
+                ) else MemoTabScreen(
+                    profile = profile,
+                    imagesByCategory = imagesByCategory,
+                    resolvePath = { image -> repository.imageAbsolutePath(image.relativePath) },
+                    onNoteSaved = { text ->
+                        scope.launch(Dispatchers.Default) {
+                            repository.upsert(profile.copy(note = text))
+                        }
+                    },
+                    onPickImage = { cat ->
+                        pickCategory = cat
+                        pickerLauncher.launch()
+                    },
+                    onDeleteImage = { image ->
+                        scope.launch(Dispatchers.Default) { repository.removeImage(image) }
+                    },
                 )
-                2 -> QizhengSection(
+                2 -> if (hasBirth) QizhengSection(
                     profile = profile,
                     onSavePanZhi = onSaveQizhengPanZhi,
+                ) else MemoTabScreen(
+                    profile = profile,
+                    imagesByCategory = imagesByCategory,
+                    resolvePath = { image -> repository.imageAbsolutePath(image.relativePath) },
+                    onNoteSaved = { text ->
+                        scope.launch(Dispatchers.Default) {
+                            repository.upsert(profile.copy(note = text))
+                        }
+                    },
+                    onPickImage = { cat ->
+                        pickCategory = cat
+                        pickerLauncher.launch()
+                    },
+                    onDeleteImage = { image ->
+                        scope.launch(Dispatchers.Default) { repository.removeImage(image) }
+                    },
                 )
                 else -> MemoTabScreen(
                     profile = profile,
