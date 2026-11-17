@@ -32,12 +32,21 @@ object AstroMath {
     fun sind(d: Double) = sin(d * Deg2Rad)
     fun cosd(d: Double) = cos(d * Deg2Rad)
 
-    /** 黄经 → 赤经（赤道恒星制布盘用），黄赤交角取 J2000 标准值 */
+    /** 黄经 → 赤经（赤道恒星制布盘用），黄赤交角取 J2000 标准值；假定黄纬=0 */
     fun rightAscension(lonDeg: Double, obliquityDeg: Double = 23.4367): Double =
         norm360(
             kotlin.math.atan2(
                 sind(lonDeg) * cosd(obliquityDeg),
                 cosd(lonDeg),
+            ) * Rad2Deg
+        )
+
+    /** 赤经 → 黄经（假定赤纬=0），[rightAscension] 的近似逆 */
+    fun eclipticLongitudeFromRa(raDeg: Double, obliquityDeg: Double = 23.4367): Double =
+        norm360(
+            kotlin.math.atan2(
+                sind(raDeg) / cosd(obliquityDeg),
+                cosd(raDeg),
             ) * Rad2Deg
         )
 
@@ -228,8 +237,22 @@ object Ephemeris {
         else -> throw IllegalArgumentException("不是五星: $body")
     }
 
-    /** 行星地心黄经（度）。未做光行时修正，误差 ≲ 0.01°。 */
+    /**
+     * 行星地心黄经（度），含 1 次光行时迭代（外行星可收紧约 0.1–0.3°）。
+     */
     internal fun planetLongitude(jdUt: Double, el: Elements): Double {
+        var jd = jdUt
+        var lon = 0.0
+        repeat(2) {
+            val (L, distAu) = planetGeocentric(jd, el)
+            lon = L
+            jd = jdUt - distAu * 0.0057755183
+        }
+        return lon
+    }
+
+    /** @return Pair(地心黄经度, 地心距 AU) */
+    private fun planetGeocentric(jdUt: Double, el: Elements): Pair<Double, Double> {
         val t = centuriesTt(jdUt)
         val t2 = t * t
         val t3 = t2 * t
@@ -241,10 +264,9 @@ object Ephemeris {
         val pi = el.pi0 + el.pi1 * t + el.pi2 * t2
         val om = el.om0 + el.om1 * t + el.om2 * t2 + el.om3 * t3
 
-        val w = pi - om // 近日点幅角
+        val w = pi - om
         val m = AstroMath.norm180(l - pi)
 
-        // 解开普勒方程（牛顿迭代）
         val mr = m * AstroMath.Deg2Rad
         var ecc = mr + e * sin(mr)
         repeat(20) {
@@ -253,25 +275,26 @@ object Ephemeris {
             if (abs(d) < 1e-13) return@repeat
         }
 
-        // 轨道平面内的日心黄道坐标
         val xv = a * (cos(ecc) - e)
         val yv = a * sqrt(1 - e * e) * sin(ecc)
 
-        // 旋转到黄道坐标系
         val cw = AstroMath.cosd(w); val sw = AstroMath.sind(w)
         val co = AstroMath.cosd(om); val so = AstroMath.sind(om)
         val ci = AstroMath.cosd(inc); val si = AstroMath.sind(inc)
 
         val xh = (cw * co - sw * so * ci) * xv + (-sw * co - cw * so * ci) * yv
         val yh = (cw * so + sw * co * ci) * xv + (-sw * so + cw * co * ci) * yv
+        val zh = (sw * si) * xv + (cw * si) * yv
 
-        // 转到地心：减去地球的日心位置（= 太阳地心位置取反）
         val sunLon = sunLongitude(jdUt)
         val r = sunRadiusAu(jdUt)
         val xe = r * AstroMath.cosd(sunLon + 180.0)
         val ye = r * AstroMath.sind(sunLon + 180.0)
 
-        return AstroMath.norm360(atan2(yh - ye, xh - xe) * AstroMath.Rad2Deg)
+        val dx = xh - xe
+        val dy = yh - ye
+        val dist = sqrt(dx * dx + dy * dy + zh * zh)
+        return AstroMath.norm360(atan2(dy, dx) * AstroMath.Rad2Deg) to dist
     }
 
     /** 太阳地心距（AU），Meeus 第 25 章。仅用于五星的地心化，精度要求不高。 */
@@ -333,7 +356,14 @@ object Ephemeris {
         val start = 230.5
         val periodDays = mode.periodYears * 365.2422
         val advance = (jdUt - epoch) / periodDays * 360.0
-        return AstroMath.norm360(start + if (mode.retrograde) -advance else advance)
+        val signed = if (mode.retrograde) -advance else advance
+        if (mode == ZiQiMode.YEARS_28_EQ) {
+            // 赤道匀速：历元黄经→赤经，沿赤经匀进，再折回黄经落盘
+            val startRa = AstroMath.rightAscension(start)
+            val ra = AstroMath.norm360(startRa + signed)
+            return AstroMath.eclipticLongitudeFromRa(ra)
+        }
+        return AstroMath.norm360(start + signed)
     }
 
     private fun ziQi(jdUt: Double, mode: ZiQiMode): Position {

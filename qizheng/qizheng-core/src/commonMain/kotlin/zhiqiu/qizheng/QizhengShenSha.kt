@@ -64,24 +64,56 @@ object QizhengShenSha {
             put(yearOut, poSui(yb), "破碎")
             // 年干飞刃（羊刃对冲）
             put(yearOut, feiRen(yearStem), "飞刃")
+            // 岁煞补全（黄金样例 §5.3）：天哭=岁破位；卷舌=年支+3；飞廉=寅年起巳顺行
+            put(yearOut, Branches[(yb + 6) % 12], "天哭")
+            put(yearOut, Branches[(yb + 3) % 12], "卷舌")
+            put(yearOut, Branches[(yb + 3) % 12], "飞廉")
+            put(yearOut, Branches[(yb + 1) % 12], "岁殿")
+            // 勾（前三）绞（后三）：以太岁为中
+            put(yearOut, Branches[(yb + 3) % 12], "勾神")
+            put(yearOut, Branches[(yb + 9) % 12], "绞神")
+            // 黄幡=三合墓库（同华盖位旁证），豹尾对冲
+            put(yearOut, huaGai(yb), "黄幡")
+            put(yearOut, Branches[(idx(huaGai(yb)) + 6) % 12], "豹尾")
+            // 流年十二神位补余（《神峰通考》歌诀口径）：
+            // 太岁位剑锋/伏尸；+1 天空；+10 天狗
+            put(yearOut, yearBranch, "剑锋")
+            put(yearOut, yearBranch, "伏尸")
+            put(yearOut, Branches[(yb + 1) % 12], "天空")
+            put(yearOut, Branches[(yb + 10) % 12], "天狗")
+            // 三刑：与年支成刑的支位标注
+            sanXingOf(yb).forEach { put(yearOut, it, "三刑") }
+            // 孤虚：日柱旬空对宫（空亡冲位）
+            kongWang(dayStem, dayBranch).forEach { kw ->
+                val ki = idx(kw)
+                if (ki >= 0) put(yearOut, Branches[(ki + 6) % 12], "孤虚")
+            }
         }
 
         tianYi(dayStem).forEach { put(dayOut, it, "天乙") }
+        put(dayOut, diYi(dayStem), "地乙")
         put(dayOut, wenChang(dayStem), "文昌")
         put(dayOut, luShen(dayStem), "禄神")
         put(dayOut, yangRen(dayStem), "羊刃")
         put(dayOut, jinYu(dayStem), "金舆")
         put(dayOut, tianDeBranch(monthBranch), "天德")
         put(dayOut, yueDeBranch(monthBranch), "月德")
+        put(dayOut, xueRen(monthBranch), "血刃")
         val db = idx(dayBranch)
         if (db >= 0) {
             put(dayOut, yiMa(db), "驿马")
             put(dayOut, huaGai(db), "华盖")
             put(dayOut, taoHua(db), "桃花")
+            // 浮沉：日支对冲（通行简化取法）
+            put(dayOut, Branches[(db + 6) % 12], "浮沉")
         }
         // 日干贵人类
         put(dayOut, tianChu(dayStem), "天厨")
         put(dayOut, guoYin(dayStem), "国印")
+        // 日柱空亡（甲子旬空戌亥…）
+        kongWang(dayStem, dayBranch).forEach { put(dayOut, it, "空亡") }
+        // 日干十二长生（阳顺阴逆）
+        placeChangSheng(dayOut, dayStem)
 
         val cap: (List<String>) -> List<String> =
             { if (maxPerBranch > 0) it.take(maxPerBranch) else it }
@@ -150,6 +182,33 @@ object QizhengShenSha {
         "壬" -> "未"; "癸" -> "申"; else -> ""
     }
 
+    /** 日柱旬空：甲子旬戌亥、甲戌旬申酉… */
+    private fun kongWang(dayStem: String, dayBranch: String): List<String> {
+        val stems = "甲乙丙丁戊己庚辛壬癸"
+        val si = stems.indexOf(dayStem)
+        val bi = idx(dayBranch)
+        if (si < 0 || bi < 0) return emptyList()
+        val xunShou = (bi - si + 12) % 12
+        return listOf(Branches[(xunShou + 10) % 12], Branches[(xunShou + 11) % 12])
+    }
+
+    private val ChangShengNames =
+        listOf("长生", "沐浴", "冠带", "临官", "帝旺", "衰", "病", "死", "墓", "绝", "胎", "养")
+
+    /** 日干十二长生落十二支：阳干顺、阴干逆 */
+    private fun placeChangSheng(target: Array<LinkedHashSet<String>>, dayStem: String) {
+        val start = when (dayStem) {
+            "甲" -> 11; "乙" -> 6; "丙", "戊" -> 2; "丁", "己" -> 9
+            "庚" -> 5; "辛" -> 0; "壬" -> 8; "癸" -> 3
+            else -> return
+        }
+        val yin = dayStem in setOf("乙", "丁", "己", "辛", "癸")
+        for (i in 0 until 12) {
+            val bi = if (yin) (start - i + 12) % 12 else (start + i) % 12
+            target[bi] += ChangShengNames[i]
+        }
+    }
+
     private fun idx(b: String): Int = Branches.indexOf(b)
 
     private fun yiMa(b: Int): String = when (b) {
@@ -216,6 +275,35 @@ object QizhengShenSha {
         "丙", "丁" -> listOf("亥", "酉")
         "壬", "癸" -> listOf("巳", "卯")
         "辛" -> listOf("午", "寅")
+        else -> emptyList()
+    }
+
+    /** 地乙贵人：甲未乙申丙酉丁亥戊丑己寅庚卯辛巳壬午癸辰 */
+    private fun diYi(stem: String): String = when (stem) {
+        "甲" -> "未"; "乙" -> "申"; "丙" -> "酉"; "丁" -> "亥"
+        "戊" -> "丑"; "己" -> "寅"; "庚" -> "卯"; "辛" -> "巳"
+        "壬" -> "午"; "癸" -> "辰"; else -> ""
+    }
+
+    /** 血刃：寅丑、卯未、辰寅、巳申、午卯、未酉、申辰、酉戌、戌巳、亥亥、子午、丑子 */
+    private fun xueRen(monthBranch: String): String = when (monthBranch) {
+        "寅" -> "丑"; "卯" -> "未"; "辰" -> "寅"; "巳" -> "申"
+        "午" -> "卯"; "未" -> "酉"; "申" -> "辰"; "酉" -> "戌"
+        "戌" -> "巳"; "亥" -> "亥"; "子" -> "午"; "丑" -> "子"
+        else -> ""
+    }
+
+    /** 与年支成三刑的支位（自刑标自身） */
+    private fun sanXingOf(yb: Int): List<String> = when (Branches[yb]) {
+        "寅" -> listOf("巳", "申")
+        "巳" -> listOf("申", "寅")
+        "申" -> listOf("寅", "巳")
+        "丑" -> listOf("戌", "未")
+        "戌" -> listOf("未", "丑")
+        "未" -> listOf("丑", "戌")
+        "子" -> listOf("卯")
+        "卯" -> listOf("子")
+        "辰", "午", "酉", "亥" -> listOf(Branches[yb])
         else -> emptyList()
     }
 

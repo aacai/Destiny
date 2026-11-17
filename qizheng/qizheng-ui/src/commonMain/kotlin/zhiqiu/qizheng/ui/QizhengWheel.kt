@@ -306,9 +306,22 @@ fun QizhengWheel(
                     layout,
                     topLeft = Offset(p.x - layout.size.width / 2f, p.y - layout.size.height / 2f),
                 )
+                // 迟留伏逆：逆用红点；迟/留/伏用小字标在星旁
                 if (star.retro) {
                     drawCircle(Paper, 3.4f, Offset(p.x + starRad * 0.7f, p.y - starRad * 0.7f))
                     drawCircle(Red, 2.2f, Offset(p.x + starRad * 0.7f, p.y - starRad * 0.7f))
+                } else if (star.motion in setOf("迟", "留", "伏")) {
+                    val mLayout = measurer.measure(
+                        star.motion,
+                        TextStyle(fontSize = 7.sp, color = Red, fontWeight = FontWeight.Bold),
+                    )
+                    drawText(
+                        mLayout,
+                        topLeft = Offset(
+                            p.x + starRad * 0.55f - mLayout.size.width / 2f,
+                            p.y - starRad * 0.85f - mLayout.size.height / 2f,
+                        ),
+                    )
                 }
                 // 庙旺利陷：仅在盘制开启时标注，标在星曜朝盘心一侧，不占外圈
                 chart.dignity[star.key]?.let { level ->

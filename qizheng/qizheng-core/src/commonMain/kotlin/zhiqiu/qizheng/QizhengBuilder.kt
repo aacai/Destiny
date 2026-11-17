@@ -66,7 +66,7 @@ object QizhengBuilder {
         val eq = config.equatorial
         fun disp(lon: Double): Double = if (eq) AstroMath.rightAscension(lon) else lon
 
-        val stars = StarDefs
+        val starsRaw = StarDefs
             .let { list ->
                 if (config.useZiQi) list else list.filterNot { it.first == Ephemeris.Body.ZiQi }
             }
@@ -76,6 +76,8 @@ object QizhengBuilder {
                 val bi = if (eq) MingGong.equatorialBranchIndex(dispLon, zodiacOffset)
                 else MingGong.longitudeToBranchIndex(pos.longitude, zodiacOffset)
                 val xiu = XiuTable.locate(dispLon, xiuZero, config.xiuSystem, config.xiuFrame, eq)
+                // 行度先按自速判；五星「伏」还要看与日黄经差，下面太阳算完后再补一次
+                val motion0 = planetMotion(body, pos.speedDegPerDay, elongFromSun = 180.0)
                 StarView(
                     key = key,
                     label = label,
@@ -84,19 +86,47 @@ object QizhengBuilder {
                     branch = MingGong.Branches[bi],
                     xiu = xiu.name,
                     xiuDegree = xiu.degreeInXiu,
-                    retro = pos.speedDegPerDay < -0.01,
+                    retro = motion0 == "逆",
+                    motion = motion0,
                 )
             }
 
-        val sun = stars.first { it.key == "日" }
+        val sun = starsRaw.first { it.key == "日" }
+        // 水金「伏」：与日黄经差 < 约 15° 且非逆留时标伏（肉眼不可见区近似）
+        val stars = starsRaw.map { st ->
+            val body = when (st.key) {
+                "水" -> Ephemeris.Body.Mercury
+                "金" -> Ephemeris.Body.Venus
+                else -> return@map st
+            }
+            val elong = abs(AstroMath.norm180(st.longitude - sun.longitude))
+            val m = planetMotion(body, st.speed, elong)
+            if (m == st.motion) st else st.copy(motion = m, retro = m == "逆")
+        }
         val moon = stars.first { it.key == "月" }
         // 生时地支须用校正后的时刻（真太阳时模式下与钟表时不同）
-        val hourBranch = MingGong.hourToBranchIndex(clock.hour, clock.minute)
+        val hourBranchBirth = MingGong.hourToBranchIndex(clock.hour, clock.minute)
+        // 日出/日落立命：立命换用当日出没时辰，星曜仍按出生时刻
+        val hourBranchMing = when (config.mingGongMethod) {
+            MingGongMethod.SUNRISE -> {
+                val sr = sunriseSunsetLocal(clock.year, clock.month, clock.day, lon, lat, rising = true)
+                MingGong.hourToBranchIndex(sr.hour, sr.minute)
+            }
+            MingGongMethod.SUNSET -> {
+                val ss = sunriseSunsetLocal(clock.year, clock.month, clock.day, lon, lat, rising = false)
+                MingGong.hourToBranchIndex(ss.hour, ss.minute)
+            }
+            else -> hourBranchBirth
+        }
+        val mingMethodCore = when (config.mingGongMethod) {
+            MingGongMethod.SUNRISE, MingGongMethod.SUNSET -> MingGongMethod.GUOLAO
+            else -> config.mingGongMethod
+        }
         // 命宫：时加太阳顺数至卯（果老）；用户固定命宫时直接采用（MOIRA 式手动安命）
         val mingIdxAuto = MingGong.mingBranchIndex(
             sunLon = sun.longitude,
-            hourBranchIndex = hourBranch,
-            method = config.mingGongMethod,
+            hourBranchIndex = hourBranchMing,
+            method = mingMethodCore,
             zodiacOffset = zodiacOffset,
             equatorial = eq,
         )
@@ -105,7 +135,7 @@ object QizhengBuilder {
         val shenIdx = if (config.useShenGong) {
             MingGong.shenBranchIndex(
                 moonLon = moon.longitude,
-                hourBranchIndex = hourBranch,
+                hourBranchIndex = hourBranchBirth,
                 method = config.shenGongMethod,
                 zodiacOffset = zodiacOffset,
                 equatorial = eq,
@@ -209,7 +239,7 @@ object QizhengBuilder {
             // LunarDay toString 常含「农历」等，截取月日段
             name.replace("农历", "").trim()
         }.getOrElse { lunarDay.toString() }
-        val lunarLabel = "${clock.year}年${lunarMonthDay}${MingGong.Branches[hourBranch]}时"
+        val lunarLabel = "${clock.year}年${lunarMonthDay}${MingGong.Branches[hourBranchBirth]}时"
 
         return QizhengChart(
             year = clock.year,
@@ -334,6 +364,41 @@ object QizhengBuilder {
             day = cal.day,
             hour = (minuteOfDay / 60).toInt() % 24,
             minute = ((minuteOfDay % 60).toInt() + 60) % 60,
+        )
+    }
+
+    /**
+     * 近似日出/日落的**钟表地方时**（东八区标准经度 120° 口径）。
+     * 用于日出/日落立命换时辰；精度约数分钟，够支时粒度。
+     */
+    fun sunriseSunsetLocal(
+        year: Int, month: Int, day: Int,
+        lonDeg: Double, latDeg: Double,
+        rising: Boolean,
+    ): ClockParts {
+        val n = dayOfYear(year, month, day)
+        val decl = 23.44 * sin(2 * PI * (284 + n) / 365.0)
+        val lat = latDeg * AstroMath.Deg2Rad
+        val d = decl * AstroMath.Deg2Rad
+        // 视太阳高度 −0.833°（大气折射+视半径）
+        val cosH = (sin(-0.833 * AstroMath.Deg2Rad) - sin(lat) * sin(d)) /
+            (cos(lat) * cos(d))
+        val hDeg = if (cosH <= -1.0) 180.0 else if (cosH >= 1.0) 0.0
+        else kotlin.math.acos(cosH.coerceIn(-1.0, 1.0)) * AstroMath.Rad2Deg
+        val eot = equationOfTimeMinutes(year, month, day)
+        // 地方平太阳正午（相对东八区钟表）≈ 12:00 − (λ−120)×4min − EoT? 
+        // 真太阳正午：钟表 = 12 − (λ−120)×4 − EoT（EoT=真−平，故平正午钟表=12−经差−EoT）
+        val noonMin = 12 * 60.0 - (lonDeg - STANDARD_MERIDIAN) * 4.0 - eot
+        val offsetMin = hDeg / 15.0 * 60.0
+        var total = if (rising) noonMin - offsetMin else noonMin + offsetMin
+        var dayShift = 0
+        while (total < 0) { total += 1440.0; dayShift -= 1 }
+        while (total >= 1440.0) { total -= 1440.0; dayShift += 1 }
+        val cal = plusDays(year, month, day, dayShift)
+        return ClockParts(
+            cal.year, cal.month, cal.day,
+            (total / 60).toInt() % 24,
+            (total % 60).toInt(),
         )
     }
 
@@ -573,6 +638,45 @@ object QizhengBuilder {
         }
 
         return xi + ji
+    }
+
+    /**
+     * 五星迟留伏逆（果老口径近似）。
+     * - 逆：日速 < 0
+     * - 留：|日速| 小于该星留限
+     * - 伏：水金距日 < 15° 且非逆（肉眼近合伏近似）
+     * - 迟：正行但明显慢于平均日速
+     * - 顺：其余
+     * 日月孛炁罗计只分顺/逆。
+     */
+    private fun planetMotion(body: Ephemeris.Body, speed: Double, elongFromSun: Double): String {
+        val five = setOf(
+            Ephemeris.Body.Mercury, Ephemeris.Body.Venus, Ephemeris.Body.Mars,
+            Ephemeris.Body.Jupiter, Ephemeris.Body.Saturn,
+        )
+        if (body !in five) return if (speed < -0.01) "逆" else "顺"
+        if (speed < -0.01) return "逆"
+        val stay = when (body) {
+            Ephemeris.Body.Mercury, Ephemeris.Body.Venus -> 0.08
+            Ephemeris.Body.Mars -> 0.04
+            Ephemeris.Body.Jupiter -> 0.02
+            Ephemeris.Body.Saturn -> 0.015
+            else -> 0.05
+        }
+        if (abs(speed) < stay) return "留"
+        if ((body == Ephemeris.Body.Mercury || body == Ephemeris.Body.Venus) && elongFromSun < 15.0) {
+            return "伏"
+        }
+        val mean = when (body) {
+            Ephemeris.Body.Mercury -> 1.2
+            Ephemeris.Body.Venus -> 1.2
+            Ephemeris.Body.Mars -> 0.52
+            Ephemeris.Body.Jupiter -> 0.08
+            Ephemeris.Body.Saturn -> 0.03
+            else -> 0.5
+        }
+        if (speed < mean * 0.55) return "迟"
+        return "顺"
     }
 
 }

@@ -48,11 +48,20 @@ fun QizhengSettingsPage(
     huaYaoIdx: Int,
     /** 染二十八宿 */
     xiuTint: Boolean,
+    /** 真太阳时（经度+均时差校正） */
+    trueSolar: Boolean = false,
+    /** 立命：0 果老时辰 1 日出 2 日落（固定命宫优先于本项） */
+    mingModeIdx: Int = 0,
+    /** 紫气沿赤道匀速（对齐星命排盘「紫气赤道匀速」） */
+    ziQiEquatorial: Boolean = false,
     onCoordChange: (Int) -> Unit,
     onXiuChange: (Int) -> Unit,
     onFixedMingChange: (Int) -> Unit,
     onHuaYaoChange: (Int) -> Unit,
     onXiuTintChange: (Boolean) -> Unit,
+    onTrueSolarChange: (Boolean) -> Unit = {},
+    onMingModeChange: (Int) -> Unit = {},
+    onZiQiEquatorialChange: (Boolean) -> Unit = {},
     onBack: () -> Unit,
 ) {
     val c = themeConfig.colors(darkTheme)
@@ -113,6 +122,14 @@ fun QizhengSettingsPage(
             onSelect = { onFixedMingChange(it - 1) },
         )
 
+        GroupLabel("立命时辰", c)
+        ChipRow(
+            labels = listOf("生时（果老）", "日出", "日落"),
+            selected = mingModeIdx.coerceIn(0, 2),
+            c = c,
+            onSelect = onMingModeChange,
+        )
+
         GroupLabel("化曜流派", c)
         ChipRow(
             labels = listOf("果老化曜", "天官化曜"),
@@ -120,6 +137,44 @@ fun QizhengSettingsPage(
             c = c,
             onSelect = onHuaYaoChange,
         )
+
+        GroupLabel("时间", c)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text("真太阳时", color = Ink, fontSize = 14.sp)
+                Text("按出生地经度 + 均时差校正（对齐星命排盘默认）", color = Muted, fontSize = 11.sp)
+            }
+            Switch(
+                checked = trueSolar,
+                onCheckedChange = onTrueSolarChange,
+                colors = SwitchDefaults.colors(checkedTrackColor = Accent),
+            )
+        }
+
+        GroupLabel("四余", c)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text("紫气赤道匀速", color = Ink, fontSize = 14.sp)
+                Text("沿赤经匀进再折回黄经（对齐星命排盘选项）", color = Muted, fontSize = 11.sp)
+            }
+            Switch(
+                checked = ziQiEquatorial,
+                onCheckedChange = onZiQiEquatorialChange,
+                colors = SwitchDefaults.colors(checkedTrackColor = Accent),
+            )
+        }
 
         GroupLabel("盘面", c)
         Row(

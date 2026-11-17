@@ -107,6 +107,13 @@ enum class HouseSystem(val label: String) {
 enum class MingGongMethod(val label: String, val targetBranchIndex: Int) {
     GUOLAO("果老·顺至卯", 3),
     SHEN_TO_YOU("琴堂·顺至酉", 9),
+    /**
+     * 日出立命：立命用当日出生地**日出**时辰，星曜仍按出生时刻。
+     * [targetBranchIndex] 仍走果老「顺至卯」，只换生时支。
+     */
+    SUNRISE("日出立命", 3),
+    /** 日落立命：立命用当日出生地**日落**时辰 */
+    SUNSET("日落立命", 3),
 }
 
 /**
@@ -173,6 +180,12 @@ enum class ZiQiMode(val label: String, val periodYears: Double, val retrograde: 
 
     /** 逆行派：28 年逆行。⚠️ 有此一说，**未经核对** */
     YEARS_28_REV("28年逆", 28.0, true),
+
+    /**
+     * 紫气赤道匀速：28 年顺行，但沿**赤道**匀速推进（历元黄经→赤经，进动后再折回黄经）。
+     * 对齐星命排盘「紫气赤道匀速」选项。
+     */
+    YEARS_28_EQ("紫气赤道匀速", 28.0, false),
 }
 
 // ------------------------------------------------------------------ 神煞
@@ -346,6 +359,18 @@ object PanZhiPresets {
     /** 真太阳时：按出生地经度 + 均时差校正时刻 */
     val TrueSolar = QizhengConfig(clockMode = ClockMode.TRUE_SOLAR)
 
+    /** 黄道动盘：回归黄道 + 真太阳时（星命排盘常见默认组合） */
+    val HuangDaoDong = QizhengConfig(clockMode = ClockMode.TRUE_SOLAR)
+
+    /** 日出立命 */
+    val SunriseMing = QizhengConfig(mingGongMethod = MingGongMethod.SUNRISE)
+
+    /** 日落立命 */
+    val SunsetMing = QizhengConfig(mingGongMethod = MingGongMethod.SUNSET)
+
+    /** 紫气赤道匀速 */
+    val ZiQiEquatorial = QizhengConfig(ziQiMode = ZiQiMode.YEARS_28_EQ)
+
     /** 简版：不排神煞、不用紫炁（只留七政 + 孛） */
     val Minimal = QizhengConfig(shenShaSet = ShenShaSet.NONE, useZiQi = false)
 
@@ -364,6 +389,10 @@ object PanZhiPresets {
         "郑案今宿" to ZhengAn,
         "赤道恒星" to Equatorial,
         "真太阳时" to TrueSolar,
+        "黄道动盘" to HuangDaoDong,
+        "日出立命" to SunriseMing,
+        "日落立命" to SunsetMing,
+        "紫气赤道匀速" to ZiQiEquatorial,
         "简版（无神煞）" to Minimal,
         // 🛑 「庙旺版」已撤下：庙旺表与《果老星宗》宫名诗冲突，见 Dignity 的说明
     )

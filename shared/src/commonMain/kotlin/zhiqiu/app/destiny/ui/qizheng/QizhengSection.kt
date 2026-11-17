@@ -52,12 +52,15 @@ import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import zhiqiu.app.destiny.ui.theme.LocalDestinyAppThemes
 import zhiqiu.app.destiny.ui.theme.LocalDestinyColorMode
 import zhiqiu.app.destiny.ui.theme.DestinyColorMode
+import zhiqiu.qizheng.ClockMode
 import zhiqiu.qizheng.HuaYaoSchool
+import zhiqiu.qizheng.MingGongMethod
 import zhiqiu.qizheng.PanZhiPresets
 import zhiqiu.app.destiny.qizheng.buildFromProfile
 import zhiqiu.qizheng.PatternView
 import zhiqiu.qizheng.QizhengBuilder
 import zhiqiu.qizheng.QizhengChart
+import zhiqiu.qizheng.ZiQiMode
 import zhiqiu.qizheng.ZodiacMode
 import zhiqiu.qizheng.ui.QizhengSettingsPage
 import zhiqiu.qizheng.ui.QizhengWheel
@@ -113,12 +116,21 @@ fun QizhengSection(
     var fixedMing by rememberSaveable(profile.id) { mutableIntStateOf(-1) }
     // 化曜流派：0 = 果老化曜，1 = 天官化曜
     var huaYaoSchoolIdx by rememberSaveable(profile.id) { mutableIntStateOf(0) }
+    // 真太阳时（对齐星命排盘可选项）
+    var trueSolar by rememberSaveable(profile.id) { mutableStateOf(false) }
+    // 立命时辰：0 生时果老 1 日出 2 日落
+    var mingModeIdx by rememberSaveable(profile.id) { mutableIntStateOf(0) }
+    // 紫气赤道匀速
+    var ziQiEquatorial by rememberSaveable(profile.id) { mutableStateOf(false) }
 
     // 盘制：坐标（0黄道回归 1黄道恒星 2赤道恒星）× 宿制（0果老 1回归今宿 2回归古宿 3古宿岁差 4郑案今宿）
     var coordIdx by rememberSaveable(profile.id) { mutableIntStateOf(initialPanZhiIdxs(profile.qizhengPanZhi).first) }
     var xiuIdx by rememberSaveable(profile.id) { mutableIntStateOf(initialPanZhiIdxs(profile.qizhengPanZhi).second) }
 
-    val chart = remember(profile, timeMode, cy, cm, cd, ch, cmi, coordIdx, xiuIdx, fixedMing, huaYaoSchoolIdx) {
+    val chart = remember(
+        profile, timeMode, cy, cm, cd, ch, cmi,
+        coordIdx, xiuIdx, fixedMing, huaYaoSchoolIdx, trueSolar, mingModeIdx, ziQiEquatorial,
+    ) {
         runCatching {
             val base = when (xiuIdx) {
                 1 -> PanZhiPresets.ModernReading
@@ -132,6 +144,13 @@ fun QizhengSection(
                 equatorial = coordIdx == 2,
                 fixedMingBranch = fixedMing.takeIf { it >= 0 },
                 huaYaoSchool = if (huaYaoSchoolIdx == 1) HuaYaoSchool.TIANGUAN else HuaYaoSchool.GUOLAO,
+                clockMode = if (trueSolar) ClockMode.TRUE_SOLAR else ClockMode.CIVIL,
+                mingGongMethod = when (mingModeIdx) {
+                    1 -> MingGongMethod.SUNRISE
+                    2 -> MingGongMethod.SUNSET
+                    else -> MingGongMethod.GUOLAO
+                },
+                ziQiMode = if (ziQiEquatorial) ZiQiMode.YEARS_28_EQ else ZiQiMode.YEARS_28,
             )
             when (timeMode) {
                 QzTimeMode.Demo -> QizhengBuilder.build(
@@ -168,6 +187,9 @@ fun QizhengSection(
             fixedMing = fixedMing,
             huaYaoIdx = huaYaoSchoolIdx,
             xiuTint = xiuTintEnabled,
+            trueSolar = trueSolar,
+            mingModeIdx = mingModeIdx,
+            ziQiEquatorial = ziQiEquatorial,
             onCoordChange = {
                 coordIdx = it
                 onSavePanZhi?.invoke(persistPanZhiName(coordIdx, xiuIdx))
@@ -179,6 +201,9 @@ fun QizhengSection(
             onFixedMingChange = { fixedMing = it },
             onHuaYaoChange = { huaYaoSchoolIdx = it },
             onXiuTintChange = { xiuTintEnabled = it },
+            onTrueSolarChange = { trueSolar = it },
+            onMingModeChange = { mingModeIdx = it },
+            onZiQiEquatorialChange = { ziQiEquatorial = it },
             onBack = { showSettings = false },
         )
         return

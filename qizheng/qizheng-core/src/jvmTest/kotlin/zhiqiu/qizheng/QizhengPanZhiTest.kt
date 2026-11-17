@@ -189,6 +189,45 @@ class QizhengPanZhiTest {
     }
 
     @Test
+    fun sunrise_sunset_ming_can_differ_from_birth_hour() {
+        val birth = build(PanZhiPresets.GuoLao)
+        val rise = build(PanZhiPresets.SunriseMing)
+        val set = build(PanZhiPresets.SunsetMing)
+        // 星曜黄经仍按出生时刻，不应因立命换时而变
+        assertEquals(
+            birth.stars.first { it.key == "日" }.longitude,
+            rise.stars.first { it.key == "日" }.longitude,
+            1e-9,
+        )
+        // 北京 8 月末：日出约卯、日落约酉，立命支通常与未时生不同
+        assertTrue(
+            rise.mingBranchIndex != birth.mingBranchIndex ||
+                set.mingBranchIndex != birth.mingBranchIndex,
+            "日出/日落立命至少一侧应与生时立命不同",
+        )
+        assertTrue(rise.mingBranchIndex in 0..11)
+        assertTrue(set.mingBranchIndex in 0..11)
+    }
+
+    @Test
+    fun ziQi_equatorial_differs_from_ecliptic() {
+        val eq = build(PanZhiPresets.ZiQiEquatorial)
+        val ec = build(PanZhiPresets.GuoLao)
+        val a = eq.stars.first { it.key == "炁" }.longitude
+        val b = ec.stars.first { it.key == "炁" }.longitude
+        assertTrue(arc(a, b) > 0.01, "赤道匀速与黄道匀速紫气应有差: ${arc(a, b)}")
+    }
+
+    @Test
+    fun shenSha_extra_names_present() {
+        val c = build(PanZhiPresets.GuoLao.copy(shenShaMaxPerBranch = 0))
+        val flat = (c.yearShenShaByBranch + c.dayShenShaByBranch).flatten().toSet()
+        for (n in listOf("天狗", "伏尸", "剑锋", "天空", "地乙", "血刃", "浮沉", "孤虚", "三刑")) {
+            assertTrue(n in flat, "神煞余表应含 $n，实际=$flat")
+        }
+    }
+
+    @Test
     fun shenGong_guolao_equals_moon_house() {
         // 果老派 / 耶律派：身宫 = 太阴所在宫（等同印度 Chandra Chart），与生时无关
         val c = build(PanZhiPresets.GuoLao)

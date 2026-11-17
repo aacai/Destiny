@@ -8,7 +8,13 @@ data class StarView(
     val branch: String,
     val xiu: String,
     val xiuDegree: Double,
+    /** 兼容旧 UI：等价于 [motion] == "逆" */
     val retro: Boolean,
+    /**
+     * 行度状态。日月孛炁罗计只标「顺/逆」；
+     * 五星按日速分「顺 / 迟 / 留 / 伏 / 逆」（对齐果老「迟留伏逆」口径）。
+     */
+    val motion: String = if (retro) "逆" else "顺",
 )
 
 data class PalaceView(

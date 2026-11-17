@@ -73,6 +73,7 @@ import compose.icons.feathericons.Link
 import compose.icons.feathericons.Plus
 import compose.icons.feathericons.Search
 import compose.icons.feathericons.Share2
+import compose.icons.feathericons.Star
 import compose.icons.feathericons.Trash2
 import compose.icons.feathericons.Upload
 import compose.icons.feathericons.Moon
@@ -145,6 +146,7 @@ fun ProfileListScreen(
     onOpenXiaoLiuRen: () -> Unit = {},
     onOpenMeiHua: () -> Unit = {},
     onOpenQimen: () -> Unit = {},
+    onOpenXingmingRef: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
     colorMode: DestinyColorMode = DestinyColorMode.Light,
     onToggleColorMode: () -> Unit = {},
@@ -286,6 +288,7 @@ fun ProfileListScreen(
                 onOpenXiaoLiuRen = onOpenXiaoLiuRen,
                 onOpenMeiHua = onOpenMeiHua,
                 onOpenQimen = onOpenQimen,
+                onOpenXingmingRef = onOpenXingmingRef,
                 onOpenBooks = onOpenBooks,
             )
             SearchBar(
@@ -549,6 +552,7 @@ private fun ToolStrip(
     onOpenXiaoLiuRen: () -> Unit,
     onOpenMeiHua: () -> Unit,
     onOpenQimen: () -> Unit,
+    onOpenXingmingRef: () -> Unit,
     onOpenBooks: () -> Unit,
 ) {
     Row(
@@ -560,6 +564,7 @@ private fun ToolStrip(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         ToolCard(FeatherIcons.Plus, "新建档案", "排盘建档", onAdd, primary = true)
+        ToolCard(FeatherIcons.Star, "星命 Demo", "政余对照", onOpenXingmingRef)
         ToolCard(FeatherIcons.Hexagon, "六爻", "摇卦断事", onOpenLiuyao)
         ToolCard(FeatherIcons.Compass, "小六壬", "掌诀起课", onOpenXiaoLiuRen)
         ToolCard(FeatherIcons.Aperture, "梅花", "易数起卦", onOpenMeiHua)

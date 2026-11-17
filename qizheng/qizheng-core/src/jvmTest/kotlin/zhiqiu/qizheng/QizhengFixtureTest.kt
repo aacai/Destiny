@@ -126,6 +126,10 @@ class QizhengFixtureTest {
         assertTrue("太岁" in c.shenShaByBranch[wu], "丙午年太岁在午: ${c.shenShaByBranch[wu]}")
         val shen = MingGong.Branches.indexOf("申")
         assertTrue("驿马" in c.shenShaByBranch[shen], "午年驿马在申: ${c.shenShaByBranch[shen]}")
+        val xu = MingGong.Branches.indexOf("戌")
+        assertTrue("华盖" in c.yearShenShaByBranch[xu], "午年华盖在戌: ${c.yearShenShaByBranch[xu]}")
+        val zi = MingGong.Branches.indexOf("子")
+        assertTrue("岁破" in c.yearShenShaByBranch[zi], "午年岁破在子")
     }
 
     @Test
