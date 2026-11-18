@@ -50,6 +50,17 @@ data class LiuYaoResult(
 )
 
 /**
+ * 六爻的一次存档：仅携带与宿主无关的中性字段，由调用方组装成各自的档案。
+ * [id] 首次存档生成并回写，再次保存原地更新而非新增重复记录。
+ */
+data class LiuYaoSave(
+    val id: String,
+    val name: String,
+    val note: String,
+    val groupName: String,
+)
+
+/**
  * 六爻流程：起卦页（问事＋指定六爻）→ 点排盘 → 结果页。
  * 结果页隐藏全部输入，只展示题头、卦盘与完整经文译文。
  */
@@ -59,14 +70,15 @@ fun LiuYaoScreen(
     onOpenYijing: () -> Unit = {},
     darkTheme: Boolean = false,
     themeConfig: PanThemeConfig = PanThemeConfig.Default,
+    onSave: (LiuYaoSave) -> Unit = {},
 ) {
     PanThemeProvider(darkTheme = darkTheme, config = themeConfig) {
-        LiuYaoScreenContent(onBack = onBack, onOpenYijing = onOpenYijing)
+        LiuYaoScreenContent(onBack = onBack, onOpenYijing = onOpenYijing, onSave = onSave)
     }
 }
 
 @Composable
-private fun LiuYaoScreenContent(onBack: () -> Unit, onOpenYijing: () -> Unit) {
+private fun LiuYaoScreenContent(onBack: () -> Unit, onOpenYijing: () -> Unit, onSave: (LiuYaoSave) -> Unit) {
     var question by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var guaZhu by remember { mutableStateOf("") }
@@ -77,6 +89,7 @@ private fun LiuYaoScreenContent(onBack: () -> Unit, onOpenYijing: () -> Unit) {
     // index 0=初爻 … 5=上爻；界面自上而下展示上爻→初爻
     var kinds by remember { mutableStateOf<List<YaoKind?>>(List(6) { null }) }
     var result by remember { mutableStateOf<LiuYaoResult?>(null) }
+    var savedId by remember { mutableStateOf<String?>(null) }
 
     val r = result
     if (r == null) {
@@ -134,7 +147,11 @@ private fun LiuYaoScreenContent(onBack: () -> Unit, onOpenYijing: () -> Unit) {
             onRestart = {
                 kinds = List(6) { null }
                 result = null
+                savedId = null
             },
+            onSave = onSave,
+            savedId = savedId,
+            onSaved = { savedId = it },
         )
     }
 }

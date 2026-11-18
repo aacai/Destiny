@@ -44,6 +44,7 @@ import zhiqiu.app.destiny.ui.theme.DestinyColorMode
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import zhiqiu.app.destiny.ui.theme.DestinyThemeProvider
 import zhiqiu.app.destiny.ui.theme.LocalDestinyAppThemes
+import zhiqiu.liuyao.ui.LiuYaoSave
 import zhiqiu.liuyao.ui.LiuYaoScreen
 import zhiqiu.liuyao.ui.ZhouyiBrowserScreen
 import zhiqiu.meihua.ui.MeiHuaScreen
@@ -249,6 +250,25 @@ fun App(
                         onOpenYijing = { navController.navigate(Routes.Yijing) },
                         darkTheme = colorMode == DestinyColorMode.Dark,
                         themeConfig = themes.pan,
+                        onSave = { save ->
+                            scope.launch {
+                                val now = Clock.System.now().toEpochMilliseconds()
+                                repository.upsert(
+                                    Profile(
+                                        id = save.id,
+                                        name = save.name,
+                                        gender = "",
+                                        birthdayType = "",
+                                        birthday = "",
+                                        timeIndex = 0,
+                                        note = save.note,
+                                        groupName = save.groupName,
+                                        createdAt = now,
+                                        updatedAt = now,
+                                    ),
+                                )
+                            }
+                        },
                     )
                 }
                 composable(Routes.Yijing) {

@@ -98,6 +98,9 @@ fun ResultPage(
     onDayInfo: (DayInfo?) -> Unit,
     onBackToInput: () -> Unit,
     onRestart: () -> Unit,
+    onSave: (LiuYaoSave) -> Unit = {},
+    savedId: String? = null,
+    onSaved: (String) -> Unit = {},
 ) {
     val chart = remember(kinds, dayInfo, topic, sub, gender) {
         val d = dayInfo ?: return@remember null
@@ -112,6 +115,32 @@ fun ResultPage(
             Text("排盘结果", color = PanInk, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onRestart) { Text("重起", color = PanAccent, fontSize = 13.sp) }
+            TextButton(
+                onClick = {
+                    val c = chart ?: return@TextButton
+                    val id = savedId ?: buildString { repeat(32) { append("abcdefghijklmnopqrstuvwxyz0123456789"[kotlin.random.Random.nextInt(36)]) } }
+                    val summary = buildString {
+                        if (question.isNotBlank()) appendLine("【占问】${question.trim()}")
+                        if (note.isNotBlank()) appendLine("【备注】${note.trim()}")
+                        appendLine("【卦主】${guaZhu.ifBlank { gender }}　【占类】${sub}")
+                        dayInfo?.let { appendLine("【日期】${it.yearLabel} ${it.monthLabel} ${it.dayLabel} ${it.hourLabel}") }
+                        appendLine("【本卦】${c.original.entry.fullName}")
+                        c.changed?.let { appendLine("【变卦】${it.entry.fullName}") }
+                        if (c.movingPositions.isNotEmpty()) appendLine("【动爻】${c.movingPositions.joinToString("、")}")
+                        if (c.yongShenLine.isNotBlank()) appendLine("【用神】${c.yongShenLine}")
+                        appendLine("【卦辞】${zhouyiOf(c.original.entry).guaCi}")
+                    }
+                    onSave(
+                        LiuYaoSave(
+                            id = id,
+                            name = question.trim().ifBlank { c.original.entry.fullName },
+                            note = summary,
+                            groupName = "六爻",
+                        ),
+                    )
+                    onSaved(id)
+                },
+            ) { Text("保存", color = PanAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
         }
         HorizontalDivider(thickness = 0.5.dp, color = PanLine)
         if (chart == null) {
