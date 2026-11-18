@@ -3,6 +3,8 @@ package zhiqiu.app.destiny.ui.theme
 import zhiqiu.app.destiny.oinkcompat.ColorScheme
 import zhiqiu.app.destiny.oinkcompat.darkColorScheme
 import zhiqiu.app.destiny.oinkcompat.lightColorScheme
+import zhiqiu.applewidgets.kmp.oink.theme.oinkDarkColors
+import zhiqiu.applewidgets.kmp.oink.theme.oinkLightColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
@@ -84,34 +86,40 @@ data class DestinyColors(
         }
 }
 
-/** 内置日间主题色板 */
-val LightDestinyColors = DestinyColors(
+/** 内置日间主题色板：由 oink 色板派生，accent/文本/底色统一走 oink。 */
+val LightDestinyColors = oinkLightColors().toDestinyColors(
     isDark = false,
-    page = Color(0xFFF5F3EE),
-    card = Color(0xFFFFFFFF),
-    panel = Color(0xFFF5F0ED),
-    ink = Color(0xFF222222),
-    muted = Color(0xFF8A8578),
-    line = Color(0xFFE2DED2),
-    accent = Color(0xFF26A6A6),
     danger = Color(0xFFD9534F),
     male = Color(0xFF4A90D9),
     female = Color(0xFFE57373),
 )
 
-/** 内置夜间主题色板 */
-val DarkDestinyColors = DestinyColors(
+/** 内置夜间主题色板：由 oink 色板派生。 */
+val DarkDestinyColors = oinkDarkColors().toDestinyColors(
     isDark = true,
-    page = Color(0xFF1C1B19),
-    card = Color(0xFF2A2825),
-    panel = Color(0xFF211F1D),
-    ink = Color(0xFFE8E4DC),
-    muted = Color(0xFF9E988C),
-    line = Color(0xFF3F3C36),
-    accent = Color(0xFF4DB6B6),
     danger = Color(0xFFE57373),
     male = Color(0xFF64B5F6),
     female = Color(0xFFEF9A9A),
+)
+
+/** oink 色板 → Destiny 色板映射；danger/male/female 为 oink 未覆盖的语义色，保留传入值。 */
+private fun zhiqiu.applewidgets.kmp.oink.theme.OinkColors.toDestinyColors(
+    isDark: Boolean,
+    danger: Color,
+    male: Color,
+    female: Color,
+) = DestinyColors(
+    isDark = isDark,
+    page = bg,
+    card = card,
+    panel = well,
+    ink = text,
+    muted = text2,
+    line = line2,
+    accent = accent,
+    danger = danger,
+    male = male,
+    female = female,
 )
 
 /**

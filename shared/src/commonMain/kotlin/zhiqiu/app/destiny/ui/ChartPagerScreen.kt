@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import zhiqiu.app.destiny.oinkcompat.ExperimentalMaterial3Api
 import zhiqiu.app.destiny.oinkcompat.FloatingActionButton
@@ -127,7 +126,6 @@ fun ChartPagerScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
                         .height(44.dp)
                         .background(MaterialTheme.colorScheme.surface)
                         .padding(start = 4.dp, end = 8.dp),

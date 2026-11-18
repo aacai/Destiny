@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -52,7 +53,7 @@ fun Scaffold(
     containerColor: Color = Color.Unspecified,
     content: @Composable (androidx.compose.foundation.layout.PaddingValues) -> Unit,
 ) {
-    Column(modifier.fillMaxSize()) {
+    Column(modifier.fillMaxSize().safeDrawingPadding()) {
         topBar()
         Box(Modifier.weight(1f).fillMaxWidth()) {
             content(androidx.compose.foundation.layout.PaddingValues(0.dp))
@@ -392,9 +393,8 @@ fun darkColorScheme(
 @Composable
 fun MaterialThemeHost(
     darkTheme: Boolean,
-    accent: OinkAccent = OinkAccent.Blue,
     content: @Composable () -> Unit,
 ) {
-    val colors = if (darkTheme) oinkDarkColors(accent) else oinkLightColors(accent)
+    val colors = if (darkTheme) oinkDarkColors() else oinkLightColors()
     OinkTheme(colors = colors) { content() }
 }

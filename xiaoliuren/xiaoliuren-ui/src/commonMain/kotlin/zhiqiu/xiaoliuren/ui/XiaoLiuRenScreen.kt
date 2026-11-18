@@ -52,12 +52,14 @@ import zhiqiu.xiaoliuren.XiaoLiuRenChart
 import zhiqiu.xiaoliuren.branchHourRange
 import zhiqiu.xiaoliuren.cast
 import zhiqiu.xiaoliuren.castCounts
+import zhiqiu.xiaoliuren.castFromSolar
 import zhiqiu.xiaoliuren.castNow
 import zhiqiu.xiaoliuren.lunarDayLabel
 import kotlin.random.Random
 
 private enum class TimeMode(val label: String) {
     NOW("此刻"),
+    SOLAR("公历"),
     LUNAR("农历"),
     COUNTS("报数"),
 }
@@ -102,6 +104,13 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
     var countMonth by remember { mutableStateOf(now.monthCount.toString()) }
     var countDay by remember { mutableStateOf(now.dayCount.toString()) }
     var countHour by remember { mutableStateOf(now.hourCount.toString()) }
+    // 公历起课：默认取设备此刻，可改年月日时分（对应 core 的 castFromSolar）
+    val solarParts = now.solarText.split(' ', '-', ':').mapNotNull { it.toIntOrNull() }
+    var solarYear by remember { mutableIntStateOf(solarParts.getOrElse(0) { 2026 }) }
+    var solarMonth by remember { mutableIntStateOf(solarParts.getOrElse(1) { 1 }) }
+    var solarDay by remember { mutableIntStateOf(solarParts.getOrElse(2) { 1 }) }
+    var solarHour by remember { mutableIntStateOf(solarParts.getOrElse(3) { 12 }) }
+    var solarMinute by remember { mutableIntStateOf(solarParts.getOrElse(4) { 0 }) }
     // 「此刻」每次进入或点刷新都重新取设备时间
     var snapshot by remember { mutableStateOf(now) }
     var showRule by remember { mutableStateOf(false) }
@@ -111,6 +120,7 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
     val reported = listOf(countMonth, countDay, countHour).map { reportedNumber(it) }
     val chart = when (mode) {
         TimeMode.NOW -> snapshot
+        TimeMode.SOLAR -> castFromSolar(solarYear, solarMonth, solarDay, solarHour, solarMinute)
         TimeMode.LUNAR -> cast(lunarMonth, lunarDay, branch, leap)
         TimeMode.COUNTS -> castCounts(reported[0], reported[1], reported[2])
     }
@@ -186,7 +196,7 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
                 selectedIndex = TimeMode.entries.indexOf(mode),
                 onSelect = { i ->
                     val next = TimeMode.entries[i]
-                    if (next == TimeMode.NOW) {
+                    if (next == TimeMode.NOW || next == TimeMode.SOLAR) {
                         val fresh = castNow()
                         val freshLunar = requireNotNull(fresh.lunar)
                         snapshot = fresh
@@ -194,6 +204,12 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
                         lunarDay = freshLunar.day
                         branch = freshLunar.hourBranchIndex
                         leap = freshLunar.isLeapMonth
+                        val p = fresh.solarText.split(' ', '-', ':').mapNotNull { it.toIntOrNull() }
+                        solarYear = p.getOrElse(0) { solarYear }
+                        solarMonth = p.getOrElse(1) { solarMonth }
+                        solarDay = p.getOrElse(2) { solarDay }
+                        solarHour = p.getOrElse(3) { solarHour }
+                        solarMinute = p.getOrElse(4) { solarMinute }
                     }
                     // 切到报数时把当前课式的三数带过去，省得重填
                     if (next == TimeMode.COUNTS) {
@@ -222,6 +238,38 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
                             .clickable { snapshot = castNow() }
                             .padding(horizontal = 6.dp, vertical = 2.dp),
                     )
+                }
+
+                TimeMode.SOLAR -> {
+                    Text("选公历年月日时分，自动换算农历月日与时辰起课。", color = XlrTheme.muted, fontSize = 11.sp)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    FieldCaption("年")
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Stepper(value = solarYear, range = 1900..2100, display = solarYear.toString()) { solarYear = it }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    FieldCaption("月")
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Stepper(value = solarMonth, range = 1..12, display = solarMonth.toString()) { solarMonth = it }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    FieldCaption("日")
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Stepper(value = solarDay, range = 1..31, display = solarDay.toString()) { solarDay = it }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    FieldCaption("时：分")
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(modifier = Modifier.weight(1f)) {
+                            Stepper(value = solarHour, range = 0..23, display = solarHour.toString().padStart(2, '0')) { solarHour = it }
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
+                            Stepper(value = solarMinute, range = 0..59, display = solarMinute.toString().padStart(2, '0')) { solarMinute = it }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text("对应 ${chart.castText}", color = XlrTheme.accent, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
 
                 TimeMode.LUNAR -> {
@@ -329,7 +377,10 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
                 .clickable {
                     val id = savedId ?: newXlrId()
                     val summary = buildString {
+                        if (question.isNotBlank()) appendLine("【占问】${question.trim()}")
                         appendLine("【课式】${chart.castText}")
+                        if (chart.solarText.isNotBlank()) appendLine("【公历】${chart.solarText}")
+                        appendLine("【三数】${chart.monthCount}・${chart.dayCount}・${chart.hourCount}")
                         appendLine("【落宫】${chart.palace.label}（${chart.palace.luck.label}）")
                         appendLine("【断曰】${chart.palace.poem.joinToString(" ")}")
                     }
@@ -387,6 +438,7 @@ private fun RuleDialog(chart: XiaoLiuRenChart, onDismiss: () -> Unit) {
             ) {
                 RuleSection("取数") {
                     Bullet("此刻", "取设备时间的农历月、农历日与时辰。")
+                    Bullet("公历", "手选公历年月日时分，自动换算成农历月日与时辰；可为过去的事件补课。")
                     Bullet("农历", "手选农历月日与时辰；闰月按本月计，只标注、不改落宫。")
                     Bullet("报数", "随口报三个数，依次作月、日、时之数，推演与农历同式。")
                     Spacer(modifier = Modifier.height(6.dp))
