@@ -637,7 +637,7 @@ private fun ZhengYuResult(
         ) {
             // 盘面铺满卡片宽度（卡片为正方形，宽度即边长），最大化盘面以缓解文字挤压
             val wheelSize = maxWidth - 8.dp
-            QizhengWheel(chart = chart, size = wheelSize)
+            QizhengWheel(chart = chart, size = wheelSize, enableZoom = true)
         }
         Spacer(Modifier.height(10.dp))
         if (isGolden) {

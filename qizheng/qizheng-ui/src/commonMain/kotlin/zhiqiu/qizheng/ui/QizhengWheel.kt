@@ -1,13 +1,20 @@
 package zhiqiu.qizheng.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
@@ -56,6 +63,8 @@ fun QizhengWheel(
     onXiuClick: ((Int) -> Unit)? = null,
     darkTheme: Boolean = false,
     themeConfig: QizhengThemeConfig = QizhengThemeConfig.Default,
+    /** 是否允许双指缩放/拖拽。档案页外层已有缩放，保持 false；独立盘面可开启。 */
+    enableZoom: Boolean = false,
 ) {
     val c = themeConfig.colors(darkTheme)
     val Paper = c.paper
@@ -83,9 +92,31 @@ fun QizhengWheel(
     val yearShen = chart.yearShenShaByBranch.ifEmpty { chart.shenShaByBranch }
     val dayShen = chart.dayShenShaByBranch
 
+    // 双指缩放/拖拽状态（仅 enableZoom 时挂到 Canvas；档案页外层已有缩放）
+    var zoom by remember { mutableFloatStateOf(1f) }
+    var pan by remember { mutableStateOf(Offset.Zero) }
+    val zoomMod = if (enableZoom) Modifier
+        .graphicsLayer {
+            scaleX = zoom
+            scaleY = zoom
+            translationX = pan.x
+            translationY = pan.y
+        }
+        .transformable(
+            state = androidx.compose.foundation.gestures.rememberTransformableState { z, p, _ ->
+                zoom = (zoom * z).coerceIn(1f, 4f)
+                pan = if (zoom > 1.01f) pan + p else Offset.Zero
+            },
+        )
+        .pointerInput(Unit) {
+            detectTapGestures(onDoubleTap = { zoom = 1f; pan = Offset.Zero })
+        }
+    else Modifier
+
     Canvas(
         modifier = modifier
             .size(size)
+            .then(zoomMod)
             .pointerInput(Unit) {
                 detectTapGestures { offset ->
                     val dist = kotlin.math.hypot(offset.x - cX, offset.y - cY)
