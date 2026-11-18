@@ -270,15 +270,19 @@ fun QizhengWheel(
             data class StarItem(val index: Int, val star: StarView, val angle: Double)
             val sortedStars = chart.stars.mapIndexed { i, s -> StarItem(i, s, angOfLon(s.longitude)) }
                 .sortedBy { it.angle }
-            // 星名文字比星徽宽，避让必须按「最宽星名」算弧长，否则星徽分开了文字仍叠
+            // 每颗星预测量文字，圈半径要能完整包住文字（文字外围画圈线）
             val starLabelFs = fs(11)
-            val maxLabelW = chart.stars.maxOf { s ->
-                measurer.measure(s.label, TextStyle(fontSize = starLabelFs, fontWeight = FontWeight.Bold)).size.width
-            }.toFloat().coerceAtLeast(starRad * 2f)
+            val labelStyle = TextStyle(fontSize = starLabelFs, fontWeight = FontWeight.Bold)
+            val layouts = chart.stars.map { measurer.measure(it.label, labelStyle) }
+            // 圈半径：取文字宽/高的一半再加内边距，保证文字不撑出圈
+            val labelRads = layouts.map { lay ->
+                maxOf(starRad, lay.size.width / 2f + 4f, lay.size.height / 2f + 3f)
+            }
+            val maxLabelR = labelRads.maxOrNull() ?: starRad
             val count = sortedStars.size
             // 最小角距（弧度，含间隙）；星太多时必须压到能塞进一圈，否则贪心会推出 360°
             val minSep = minOf(
-                (maxLabelW + 6f) / rStarCenter,
+                (maxLabelR * 2f + 4f) / rStarCenter,
                 (2.0 * PI / count).toFloat() * 0.95f,
             )
             val adj = DoubleArray(count) { sortedStars[it].angle }
@@ -302,40 +306,42 @@ fun QizhengWheel(
                 adjMap[item.index] = adj[i]
                 layerMap[item.index] = i % 2
             }
-            val layerOffset = starRad * 1.5f
+            val layerOffset = maxLabelR * 2f + 2f
 
-            // 引线 + 圆点 + 文字
+            // 引线 + 圈线 + 文字
             chart.stars.forEachIndexed { idx, star ->
                 val realAng = angOfLon(star.longitude)
                 val shownAng = adjMap[idx] ?: realAng   // 避让后的展示角
                 val shownR = rStarCenter - (layerMap[idx] ?: 0) * layerOffset
                 val p = pt(shownAng, shownR)
-
-                // ★ 引线：自星曜（外侧、避让后）连到它在刻度环上的真实位置（内侧）
-                val pTick = pt(realAng, rTickBase + tickMaxLen * 0.62f)
-                drawLine(Soft, p, pTick, strokeWidth = 0.9f, cap = StrokeCap.Round)
-
+                val rad = labelRads.getOrElse(idx) { starRad }
                 val style = planetStyle(star.key, Paper)
-                if (style.badge) {
-                    drawCircle(style.fill, starRad, p)
-                    // 彩色星徽描白边，与宿环色格分离更清晰
-                    drawCircle(Paper, starRad, p, style = Stroke(1.4f))
-                } else {
-                    drawCircle(Paper, starRad, p)
-                    drawCircle(StarGreen, starRad, p, style = Stroke(1.9f))
-                }
-                val layout = measurer.measure(
-                    star.label,
-                    TextStyle(fontSize = fs(11), color = style.text, fontWeight = FontWeight.Bold),
-                )
+                val ringColor = if (style.badge) style.fill else StarGreen
+
+                // ★ 引线：从真实黄道角度（内圈刻度）连到侧方错位的圈边，指明该星真实落点
+                val pTick = pt(realAng, rTickBase + tickMaxLen * 0.62f)
+                val dx = p.x - pTick.x
+                val dy = p.y - pTick.y
+                val dist = kotlin.math.hypot(dx, dy).coerceAtLeast(0.001f)
+                // 线止于圈边（不穿进圈内），起点贴刻度
+                val edge = Offset(p.x - dx / dist * rad, p.y - dy / dist * rad)
+                drawLine(ringColor.copy(alpha = 0.65f), pTick, edge, strokeWidth = 1.1f, cap = StrokeCap.Round)
+                // 真实落点小圆点
+                drawCircle(ringColor, 2f, pTick)
+
+                // 星曜文字外围的圈线：白底 + 彩色圈线
+                drawCircle(Paper, rad, p)
+                drawCircle(ringColor, rad, p, style = Stroke(1.6f))
+
+                val layout = measurer.measure(star.label, labelStyle.copy(color = style.text))
                 drawText(
                     layout,
                     topLeft = Offset(p.x - layout.size.width / 2f, p.y - layout.size.height / 2f),
                 )
-                // 迟留伏逆：逆用红点；迟/留/伏用小字标在星旁
+                // 迟留伏逆：逆用红点；迟/留/伏用小字标在圈旁
                 if (star.retro) {
-                    drawCircle(Paper, 3.4f, Offset(p.x + starRad * 0.7f, p.y - starRad * 0.7f))
-                    drawCircle(Red, 2.2f, Offset(p.x + starRad * 0.7f, p.y - starRad * 0.7f))
+                    drawCircle(Paper, 3.4f, Offset(p.x + rad * 0.8f, p.y - rad * 0.8f))
+                    drawCircle(Red, 2.2f, Offset(p.x + rad * 0.8f, p.y - rad * 0.8f))
                 } else if (star.motion in setOf("迟", "留", "伏")) {
                     val mLayout = measurer.measure(
                         star.motion,
@@ -344,14 +350,14 @@ fun QizhengWheel(
                     drawText(
                         mLayout,
                         topLeft = Offset(
-                            p.x + starRad * 0.55f - mLayout.size.width / 2f,
-                            p.y - starRad * 0.85f - mLayout.size.height / 2f,
+                            p.x + rad * 0.7f - mLayout.size.width / 2f,
+                            p.y - rad * 0.9f - mLayout.size.height / 2f,
                         ),
                     )
                 }
-                // 庙旺利陷：仅在盘制开启时标注，标在星曜朝盘心一侧，不占外圈
+                // 庙旺利陷：标在圈朝盘心一侧
                 chart.dignity[star.key]?.let { level ->
-                    val dp = pt(shownAng, shownR - starRad - 6f)
+                    val dp = pt(shownAng, shownR - rad - 6f)
                     val dLayout = measurer.measure(
                         level,
                         TextStyle(fontSize = fs(7), color = SunGold, fontWeight = FontWeight.Bold),
