@@ -50,6 +50,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import zhiqiu.app.destiny.chart.computeBaziSummary
 import zhiqiu.app.destiny.chart.resolvedSolarDate
+import zhiqiu.app.destiny.profile.CaseType
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.qizheng.PanZhiPresets
 import zhiqiu.qizheng.QizhengBuilder
@@ -146,6 +147,7 @@ fun XingmingRefScreen(
             longitude = 116.4074,
             latitude = 39.9042,
             groupName = "案例",
+            caseType = CaseType.BAZI,
             note = if (rememberPlace) place else "",
             createdAt = profiles.firstOrNull { it.id == id }?.createdAt ?: now,
             updatedAt = now,

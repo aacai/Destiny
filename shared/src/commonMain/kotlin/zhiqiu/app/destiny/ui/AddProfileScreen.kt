@@ -68,6 +68,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import zhiqiu.app.destiny.chart.computeBaziSummary
 import zhiqiu.app.destiny.chart.resolvedSolarDate
+import zhiqiu.app.destiny.profile.CaseType
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import zhiqiu.app.destiny.time.TIME_INDEX_LABELS
@@ -480,6 +481,7 @@ fun AddProfileScreen(
                         clockHour = clockHour,
                         clockMinute = clockMinute,
                         note = note.trim(),
+                        caseType = initial?.caseType ?: CaseType.BAZI,
                         groupName = groupName,
                         createdAt = initial?.createdAt ?: now,
                         updatedAt = now,

@@ -26,8 +26,11 @@ import androidx.navigation.navArgument
 import androidx.savedstate.read
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
+import zhiqiu.app.destiny.profile.CaseType
+import zhiqiu.app.destiny.profile.LiuYaoPayload
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.profile.ProfileRepository
+import zhiqiu.app.destiny.profile.XiaoLiuRenPayload
 import zhiqiu.app.destiny.platform.NativeTitleBarSync
 import zhiqiu.app.destiny.platform.StatusBarIconSync
 import zhiqiu.app.destiny.platform.TitleBarBandHeight
@@ -45,11 +48,13 @@ import zhiqiu.app.destiny.ui.theme.DestinyColorMode
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import zhiqiu.app.destiny.ui.theme.DestinyThemeProvider
 import zhiqiu.app.destiny.ui.theme.LocalDestinyAppThemes
+import zhiqiu.liuyao.ui.LiuYaoCaseViewer
 import zhiqiu.liuyao.ui.LiuYaoSave
 import zhiqiu.liuyao.ui.LiuYaoScreen
 import zhiqiu.liuyao.ui.ZhouyiBrowserScreen
 import zhiqiu.meihua.ui.MeiHuaScreen
 import zhiqiu.qimen.ui.QimenScreen
+import zhiqiu.xiaoliuren.ui.XiaoLiuRenCaseViewer
 import zhiqiu.xiaoliuren.ui.XiaoLiuRenSave
 import zhiqiu.xiaoliuren.ui.XiaoLiuRenScreen
 
@@ -224,6 +229,18 @@ fun App(
                                         birthday = "",
                                         timeIndex = 0,
                                         note = save.note,
+                                        caseType = CaseType.XIAOLIUREN,
+                                        payload = XiaoLiuRenPayload(
+                                            mode = save.mode, question = save.question,
+                                            solarYear = save.solarYear, solarMonth = save.solarMonth,
+                                            solarDay = save.solarDay, solarHour = save.solarHour,
+                                            solarMinute = save.solarMinute,
+                                            lunarMonth = save.lunarMonth, lunarDay = save.lunarDay,
+                                            hourBranchIndex = save.hourBranchIndex,
+                                            isLeapMonth = save.isLeapMonth,
+                                            countMonth = save.countMonth, countDay = save.countDay,
+                                            countHour = save.countHour,
+                                        ).encode(),
                                         groupName = save.groupName,
                                         createdAt = now,
                                         updatedAt = now,
@@ -264,6 +281,15 @@ fun App(
                                         birthday = "",
                                         timeIndex = 0,
                                         note = save.note,
+                                        caseType = CaseType.LIUYAO,
+                                        payload = LiuYaoPayload(
+                                            yaoKinds = save.yaoKinds,
+                                            year = save.year, month = save.month, day = save.day,
+                                            hour = save.hour, minute = save.minute,
+                                            topic = save.topic, sub = save.sub,
+                                            guaZhu = save.guaZhu, gender = save.gender,
+                                            question = save.question,
+                                        ).encode(),
                                         groupName = save.groupName,
                                         createdAt = now,
                                         updatedAt = now,
@@ -325,18 +351,52 @@ fun App(
                             navController.popBackStack()
                         }
                     } else {
-                        ChartPagerScreen(
-                            profile = profile,
-                            repository = repository,
-                            onBack = { navController.popBackStack() },
-                            colorMode = colorMode,
-                            onColorModeChange = ::setColorMode,
-                            onSaveQizhengPanZhi = { panZhi ->
-                                scope.launch {
-                                    repository.upsert(profile.copy(qizhengPanZhi = panZhi))
-                                }
-                            },
-                        )
+                        when (profile.caseType) {
+                            CaseType.LIUYAO -> {
+                                val p = remember(profile.payload) { LiuYaoPayload.decode(profile.payload) }
+                                LiuYaoCaseViewer(
+                                    yaoKinds = p?.yaoKinds.orEmpty(),
+                                    year = p?.year ?: 0, month = p?.month ?: 0, day = p?.day ?: 0,
+                                    hour = p?.hour ?: 0, minute = p?.minute ?: 0,
+                                    topic = p?.topic ?: "NONE", sub = p?.sub.orEmpty(),
+                                    guaZhu = p?.guaZhu.orEmpty(), gender = p?.gender ?: "男",
+                                    question = p?.question ?: profile.name,
+                                    note = profile.note,
+                                    onBack = { navController.popBackStack() },
+                                    darkTheme = colorMode == DestinyColorMode.Dark,
+                                    themeConfig = themes.pan,
+                                )
+                            }
+                            CaseType.XIAOLIUREN -> {
+                                val p = remember(profile.payload) { XiaoLiuRenPayload.decode(profile.payload) }
+                                XiaoLiuRenCaseViewer(
+                                    mode = p?.mode ?: "NOW", question = p?.question ?: profile.name,
+                                    solarYear = p?.solarYear ?: 0, solarMonth = p?.solarMonth ?: 0,
+                                    solarDay = p?.solarDay ?: 0, solarHour = p?.solarHour ?: 0,
+                                    solarMinute = p?.solarMinute ?: 0,
+                                    lunarMonth = p?.lunarMonth ?: 0, lunarDay = p?.lunarDay ?: 0,
+                                    hourBranchIndex = p?.hourBranchIndex ?: 0,
+                                    isLeapMonth = p?.isLeapMonth ?: false,
+                                    countMonth = p?.countMonth ?: 0, countDay = p?.countDay ?: 0,
+                                    countHour = p?.countHour ?: 0,
+                                    onBack = { navController.popBackStack() },
+                                    darkTheme = colorMode == DestinyColorMode.Dark,
+                                    themeConfig = themes.xlr,
+                                )
+                            }
+                            else -> ChartPagerScreen(
+                                profile = profile,
+                                repository = repository,
+                                onBack = { navController.popBackStack() },
+                                colorMode = colorMode,
+                                onColorModeChange = ::setColorMode,
+                                onSaveQizhengPanZhi = { panZhi ->
+                                    scope.launch {
+                                        repository.upsert(profile.copy(qizhengPanZhi = panZhi))
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }

@@ -101,6 +101,8 @@ fun ResultPage(
     onSave: (LiuYaoSave) -> Unit = {},
     savedId: String? = null,
     onSaved: (String) -> Unit = {},
+    /** 只读查看模式：隐藏起卦/重起/保存按钮，标题改为「卦例」。 */
+    readOnly: Boolean = false,
 ) {
     val chart = remember(kinds, dayInfo, topic, sub, gender) {
         val d = dayInfo ?: return@remember null
@@ -111,9 +113,12 @@ fun ResultPage(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBackToInput) { Text("‹ 起卦", color = PanAccent, fontSize = 15.sp) }
-            Text("排盘结果", color = PanInk, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            TextButton(onClick = onBackToInput) {
+                Text(if (readOnly) "‹ 返回" else "‹ 起卦", color = PanAccent, fontSize = 15.sp)
+            }
+            Text(if (readOnly) "卦例详情" else "排盘结果", color = PanInk, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
+            if (!readOnly) {
             TextButton(onClick = onRestart) { Text("重起", color = PanAccent, fontSize = 13.sp) }
             TextButton(
                 onClick = {
@@ -136,11 +141,23 @@ fun ResultPage(
                             name = question.trim().ifBlank { c.original.entry.fullName },
                             note = summary,
                             groupName = "六爻",
+                            yaoKinds = kinds.mapNotNull { it?.name },
+                            year = dayInfo?.year ?: 0,
+                            month = dayInfo?.month ?: 0,
+                            day = dayInfo?.day ?: 0,
+                            hour = dayInfo?.hour ?: 0,
+                            minute = dayInfo?.minute ?: 0,
+                            topic = topic.name,
+                            sub = sub,
+                            guaZhu = guaZhu,
+                            gender = gender,
+                            question = question,
                         ),
                     )
                     onSaved(id)
                 },
             ) { Text("保存", color = PanAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
+            }
         }
         HorizontalDivider(thickness = 0.5.dp, color = PanLine)
         if (chart == null) {

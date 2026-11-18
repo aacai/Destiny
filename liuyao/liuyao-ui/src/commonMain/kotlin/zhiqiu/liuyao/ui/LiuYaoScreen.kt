@@ -58,6 +58,18 @@ data class LiuYaoSave(
     val name: String,
     val note: String,
     val groupName: String,
+    /** 重建盘面所需的最小起课数据（均为基础类型）。 */
+    val yaoKinds: List<String> = emptyList(),
+    val year: Int = 0,
+    val month: Int = 0,
+    val day: Int = 0,
+    val hour: Int = 0,
+    val minute: Int = 0,
+    val topic: String = "NONE",
+    val sub: String = "",
+    val guaZhu: String = "",
+    val gender: String = "男",
+    val question: String = "",
 )
 
 /**
@@ -152,6 +164,50 @@ private fun LiuYaoScreenContent(onBack: () -> Unit, onOpenYijing: () -> Unit, on
             onSave = onSave,
             savedId = savedId,
             onSaved = { savedId = it },
+        )
+    }
+}
+
+/**
+ * 从存档的结构化数据只读重建六爻盘面。参数与宿主 payload 一一对应（均为基础类型）。
+ */
+@Composable
+fun LiuYaoCaseViewer(
+    yaoKinds: List<String>,
+    year: Int, month: Int, day: Int, hour: Int, minute: Int,
+    topic: String, sub: String, guaZhu: String, gender: String, question: String,
+    note: String,
+    onBack: () -> Unit = {},
+    darkTheme: Boolean = false,
+    themeConfig: PanThemeConfig = PanThemeConfig.Default,
+) {
+    PanThemeProvider(darkTheme = darkTheme, config = themeConfig) {
+        val kinds = remember(yaoKinds) {
+            (0 until 6).mapNotNull { i -> yaoKinds.getOrNull(i)?.let { runCatching { YaoKind.valueOf(it) }.getOrNull() } }
+        }
+        val dayInfo = remember(year, month, day, hour, minute) {
+            runCatching { dayInfoFromSolar(year, month, day, hour, minute) }.getOrNull()
+        }
+        val zhanShi = remember(topic) { runCatching { ZhanShi.valueOf(topic) }.getOrNull() ?: ZhanShi.NONE }
+        ResultPage(
+            kinds = kinds,
+            question = question,
+            onQuestion = {},
+            note = note,
+            onNote = {},
+            topic = zhanShi,
+            onTopic = {},
+            sub = sub,
+            onSub = {},
+            guaZhu = guaZhu,
+            onGuaZhu = {},
+            gender = gender,
+            onGender = {},
+            dayInfo = dayInfo,
+            onDayInfo = {},
+            onBackToInput = onBack,
+            onRestart = {},
+            readOnly = true,
         )
     }
 }

@@ -90,6 +90,7 @@ import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import zhiqiu.app.destiny.db.ReaderPrefEntity
+import zhiqiu.app.destiny.profile.CaseType
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.sharing.BackupSharing
 import zhiqiu.app.destiny.sharing.generateQrCodePng
@@ -154,6 +155,7 @@ fun ProfileListScreen(
     val scope = rememberCoroutineScope()
     val Muted = DestinyTheme.muted
     var query by rememberSaveable { mutableStateOf("") }
+    var typeFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var sortKey by rememberSaveable { mutableStateOf(SortKey.CREATED) }
     var ascending by rememberSaveable { mutableStateOf(false) }
     var showExport by remember { mutableStateOf(false) }
@@ -198,11 +200,17 @@ fun ProfileListScreen(
 
     val q = query.trim()
     val filtered = profiles.filter { p ->
-        q.isBlank() ||
+        val typeOk = typeFilter == null || p.caseType == typeFilter
+        val queryOk = q.isBlank() ||
             p.name.contains(q, ignoreCase = true) ||
             p.birthday.contains(q, ignoreCase = true) ||
             p.solarDateDisplay.contains(q, ignoreCase = true) ||
-            p.baziSummary.contains(q, ignoreCase = true)
+            p.baziSummary.contains(q, ignoreCase = true) ||
+            p.note.contains(q, ignoreCase = true) ||
+            p.groupName.contains(q, ignoreCase = true) ||
+            CaseType.label(p.caseType).contains(q, ignoreCase = true) ||
+            p.payload.contains(q, ignoreCase = true)
+        typeOk && queryOk
     }
     val sorted = when (sortKey) {
         SortKey.NAME ->
@@ -295,6 +303,13 @@ fun ProfileListScreen(
                 query = query,
                 onQueryChange = { query = it },
             )
+            Spacer(modifier = Modifier.height(8.dp))
+            TypeFilterRow(
+                current = typeFilter,
+                counts = remember(profiles) { profiles.groupingBy { it.caseType }.eachCount() },
+                onSelect = { typeFilter = it },
+            )
+            Spacer(modifier = Modifier.height(8.dp))
             SortRow(
                 current = sortKey,
                 ascending = ascending,
@@ -676,6 +691,44 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
 }
 
 @Composable
+private fun TypeFilterRow(
+    current: String?,
+    counts: Map<String, Int>,
+    onSelect: (String?) -> Unit,
+) {
+    val theme = DestinyTheme
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        val options = listOf(null) + CaseType.ALL
+        options.forEach { type ->
+            val label = if (type == null) "全部" else CaseType.label(type)
+            val active = type == current
+            val count = if (type == null) counts.values.sum() else (counts[type] ?: 0)
+            Row(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(if (active) theme.accent else theme.panel)
+                    .clickable { onSelect(type) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "$label $count",
+                    color = if (active) Color.White else theme.muted,
+                    fontSize = 12.sp,
+                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SortRow(
     current: SortKey,
     ascending: Boolean,
@@ -780,17 +833,32 @@ private fun ProfileRow(
                             .padding(horizontal = 5.dp, vertical = 1.dp),
                     )
                 }
+                if (profile.caseType != CaseType.BAZI) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        CaseType.label(profile.caseType),
+                        color = theme.accent,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(theme.accent.copy(alpha = 0.10f))
+                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                    )
+                }
                 if (profile.groupName.isNotBlank() && profile.groupName != "默认") {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("· ${profile.groupName}", color = theme.muted, fontSize = 11.sp)
                 }
             }
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                "${profile.solarDateDisplay.ifBlank { profile.birthday }} · ${timeIndexLabel(profile.timeIndex)}",
-                color = theme.muted,
-                fontSize = 12.sp,
-            )
+            val subtitle = if (profile.birthday.isNotBlank()) {
+                "${profile.solarDateDisplay.ifBlank { profile.birthday }} · ${timeIndexLabel(profile.timeIndex)}"
+            } else {
+                profile.note.lineSequence().firstOrNull { it.isNotBlank() }?.removePrefix("【占问】")?.take(40)
+                    ?: CaseType.label(profile.caseType)
+            }
+            Text(subtitle, color = theme.muted, fontSize = 12.sp)
             if (profile.baziSummary.isNotBlank()) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(

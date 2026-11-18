@@ -8,7 +8,7 @@ import zhiqiu.app.destiny.profile.Profile
 
 @Database(
     entities = [Profile::class, ReaderPrefEntity::class, ProfileImage::class],
-    version = 4,
+    version = 5,
     exportSchema = false,
 )
 @ConstructedBy(AppDatabaseConstructor::class)

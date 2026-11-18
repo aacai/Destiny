@@ -89,6 +89,21 @@ data class XiaoLiuRenSave(
     val name: String,
     val note: String,
     val groupName: String,
+    /** 重建课式所需的最小起课数据（均为基础类型）。 */
+    val mode: String = "NOW",
+    val question: String = "",
+    val solarYear: Int = 0,
+    val solarMonth: Int = 0,
+    val solarDay: Int = 0,
+    val solarHour: Int = 0,
+    val solarMinute: Int = 0,
+    val lunarMonth: Int = 0,
+    val lunarDay: Int = 0,
+    val hourBranchIndex: Int = 0,
+    val isLeapMonth: Boolean = false,
+    val countMonth: Int = 0,
+    val countDay: Int = 0,
+    val countHour: Int = 0,
 )
 
 @Composable
@@ -390,6 +405,20 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
                             name = question.trim().ifBlank { "小六壬·${chart.castText}" },
                             note = summary,
                             groupName = "小六壬",
+                            mode = mode.name,
+                            question = question,
+                            solarYear = solarYear,
+                            solarMonth = solarMonth,
+                            solarDay = solarDay,
+                            solarHour = solarHour,
+                            solarMinute = solarMinute,
+                            lunarMonth = lunarMonth,
+                            lunarDay = lunarDay,
+                            hourBranchIndex = branch,
+                            isLeapMonth = leap,
+                            countMonth = countMonth.toIntOrNull() ?: 0,
+                            countDay = countDay.toIntOrNull() ?: 0,
+                            countHour = countHour.toIntOrNull() ?: 0,
                         ),
                     )
                     savedId = id
@@ -868,3 +897,88 @@ private fun FieldCaption(text: String) {
 }
 
 private val MONTH_LABELS = listOf("正月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "冬月", "腊月")
+
+/**
+ * 从存档的结构化数据只读重建小六壬课式。参数与宿主 payload 一一对应（均为基础类型）。
+ */
+@Composable
+fun XiaoLiuRenCaseViewer(
+    mode: String,
+    question: String,
+    solarYear: Int, solarMonth: Int, solarDay: Int, solarHour: Int, solarMinute: Int,
+    lunarMonth: Int, lunarDay: Int, hourBranchIndex: Int, isLeapMonth: Boolean,
+    countMonth: Int, countDay: Int, countHour: Int,
+    onBack: () -> Unit = {},
+    darkTheme: Boolean = false,
+    themeConfig: XlrThemeConfig = XlrThemeConfig.Default,
+) {
+    XlrThemeProvider(darkTheme = darkTheme, config = themeConfig) {
+        val chart = remember(
+            mode, solarYear, solarMonth, solarDay, solarHour, solarMinute,
+            lunarMonth, lunarDay, hourBranchIndex, isLeapMonth,
+            countMonth, countDay, countHour,
+        ) {
+            runCatching {
+                when (mode) {
+                    "SOLAR" -> castFromSolar(solarYear, solarMonth, solarDay, solarHour, solarMinute)
+                    "LUNAR" -> cast(lunarMonth, lunarDay, hourBranchIndex, isLeapMonth)
+                    "COUNTS" -> castCounts(countMonth, countDay, countHour)
+                    else -> castFromSolar(solarYear, solarMonth, solarDay, solarHour, solarMinute)
+                }
+            }.getOrNull()
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(XlrTheme.page)
+                .safeDrawingPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextButton(onClick = onBack) { Text("‹ 返回", color = XlrTheme.accent, fontSize = 15.sp) }
+                Text("课式详情", color = XlrTheme.ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+            Spacer(modifier = Modifier.height(14.dp))
+            if (question.isNotBlank()) {
+                Meta("占问", question)
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+            if (chart == null) {
+                Text("课式数据已损坏，无法重建。", color = XlrTheme.muted, fontSize = 13.sp)
+                return@Column
+            }
+            Meta("课式", chart.castText)
+            Spacer(modifier = Modifier.height(10.dp))
+            if (chart.solarText.isNotBlank()) {
+                Meta("公历", chart.solarText)
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+            Meta("三数", "${chart.monthCount}・${chart.dayCount}・${chart.hourCount}")
+            Spacer(modifier = Modifier.height(16.dp))
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(XlrTheme.card)
+                    .padding(16.dp),
+            ) {
+                Column {
+                    Text(
+                        chart.palace.label,
+                        color = XlrTheme.accent,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Tag(chart.palace.luck.label, XlrTheme.accent)
+                    Spacer(modifier = Modifier.height(12.dp))
+                    chart.palace.poem.forEach { line ->
+                        Text(line, color = XlrTheme.ink, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                    }
+                }
+            }
+        }
+    }
+}
