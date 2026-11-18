@@ -29,6 +29,7 @@ import kotlin.time.Clock
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.profile.ProfileRepository
 import zhiqiu.app.destiny.platform.NativeTitleBarSync
+import zhiqiu.app.destiny.platform.StatusBarIconSync
 import zhiqiu.app.destiny.platform.TitleBarBandHeight
 import zhiqiu.app.destiny.sharing.BackupSharing
 import zhiqiu.app.destiny.sharing.FileIoClient
@@ -153,6 +154,7 @@ fun App(
     ) {
         DestinyThemeProvider(mode = colorMode, config = themes.app) {
             NativeTitleBarSync(colorMode)
+            StatusBarIconSync(colorMode)
             val colors = DestinyTheme
             MaterialThemeHost(darkTheme = colorMode == DestinyColorMode.Dark) {
                 NavHost(

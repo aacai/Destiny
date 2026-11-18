@@ -118,6 +118,13 @@ fun QizhengWheel(
         // 字号随盘面尺寸自适应：以 340dp 为基准，窄屏缩小、宽屏放大但有上限，避免环间挤压
         val fontScale = (size.value / 340f).coerceIn(0.65f, 1.35f)
         fun fs(base: Int) = (base * fontScale).sp
+        // 按环的径向厚度换算字号：径向竖排的 2 字词占「2 字宽」的径向空间，
+        // 故字号取环厚的 ~42%，确保不跨到相邻环造成叠字。
+        fun ringFs(rOutR: Float, rInR: Float, maxSp: Int): androidx.compose.ui.unit.TextUnit {
+            val allowancePx = (rOutR - rInR) * 0.42f
+            val sp = (allowancePx / density).coerceIn(4f, maxSp.toFloat()) * fontScale
+            return sp.sp
+        }
 
         // 外→内半径
         val rAgeOut = r
@@ -352,7 +359,7 @@ fun QizhengWheel(
             val a = angOfLon(mid)
             val layout = measurer.measure(
                 XiuTable.names()[idx],
-                TextStyle(fontSize = fs(11), color = Ink, fontWeight = FontWeight.SemiBold),
+                TextStyle(fontSize = ringFs(rXiuOut, rXiuIn, 11), color = Ink, fontWeight = FontWeight.SemiBold),
             )
             drawRadialText(layout, pt(a, (rXiuOut + rXiuIn) / 2f), a)
         }
@@ -363,7 +370,7 @@ fun QizhengWheel(
             val palace = chart.palaces.firstOrNull { it.branch == MingGong.Branches[i] }
             val layout = measurer.measure(
                 palace?.name.orEmpty(),
-                TextStyle(fontSize = fs(12), color = Ink, fontWeight = FontWeight.Medium),
+                TextStyle(fontSize = ringFs(rPalaceOut, rPalaceIn, 11), color = Ink, fontWeight = FontWeight.Medium),
             )
             drawRadialText(layout, pt(a, (rPalaceOut + rPalaceIn) / 2f), a)
         }
@@ -373,7 +380,7 @@ fun QizhengWheel(
             val a = angOfLon(palaceStart(i) + 15.0)
             val layout = measurer.measure(
                 PalaceGuaZhi.label(i),
-                TextStyle(fontSize = fs(11), color = Ink, fontWeight = FontWeight.SemiBold),
+                TextStyle(fontSize = ringFs(rGuaOut, rGuaIn, 11), color = Ink, fontWeight = FontWeight.SemiBold),
             )
             drawRadialText(layout, pt(a, (rGuaOut + rGuaIn) / 2f), a)
         }
@@ -408,28 +415,38 @@ private fun DrawScope.drawShenShaRing(
     palaceStart: (Int) -> Double,
     fontScale: Float = 1f,
 ) {
+    // 每宫神煞过多时要截断，否则 15° 扇区内文字互相压叠
+    val maxPerPalace = 3
+    // 环的径向厚度决定竖排字号：厚度有限，字要小而清晰，且与相邻环留空隙
+    val ringThickness = rOut - rIn
     for (i in 0 until 12) {
+        val all = byBranch.getOrElse(i) { emptyList() }.filter { it.isNotBlank() }
+        if (all.isEmpty()) continue
+        val names = all.take(maxPerPalace)
+        val extra = all.size - names.size
+        val n = names.size + if (extra > 0) 1 else 0
         val aCenter = angOfLon(palaceStart(i) + 15.0)
-        val names = byBranch.getOrElse(i) { emptyList() }
-        if (names.isEmpty()) continue
 
-        // 每个神煞名沿半径竖排（字头朝外贴圆弧），多个神煞在圆周方向排开
-        val n = names.size
-        val half = (15.0 - 2.0) * PI / 180.0
-        val fontSize = (when {
-            n <= 3 -> 9
-            n <= 5 -> 8
-            else -> 7
-        } * fontScale).sp
+        // 字号：竖排最多约 2 字，故字高≈厚度/2.6；同时不超过按 fontScale 的基础值，避免大屏过粗
+        val baseSp = (ringThickness / 3.0f / density).coerceIn(4f, 9f) * fontScale
+        val fontSize = baseSp.sp
+        val step = fontSize.toPx() * 1.05f
         val rMid = (rOut + rIn) / 2f
+        val half = (15.0 - 2.5) * PI / 180.0
         names.forEachIndexed { k, name ->
             val frac = (k + 0.5f) / n
             val a = aCenter - half + frac * (2.0 * half)
             drawRadialStacked(
                 measurer, name, a, rMid,
                 fontSize = fontSize, color = StarGreen, weight = FontWeight.SemiBold, pt,
-                maxOuterR = rOut,
+                maxOuterR = rOut, stepPx = step,
             )
+        }
+        if (extra > 0) {
+            val frac = (names.size + 0.5f) / n
+            val a = aCenter - half + frac * (2.0 * half)
+            val layout = measurer.measure("·", TextStyle(fontSize = fontSize, color = StarGreen))
+            drawRadialText(layout, pt(a, rMid), a)
         }
     }
 }
@@ -448,10 +465,12 @@ private fun DrawScope.drawRadialStacked(
     pt: (Double, Float) -> Offset,
     /** 堆叠最外字允许到达的最大半径，防止长名溢出所在环 */
     maxOuterR: Float = Float.MAX_VALUE,
+    /** 竖排字间距；不传则按字号推导 */
+    stepPx: Float = 0f,
 ) {
     if (text.isEmpty()) return
     val chars = text.toList()
-    val step = fontSize.toPx() * 1.2f
+    val step = if (stepPx > 0f) stepPx else fontSize.toPx() * 1.2f
     // 首字半径 = 中线 + (字数-1)/2 步长；超出环外缘时整体内移
     val r0 = minOf(rMid + (chars.size - 1) * step / 2f, maxOuterR - step)
     chars.forEachIndexed { i, ch ->

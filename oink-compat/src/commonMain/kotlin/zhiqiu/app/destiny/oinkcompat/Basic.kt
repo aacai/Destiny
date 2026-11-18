@@ -1,10 +1,12 @@
 package zhiqiu.app.destiny.oinkcompat
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.runtime.Composable
@@ -235,7 +237,8 @@ fun IconButton(
 ) {
     androidx.compose.foundation.layout.Box(
         modifier = modifier
-            .height(40.dp),
+            .size(40.dp)
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = androidx.compose.ui.Alignment.Center,
     ) { content() }
 }

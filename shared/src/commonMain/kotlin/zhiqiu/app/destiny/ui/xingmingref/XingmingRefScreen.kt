@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -191,7 +193,8 @@ fun XingmingRefScreen(
             Modifier
                 .widthIn(max = 420.dp)
                 .fillMaxHeight()
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .safeDrawingPadding(),
         ) {
             Row(
                 Modifier
@@ -623,16 +626,18 @@ private fun ZhengYuResult(
             }
         }
         Spacer(Modifier.height(10.dp))
-        Box(
+        BoxWithConstraints(
             Modifier
                 .fillMaxWidth()
-                .height(360.dp)
+                .aspectRatio(1f)
                 .shadow(2.dp, RoundedCornerShape(10.dp))
                 .clip(RoundedCornerShape(10.dp))
                 .background(Xm.Card),
             contentAlignment = Alignment.Center,
         ) {
-            QizhengWheel(chart = chart, size = 340.dp)
+            // 盘面铺满卡片宽度（卡片为正方形，宽度即边长），最大化盘面以缓解文字挤压
+            val wheelSize = maxWidth - 8.dp
+            QizhengWheel(chart = chart, size = wheelSize)
         }
         Spacer(Modifier.height(10.dp))
         if (isGolden) {
