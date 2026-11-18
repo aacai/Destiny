@@ -23,9 +23,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
+import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
+import zhiqiu.app.destiny.oinkcompat.OutlinedTextField
+import zhiqiu.app.destiny.oinkcompat.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -270,48 +270,45 @@ fun QizhengSection(
 
         Spacer(modifier = Modifier.height(6.dp))
 
-        // 左：限运资料卡；右：盘面（略偏右）
+        // 限运资料卡：单独一行，横向铺开，不挤压盘面
+        LimitGrid(
+            chart = chart,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp),
+            columns = 3,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // 盘面：独立居中显示，尺寸随可用宽度自适应，窄屏铺满、宽屏不超过上限
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
-            val limitW = 88.dp
-            val gap = 6.dp
-            val baseSize = min(maxWidth - limitW - gap, 560.dp) * 0.88f
+            val baseSize = min(maxWidth, 560.dp)
             var scale by remember { mutableFloatStateOf(1f) }
             var offset by remember { mutableStateOf(Offset.Zero) }
             val transformState = rememberTransformableState { zoom, pan, _ ->
                 scale = (scale * zoom).coerceIn(1f, 3.2f)
                 if (scale > 1.01f) offset += pan else offset = Offset.Zero
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.Top,
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(baseSize)
+                    .clip(RectangleShape)
+                    .background(Page)
+                    .transformable(state = transformState)
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onDoubleTap = {
+                                if (scale > 1.15f) {
+                                    scale = 1f
+                                    offset = Offset.Zero
+                                } else {
+                                    scale = 1.85f
+                                }
+                            },
+                        )
+                    },
             ) {
-                LimitGrid(
-                    chart = chart,
-                    modifier = Modifier
-                        .width(limitW)
-                        .padding(top = 4.dp),
-                    columns = 1,
-                )
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(baseSize)
-                        .clip(RectangleShape)
-                        .background(Page)
-                        .transformable(state = transformState)
-                        .pointerInput(Unit) {
-                            detectTapGestures(
-                                onDoubleTap = {
-                                    if (scale > 1.15f) {
-                                        scale = 1f
-                                        offset = Offset.Zero
-                                    } else {
-                                        scale = 1.85f
-                                    }
-                                },
-                            )
-                        },
-                ) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.Center)
@@ -378,7 +375,6 @@ fun QizhengSection(
                             .padding(6.dp),
                     )
                 }
-            }
         }
 
         Spacer(modifier = Modifier.height(6.dp))

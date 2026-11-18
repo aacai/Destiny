@@ -31,6 +31,12 @@ include(":androidApp")
 include(":desktopApp")
 include(":shared")
 
+include(":applewidgets-ui")
+project(":applewidgets-ui").projectDir = file("third_party/okui/applewidgets-ui")
+include(":oink")
+project(":oink").projectDir = file("third_party/okui/oink")
+include(":oink-compat")
+
 include(":bazi-core")
 project(":bazi-core").projectDir = file("third_party/ComposeIztro/bazi/bazi-core")
 

@@ -1,3 +1,6 @@
 [submodule "third_party/ComposeIztro"]
 	path = third_party/ComposeIztro
 	url = https://github.com/aacai/ComposeIztro.git
+[submodule "third_party/okui"]
+	path = third_party/okui
+	url = https://github.com/aacai/okui.git

@@ -115,6 +115,9 @@ fun QizhengWheel(
         // 收缩绘制半径，外圈留白：年份等文字贴边会被画布裁掉
         val r = min(cx, cy) * 0.84f
         val tickUnit = r * 0.012f
+        // 字号随盘面尺寸自适应：以 340dp 为基准，窄屏缩小、宽屏放大但有上限，避免环间挤压
+        val fontScale = (size.value / 340f).coerceIn(0.65f, 1.35f)
+        fun fs(base: Int) = (base * fontScale).sp
 
         // 外→内半径
         val rAgeOut = r
@@ -195,7 +198,7 @@ fun QizhengWheel(
             val year = chart.daXianYears.getOrElse(step) { chart.year }
             val layout = measurer.measure(
                 year.toString(),
-                TextStyle(fontSize = 11.sp, color = Ink, fontWeight = FontWeight.Bold),
+                TextStyle(fontSize = fs(11), color = Ink, fontWeight = FontWeight.Bold),
             )
             drawRadialText(layout, pt(a, rAgeOut * 1.055f), a)
             cum += spans[step]
@@ -213,19 +216,19 @@ fun QizhengWheel(
             val frac = (age - 0.5) / totalYears
             if (frac > 1.0) break
             val aMid = angOfAgeFraction(frac)
-            val layout = measurer.measure(age.toString(), TextStyle(fontSize = 5.sp, color = Ink))
+            val layout = measurer.measure(age.toString(), TextStyle(fontSize = fs(5), color = Ink))
             drawRadialText(layout, pt(aMid, (rAgeOut + rAgeIn) / 2f), aMid)
         }
 
         // 3) 外侧神煞（年）
         drawShenShaRing(
             measurer, yearShen, rShenYOut, rShenYIn, tickUnit, ming, ::angOfLon, ::pt,
-            palaceStart = ::palaceStart,
+            palaceStart = ::palaceStart, fontScale = fontScale,
         )
         // 4) 内侧神煞（日）
         drawShenShaRing(
             measurer, dayShen, rShenDOut, rShenDIn, tickUnit, ming, ::angOfLon, ::pt,
-            palaceStart = ::palaceStart,
+            palaceStart = ::palaceStart, fontScale = fontScale,
         )
 
         // 5) 七政四余：黄道度刻度（画在星曜层内缘，明显）+ 星曜错开 + 引线连回真实刻度
@@ -300,7 +303,7 @@ fun QizhengWheel(
                 }
                 val layout = measurer.measure(
                     star.label,
-                    TextStyle(fontSize = 11.sp, color = style.text, fontWeight = FontWeight.Bold),
+                    TextStyle(fontSize = fs(11), color = style.text, fontWeight = FontWeight.Bold),
                 )
                 drawText(
                     layout,
@@ -313,7 +316,7 @@ fun QizhengWheel(
                 } else if (star.motion in setOf("迟", "留", "伏")) {
                     val mLayout = measurer.measure(
                         star.motion,
-                        TextStyle(fontSize = 7.sp, color = Red, fontWeight = FontWeight.Bold),
+                        TextStyle(fontSize = fs(7), color = Red, fontWeight = FontWeight.Bold),
                     )
                     drawText(
                         mLayout,
@@ -328,7 +331,7 @@ fun QizhengWheel(
                     val dp = pt(shownAng, rStarCenter - starRad - 6f)
                     val dLayout = measurer.measure(
                         level,
-                        TextStyle(fontSize = 7.sp, color = SunGold, fontWeight = FontWeight.Bold),
+                        TextStyle(fontSize = fs(7), color = SunGold, fontWeight = FontWeight.Bold),
                     )
                     drawText(
                         dLayout,
@@ -349,7 +352,7 @@ fun QizhengWheel(
             val a = angOfLon(mid)
             val layout = measurer.measure(
                 XiuTable.names()[idx],
-                TextStyle(fontSize = 11.sp, color = Ink, fontWeight = FontWeight.SemiBold),
+                TextStyle(fontSize = fs(11), color = Ink, fontWeight = FontWeight.SemiBold),
             )
             drawRadialText(layout, pt(a, (rXiuOut + rXiuIn) / 2f), a)
         }
@@ -360,7 +363,7 @@ fun QizhengWheel(
             val palace = chart.palaces.firstOrNull { it.branch == MingGong.Branches[i] }
             val layout = measurer.measure(
                 palace?.name.orEmpty(),
-                TextStyle(fontSize = 12.sp, color = Ink, fontWeight = FontWeight.Medium),
+                TextStyle(fontSize = fs(12), color = Ink, fontWeight = FontWeight.Medium),
             )
             drawRadialText(layout, pt(a, (rPalaceOut + rPalaceIn) / 2f), a)
         }
@@ -370,7 +373,7 @@ fun QizhengWheel(
             val a = angOfLon(palaceStart(i) + 15.0)
             val layout = measurer.measure(
                 PalaceGuaZhi.label(i),
-                TextStyle(fontSize = 11.sp, color = Ink, fontWeight = FontWeight.SemiBold),
+                TextStyle(fontSize = fs(11), color = Ink, fontWeight = FontWeight.SemiBold),
             )
             drawRadialText(layout, pt(a, (rGuaOut + rGuaIn) / 2f), a)
         }
@@ -381,11 +384,11 @@ fun QizhengWheel(
         // 9) 盘心立命
         val top = measurer.measure(
             chart.mingCenterTop,
-            TextStyle(fontSize = 12.sp, color = Ink, fontWeight = FontWeight.Bold),
+            TextStyle(fontSize = fs(12), color = Ink, fontWeight = FontWeight.Bold),
         )
         val bottom = measurer.measure(
             chart.mingCenterBottom,
-            TextStyle(fontSize = 12.sp, color = AccentGreen, fontWeight = FontWeight.Bold),
+            TextStyle(fontSize = fs(12), color = AccentGreen, fontWeight = FontWeight.Bold),
         )
         drawText(top, topLeft = Offset(cx - top.size.width / 2f, cy - top.size.height - 2f))
         drawText(bottom, topLeft = Offset(cx - bottom.size.width / 2f, cy + 2f))
@@ -403,6 +406,7 @@ private fun DrawScope.drawShenShaRing(
     pt: (Double, Float) -> Offset,
     /** 宫 i 宫头经度（赤道制为赤经） */
     palaceStart: (Int) -> Double,
+    fontScale: Float = 1f,
 ) {
     for (i in 0 until 12) {
         val aCenter = angOfLon(palaceStart(i) + 15.0)
@@ -412,11 +416,11 @@ private fun DrawScope.drawShenShaRing(
         // 每个神煞名沿半径竖排（字头朝外贴圆弧），多个神煞在圆周方向排开
         val n = names.size
         val half = (15.0 - 2.0) * PI / 180.0
-        val fontSize = when {
-            n <= 3 -> 9.sp
-            n <= 5 -> 8.sp
-            else -> 7.sp
-        }
+        val fontSize = (when {
+            n <= 3 -> 9
+            n <= 5 -> 8
+            else -> 7
+        } * fontScale).sp
         val rMid = (rOut + rIn) / 2f
         names.forEachIndexed { k, name ->
             val frac = (k + 0.5f) / n

@@ -20,10 +20,10 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
+import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
+import zhiqiu.app.destiny.oinkcompat.OutlinedTextField
+import zhiqiu.app.destiny.oinkcompat.OutlinedTextFieldDefaults
+import zhiqiu.app.destiny.oinkcompat.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -165,7 +165,7 @@ private fun ProfileBanner(profile: Profile) {
                     .background(DestinyTheme.danger.copy(alpha = 0.25f)),
                 contentAlignment = Alignment.Center,
             ) {
-                androidx.compose.material3.Icon(
+                zhiqiu.app.destiny.oinkcompat.Icon(
                     imageVector = FeatherIcons.User,
                     contentDescription = null,
                     tint = Color(0xFFE8D5D5),
@@ -277,7 +277,7 @@ private fun AddTile(onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            androidx.compose.material3.Icon(
+            zhiqiu.app.destiny.oinkcompat.Icon(
                 imageVector = FeatherIcons.Image,
                 contentDescription = "添加图片",
                 tint = DestinyTheme.muted,
@@ -318,7 +318,7 @@ private fun ThumbnailTile(
                 .clickable(onClick = onDelete),
             contentAlignment = Alignment.Center,
         ) {
-            androidx.compose.material3.Icon(
+            zhiqiu.app.destiny.oinkcompat.Icon(
                 imageVector = FeatherIcons.Trash2,
                 contentDescription = "删除",
                 tint = Color.White,

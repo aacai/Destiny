@@ -3,9 +3,9 @@ package zhiqiu.app.destiny.ui.bazi
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.Tab
-import androidx.compose.material3.Text
+import zhiqiu.app.destiny.oinkcompat.SecondaryTabRow
+import zhiqiu.app.destiny.oinkcompat.Tab
+import zhiqiu.app.destiny.oinkcompat.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf

@@ -3,10 +3,10 @@ package zhiqiu.app.destiny
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import zhiqiu.app.destiny.oinkcompat.AlertDialog
+import zhiqiu.app.destiny.oinkcompat.MaterialThemeHost
+import zhiqiu.app.destiny.oinkcompat.Text
+import zhiqiu.app.destiny.oinkcompat.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -153,7 +153,7 @@ fun App(
         DestinyThemeProvider(mode = colorMode, config = themes.app) {
             NativeTitleBarSync(colorMode)
             val colors = DestinyTheme
-            MaterialTheme(colorScheme = colors.toMaterialColorScheme()) {
+            MaterialThemeHost(darkTheme = colorMode == DestinyColorMode.Dark) {
                 NavHost(
                     // 红绿灯色带由宿主统一留出，各页面顶栏不必各自避让
                     modifier = Modifier

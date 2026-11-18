@@ -3,10 +3,10 @@ package zhiqiu.app.destiny.ui
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import zhiqiu.app.destiny.oinkcompat.Icon
+import zhiqiu.app.destiny.oinkcompat.MaterialTheme
+import zhiqiu.app.destiny.oinkcompat.Text
+import zhiqiu.app.destiny.oinkcompat.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
