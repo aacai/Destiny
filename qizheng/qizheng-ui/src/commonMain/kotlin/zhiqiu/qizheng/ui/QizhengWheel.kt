@@ -270,8 +270,17 @@ fun QizhengWheel(
             data class StarItem(val index: Int, val star: StarView, val angle: Double)
             val sortedStars = chart.stars.mapIndexed { i, s -> StarItem(i, s, angOfLon(s.longitude)) }
                 .sortedBy { it.angle }
-            val minSep = (starRad * 2f + 4f) / rStarCenter  // 最小角距（弧度，含间隙）
+            // 星名文字比星徽宽，避让必须按「最宽星名」算弧长，否则星徽分开了文字仍叠
+            val starLabelFs = fs(11)
+            val maxLabelW = chart.stars.maxOf { s ->
+                measurer.measure(s.label, TextStyle(fontSize = starLabelFs, fontWeight = FontWeight.Bold)).size.width
+            }.toFloat().coerceAtLeast(starRad * 2f)
             val count = sortedStars.size
+            // 最小角距（弧度，含间隙）；星太多时必须压到能塞进一圈，否则贪心会推出 360°
+            val minSep = minOf(
+                (maxLabelW + 6f) / rStarCenter,
+                (2.0 * PI / count).toFloat() * 0.95f,
+            )
             val adj = DoubleArray(count) { sortedStars[it].angle }
             val twoPi = 2.0 * PI
 
@@ -287,13 +296,20 @@ fun QizhengWheel(
                 }
             }
             val adjMap = HashMap<Int, Double>(count)
-            sortedStars.forEachIndexed { i, item -> adjMap[item.index] = adj[i] }
+            // 相邻星交替内外错层：即便角距仍不够，文字也落在不同半径圈上互不覆盖
+            val layerMap = HashMap<Int, Int>(count)
+            sortedStars.forEachIndexed { i, item ->
+                adjMap[item.index] = adj[i]
+                layerMap[item.index] = i % 2
+            }
+            val layerOffset = starRad * 1.5f
 
             // 引线 + 圆点 + 文字
             chart.stars.forEachIndexed { idx, star ->
                 val realAng = angOfLon(star.longitude)
                 val shownAng = adjMap[idx] ?: realAng   // 避让后的展示角
-                val p = pt(shownAng, rStarCenter)
+                val shownR = rStarCenter - (layerMap[idx] ?: 0) * layerOffset
+                val p = pt(shownAng, shownR)
 
                 // ★ 引线：自星曜（外侧、避让后）连到它在刻度环上的真实位置（内侧）
                 val pTick = pt(realAng, rTickBase + tickMaxLen * 0.62f)
@@ -335,7 +351,7 @@ fun QizhengWheel(
                 }
                 // 庙旺利陷：仅在盘制开启时标注，标在星曜朝盘心一侧，不占外圈
                 chart.dignity[star.key]?.let { level ->
-                    val dp = pt(shownAng, rStarCenter - starRad - 6f)
+                    val dp = pt(shownAng, shownR - starRad - 6f)
                     val dLayout = measurer.measure(
                         level,
                         TextStyle(fontSize = fs(7), color = SunGold, fontWeight = FontWeight.Bold),
