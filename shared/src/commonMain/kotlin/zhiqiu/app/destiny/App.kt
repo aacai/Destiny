@@ -28,9 +28,12 @@ import kotlinx.coroutines.launch
 import kotlin.time.Clock
 import zhiqiu.app.destiny.profile.CaseType
 import zhiqiu.app.destiny.profile.LiuYaoPayload
+import zhiqiu.app.destiny.profile.MeiHuaPayload
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.profile.ProfileRepository
+import zhiqiu.app.destiny.profile.QimenPayload
 import zhiqiu.app.destiny.profile.XiaoLiuRenPayload
+import zhiqiu.app.destiny.platform.AppBackHandler
 import zhiqiu.app.destiny.platform.NativeTitleBarSync
 import zhiqiu.app.destiny.platform.StatusBarIconSync
 import zhiqiu.app.destiny.platform.TitleBarBandHeight
@@ -40,6 +43,7 @@ import zhiqiu.app.destiny.sharing.createSharedHttpClient
 import zhiqiu.app.destiny.ui.AboutScreen
 import zhiqiu.app.destiny.ui.AddProfileScreen
 import zhiqiu.app.destiny.ui.ChartPagerScreen
+import zhiqiu.app.destiny.ui.SimpleCaseDetail
 import zhiqiu.app.destiny.ui.ProfileListScreen
 import zhiqiu.app.destiny.ui.books.BookshelfScreen
 import zhiqiu.app.destiny.ui.books.ReaderScreen
@@ -139,6 +143,10 @@ fun App(
     val readerStore = remember(repository) { repository.readerStore }
     val sharing = remember { BackupSharing(FileIoClient(createSharedHttpClient())) }
     val navController = rememberNavController()
+    // 主页(Routes.List)是导航栈根，永不 pop；防止连点返回把主页 pop 掉导致白屏。
+    fun goBack() {
+        if (navController.previousBackStackEntry != null) navController.popBackStack()
+    }
 
     var colorMode by remember { mutableStateOf(DestinyColorMode.Light) }
     var colorModeReady by remember { mutableStateOf(false) }
@@ -162,6 +170,10 @@ fun App(
             StatusBarIconSync(colorMode)
             val colors = DestinyTheme
             MaterialThemeHost(darkTheme = colorMode == DestinyColorMode.Dark) {
+                // 系统/手势返回键：主页永远消费掉，不允许把根页面 pop 出栈。
+                AppBackHandler(enabled = true) {
+                    if (navController.previousBackStackEntry != null) navController.popBackStack()
+                }
                 NavHost(
                     // 红绿灯色带由宿主统一留出，各页面顶栏不必各自避让
                     modifier = Modifier
@@ -198,7 +210,7 @@ fun App(
                 composable(Routes.XingmingRef) {
                     zhiqiu.app.destiny.ui.xingmingref.XingmingRefScreen(
                         profiles = profiles,
-                        onBack = { navController.popBackStack() },
+                        onBack = { goBack() },
                         onSaveProfile = { draft, onSaved ->
                             scope.launch {
                                 onSaved(repository.upsert(draft))
@@ -210,11 +222,11 @@ fun App(
                     )
                 }
                 composable(Routes.About) {
-                    AboutScreen(onBack = { navController.popBackStack() })
+                    AboutScreen(onBack = { goBack() })
                 }
                 composable(Routes.XiaoLiuRen) {
                     XiaoLiuRenScreen(
-                        onBack = { navController.popBackStack() },
+                        onBack = { goBack() },
                         darkTheme = colorMode == DestinyColorMode.Dark,
                         themeConfig = themes.xlr,
                         onSave = { save ->
@@ -252,20 +264,67 @@ fun App(
                 }
                 composable(Routes.MeiHua) {
                     MeiHuaScreen(
-                        onBack = { navController.popBackStack() },
+                        onBack = { goBack() },
                         darkTheme = colorMode == DestinyColorMode.Dark,
                         themeConfig = themes.mh,
+                        onSave = { save ->
+                            scope.launch {
+                                val now = Clock.System.now().toEpochMilliseconds()
+                                repository.upsert(
+                                    Profile(
+                                        id = save.id,
+                                        name = save.name,
+                                        gender = "", birthdayType = "", birthday = "", timeIndex = 0,
+                                        note = save.note,
+                                        caseType = CaseType.MEIHUA,
+                                        payload = MeiHuaPayload(
+                                            tab = save.tab, question = save.question,
+                                            lunarMonth = save.lunarMonth, lunarDay = save.lunarDay,
+                                            hourBranch = save.hourBranch, yearBranch = save.yearBranch,
+                                            leap = save.leap, upperNum = save.upperNum,
+                                            lowerNum = save.lowerNum, summary = save.summary,
+                                        ).encode(),
+                                        groupName = save.groupName,
+                                        createdAt = now, updatedAt = now,
+                                    ),
+                                )
+                            }
+                        },
                     )
                 }
                 composable(Routes.Qimen) {
                     QimenScreen(
-                        onBack = { navController.popBackStack() },
+                        onBack = { goBack() },
                         darkTheme = colorMode == DestinyColorMode.Dark,
+                        onSave = { save ->
+                            scope.launch {
+                                val now = Clock.System.now().toEpochMilliseconds()
+                                repository.upsert(
+                                    Profile(
+                                        id = save.id,
+                                        name = save.name,
+                                        gender = "", birthdayType = "", birthday = "", timeIndex = 0,
+                                        note = save.note,
+                                        caseType = CaseType.QIMEN,
+                                        payload = QimenPayload(
+                                            mode = save.mode, question = save.question,
+                                            year = save.year, month = save.month, day = save.day,
+                                            hour = save.hour, minute = save.minute,
+                                            plate = save.plate, boundary = save.boundary,
+                                            solarText = save.solarText, pillarText = save.pillarText,
+                                            yuanText = save.yuanText, dunText = save.dunText,
+                                        ).encode(),
+                                        groupName = save.groupName,
+                                        createdAt = now, updatedAt = now,
+                                    ),
+                                )
+                            }
+                        },
                     )
                 }
                 composable(Routes.Liuyao) {
                     LiuYaoScreen(
-                        onBack = { navController.popBackStack() },
+                        onBack = { goBack() },
                         onOpenYijing = { navController.navigate(Routes.Yijing) },
                         darkTheme = colorMode == DestinyColorMode.Dark,
                         themeConfig = themes.pan,
@@ -301,14 +360,14 @@ fun App(
                 }
                 composable(Routes.Yijing) {
                     ZhouyiBrowserScreen(
-                        onBack = { navController.popBackStack() },
+                        onBack = { goBack() },
                         darkTheme = colorMode == DestinyColorMode.Dark,
                         themeConfig = themes.pan,
                     )
                 }
                 composable(Routes.Books) {
                     BookshelfScreen(
-                        onBack = { navController.popBackStack() },
+                        onBack = { goBack() },
                         onOpen = { bookId -> navController.navigate(Routes.reader(bookId)) },
                     )
                 }
@@ -322,7 +381,7 @@ fun App(
                     ReaderScreen(
                         bookId = bookId,
                         readerStore = readerStore,
-                        onBack = { navController.popBackStack() },
+                        onBack = { goBack() },
                     )
                 }
                 composable(Routes.Add) {
@@ -330,10 +389,10 @@ fun App(
                         onSave = { profile ->
                             scope.launch {
                                 repository.upsert(profile)
-                                navController.popBackStack()
+                                goBack()
                             }
                         },
-                        onCancel = { navController.popBackStack() },
+                        onCancel = { goBack() },
                     )
                 }
                 composable(
@@ -348,7 +407,7 @@ fun App(
                     }
                     if (profile == null) {
                         LaunchedEffect(profileId) {
-                            navController.popBackStack()
+                            goBack()
                         }
                     } else {
                         when (profile.caseType) {
@@ -362,7 +421,7 @@ fun App(
                                     guaZhu = p?.guaZhu.orEmpty(), gender = p?.gender ?: "男",
                                     question = p?.question ?: profile.name,
                                     note = profile.note,
-                                    onBack = { navController.popBackStack() },
+                                    onBack = { goBack() },
                                     darkTheme = colorMode == DestinyColorMode.Dark,
                                     themeConfig = themes.pan,
                                 )
@@ -379,15 +438,41 @@ fun App(
                                     isLeapMonth = p?.isLeapMonth ?: false,
                                     countMonth = p?.countMonth ?: 0, countDay = p?.countDay ?: 0,
                                     countHour = p?.countHour ?: 0,
-                                    onBack = { navController.popBackStack() },
+                                    onBack = { goBack() },
                                     darkTheme = colorMode == DestinyColorMode.Dark,
                                     themeConfig = themes.xlr,
+                                )
+                            }
+                            CaseType.MEIHUA -> {
+                                val p = remember(profile.payload) { MeiHuaPayload.decode(profile.payload) }
+                                SimpleCaseDetail(
+                                    title = "梅花卦例 · ${profile.name}",
+                                    rows = listOfNotNull(
+                                        p?.question?.takeIf { it.isNotBlank() }?.let { "占问" to it },
+                                        p?.summary?.takeIf { it.isNotBlank() }?.let { "起卦" to it },
+                                        profile.note.takeIf { it.isNotBlank() }?.let { "详情" to it },
+                                    ),
+                                    onBack = { goBack() },
+                                )
+                            }
+                            CaseType.QIMEN -> {
+                                val p = remember(profile.payload) { QimenPayload.decode(profile.payload) }
+                                SimpleCaseDetail(
+                                    title = "奇门局例 · ${profile.name}",
+                                    rows = listOfNotNull(
+                                        p?.question?.takeIf { it.isNotBlank() }?.let { "占问" to it },
+                                        p?.solarText?.takeIf { it.isNotBlank() }?.let { "时间" to it },
+                                        p?.pillarText?.takeIf { it.isNotBlank() }?.let { "四柱" to it },
+                                        listOfNotNull(p?.yuanText, p?.dunText).joinToString(" · ").takeIf { it.isNotBlank() }?.let { "局式" to it },
+                                        profile.note.takeIf { it.isNotBlank() }?.let { "详情" to it },
+                                    ),
+                                    onBack = { goBack() },
                                 )
                             }
                             else -> ChartPagerScreen(
                                 profile = profile,
                                 repository = repository,
-                                onBack = { navController.popBackStack() },
+                                onBack = { goBack() },
                                 colorMode = colorMode,
                                 onColorModeChange = ::setColorMode,
                                 onSaveQizhengPanZhi = { panZhi ->

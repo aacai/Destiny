@@ -36,6 +36,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
@@ -70,19 +71,38 @@ private enum class CastTab(val label: String) {
 /**
  * 梅花易数起卦页：时间 / 数字 / 端法 / 手选 / 随机，结果一屏展示本互变与体用。
  */
+/** 梅花的一次存档：中性字段，由宿主组装成档案。 */
+data class MeiHuaSave(
+    val id: String,
+    val name: String,
+    val note: String,
+    val groupName: String,
+    val tab: String = "NOW",
+    val question: String = "",
+    val lunarMonth: Int = 1,
+    val lunarDay: Int = 1,
+    val hourBranch: Int = 1,
+    val yearBranch: Int = 1,
+    val leap: Boolean = false,
+    val upperNum: String = "3",
+    val lowerNum: String = "5",
+    val summary: String = "",
+)
+
 @Composable
 fun MeiHuaScreen(
     onBack: () -> Unit,
     darkTheme: Boolean = false,
     themeConfig: MhThemeConfig = MhThemeConfig.Default,
+    onSave: (MeiHuaSave) -> Unit = {},
 ) {
     MhThemeProvider(darkTheme = darkTheme, config = themeConfig) {
-        ScreenContent(onBack = onBack)
+        ScreenContent(onBack = onBack, onSave = onSave)
     }
 }
 
 @Composable
-private fun ScreenContent(onBack: () -> Unit) {
+private fun ScreenContent(onBack: () -> Unit, onSave: (MeiHuaSave) -> Unit) {
     val seed = remember { castNow() }
     val seedStamp = seed.stamp
     var tab by remember { mutableStateOf(CastTab.NOW) }
@@ -264,6 +284,36 @@ private fun ScreenContent(onBack: () -> Unit) {
 
         Spacer(modifier = Modifier.height(12.dp))
         ResultBoard(chart = chart, expandTrace = expandTrace, onToggleTrace = { expandTrace = !expandTrace })
+        Spacer(modifier = Modifier.height(16.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(MhTheme.accent)
+                .clickable {
+                    val id = buildString { repeat(32) { append("abcdefghijklmnopqrstuvwxyz0123456789"[kotlin.random.Random.nextInt(36)]) } }
+                    val summary = buildString {
+                        if (question.isNotBlank()) appendLine("【占问】${question.trim()}")
+                        appendLine("【起卦】${chart.trace.summary}")
+                        appendLine("【体用】体${chart.ti.label} 用${chart.yong.label} · ${chart.relation.label}")
+                        appendLine("【卦象】${chart.upper.label}上 ${chart.lower.label}下")
+                    }
+                    onSave(
+                        MeiHuaSave(
+                            id = id,
+                            name = question.trim().ifBlank { chart.trace.summary },
+                            note = summary,
+                            groupName = "梅花",
+                            tab = tab.name, question = question,
+                            lunarMonth = lunarMonth, lunarDay = lunarDay,
+                            hourBranch = hourBranch, yearBranch = yearBranch, leap = leap,
+                            upperNum = upperNum, lowerNum = lowerNum, summary = chart.trace.summary,
+                        ),
+                    )
+                }
+                .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center,
+        ) { Text("保存此卦", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
         Spacer(modifier = Modifier.height(24.dp))
     }
 

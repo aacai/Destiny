@@ -61,6 +61,55 @@ data class XiaoLiuRenPayload(
     fun encode(): String = CasePayloadJson.encodeToString(this)
 }
 
+/** 梅花易数：保存起卦方式与关键输入，重建交给查看器。 */
+@Serializable
+data class MeiHuaPayload(
+    val tab: String = "NOW",
+    val question: String = "",
+    val lunarMonth: Int = 1,
+    val lunarDay: Int = 1,
+    val hourBranch: Int = 1,
+    val yearBranch: Int = 1,
+    val leap: Boolean = false,
+    val upperNum: String = "3",
+    val lowerNum: String = "5",
+    val summary: String = "",
+) {
+    companion object {
+        fun decode(json: String): MeiHuaPayload? = runCatching {
+            CasePayloadJson.decodeFromString<MeiHuaPayload>(json)
+        }.getOrNull()
+    }
+
+    fun encode(): String = CasePayloadJson.encodeToString(this)
+}
+
+/** 奇门遁甲：保存起局时刻与盘制，重建交给查看器。 */
+@Serializable
+data class QimenPayload(
+    val mode: String = "Now",
+    val question: String = "",
+    val year: Int = 0,
+    val month: Int = 0,
+    val day: Int = 0,
+    val hour: Int = 0,
+    val minute: Int = 0,
+    val plate: String = "Zhuan",
+    val boundary: String = "Hour23",
+    val solarText: String = "",
+    val pillarText: String = "",
+    val yuanText: String = "",
+    val dunText: String = "",
+) {
+    companion object {
+        fun decode(json: String): QimenPayload? = runCatching {
+            CasePayloadJson.decodeFromString<QimenPayload>(json)
+        }.getOrNull()
+    }
+
+    fun encode(): String = CasePayloadJson.encodeToString(this)
+}
+
 private val CasePayloadJson = Json {
     ignoreUnknownKeys = true
     encodeDefaults = true

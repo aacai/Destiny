@@ -32,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
@@ -53,18 +54,40 @@ import zhiqiu.qimen.cast
 
 private enum class TimeMode(val label: String) { Now("此刻"), Pick("自选") }
 
+/** 奇门的一次存档：中性字段，由宿主组装成档案。 */
+data class QimenSave(
+    val id: String,
+    val name: String,
+    val note: String,
+    val groupName: String,
+    val mode: String = "Now",
+    val question: String = "",
+    val year: Int = 0,
+    val month: Int = 0,
+    val day: Int = 0,
+    val hour: Int = 0,
+    val minute: Int = 0,
+    val plate: String = "Zhuan",
+    val boundary: String = "Hour23",
+    val solarText: String = "",
+    val pillarText: String = "",
+    val yuanText: String = "",
+    val dunText: String = "",
+)
+
 @Composable
 fun QimenScreen(
     onBack: () -> Unit,
     darkTheme: Boolean = false,
+    onSave: (QimenSave) -> Unit = {},
 ) {
     QimenThemeProvider(darkTheme = darkTheme) {
-        ScreenContent(onBack = onBack)
+        ScreenContent(onBack = onBack, onSave = onSave)
     }
 }
 
 @Composable
-private fun ScreenContent(onBack: () -> Unit) {
+private fun ScreenContent(onBack: () -> Unit, onSave: (QimenSave) -> Unit) {
     val seed = remember { deviceNow() }
     var mode by remember { mutableStateOf(TimeMode.Now) }
     var plate by remember { mutableStateOf(PlateKind.Zhuan) }
@@ -211,6 +234,41 @@ private fun ScreenContent(onBack: () -> Unit) {
                 selected?.let { palace ->
                     Spacer(modifier = Modifier.height(10.dp))
                     PalaceDetail(chart, palace)
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(QimenTheme.accent)
+                        .clickable {
+                            val id = buildString { repeat(32) { append("abcdefghijklmnopqrstuvwxyz0123456789"[kotlin.random.Random.nextInt(36)]) } }
+                            val summary = buildString {
+                                if (question.isNotBlank()) appendLine("【占问】${question.trim()}")
+                                appendLine("【时间】${chart.solarText}")
+                                appendLine("【四柱】${chart.pillarText}")
+                                appendLine("【局式】${chart.termName}${chart.yuanText} · ${chart.dunText}")
+                                appendLine("【值符】${chart.zhiFu.label}　【值使】${chart.zhiShi.full}")
+                            }
+                            onSave(
+                                QimenSave(
+                                    id = id,
+                                    name = question.trim().ifBlank { chart.solarText },
+                                    note = summary,
+                                    groupName = "奇门",
+                                    mode = mode.name, question = question,
+                                    year = whenYear, month = whenMonth, day = whenDay,
+                                    hour = whenHour, minute = whenMinute,
+                                    plate = plate.name, boundary = boundary.name,
+                                    solarText = chart.solarText, pillarText = chart.pillarText,
+                                    yuanText = chart.yuanText, dunText = chart.dunText,
+                                ),
+                            )
+                        }
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("保存此局", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 }
             },
             onFailure = { error ->
