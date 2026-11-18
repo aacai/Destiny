@@ -329,9 +329,13 @@ fun QizhengWheel(
                 // 真实落点小圆点
                 drawCircle(ringColor, 2f, pTick)
 
-                // 星曜文字外围的圈线：白底 + 彩色圈线
-                drawCircle(Paper, rad, p)
-                drawCircle(ringColor, rad, p, style = Stroke(1.6f))
+                // 星曜文字外围的圈线：badge 星用彩色底+白圈线（配白字），
+                // 非 badge 星用白底+绿圈线（配绿字），避免白字白底看不见
+                drawCircle(if (style.badge) style.fill else Paper, rad, p)
+                drawCircle(
+                    if (style.badge) Color.White else StarGreen,
+                    rad, p, style = Stroke(1.6f),
+                )
 
                 val layout = measurer.measure(star.label, labelStyle.copy(color = style.text))
                 drawText(
