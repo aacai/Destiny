@@ -26,6 +26,8 @@ data class BookSection(
 
 object BookStore {
     private const val RESOURCE_DIR = "files/books/"
+    /** 单段上限：超过则切开，避免 Compose Text 整本一段渲不动（表现为空白） */
+    private const val MAX_PARA_CHARS = 480
 
     /** 书目与 composeResources/files/books 下 ASCII .txt 一一对应（打进各端包） */
     val catalog: List<BookMeta> = listOf(
@@ -44,23 +46,45 @@ object BookStore {
 
     private val cache = mutableMapOf<String, Book>()
 
+    /**
+     * 加载并解析古籍。资源缺失或解析失败返回 null（不再抛到 UI 协程里卡住「加载中」）。
+     */
     suspend fun loadBook(id: String): Book? {
         cache[id]?.let { return it }
         val meta = catalog.find { it.id == id } ?: return null
-        val txt = Res.readBytes("$RESOURCE_DIR$id.txt").decodeToString()
-        return parse(meta, txt).also { cache[id] = it }
+        return runCatching {
+            val txt = Res.readBytes("$RESOURCE_DIR$id.txt").decodeToString()
+            parse(meta, txt).also { cache[id] = it }
+        }.getOrNull()
     }
 
-    /** 古籍 txt 解析：= 标题 / 短行章节 / 空行分段 */
+    /** 古籍 txt 解析：=/#/卷/○ 标题 + 空行分段；超长段切块，保证可渲染 */
     fun parse(meta: BookMeta, txt: String): Book {
         val lines = txt.lines()
         val sections = mutableListOf<BookSection>()
-        var cur = BookSection("", mutableListOf<String>())
+        var cur = BookSection(meta.title, mutableListOf())
         val paragraph = StringBuilder()
 
+        fun emitPara(text: String) {
+            val t = text.trim()
+            if (t.isEmpty()) return
+            val paras = cur.paragraphs as MutableList
+            if (t.length <= MAX_PARA_CHARS) {
+                paras.add(t)
+                return
+            }
+            // 先按换行拆；仍过长再按句读切
+            t.split('\n').map { it.trim() }.filter { it.isNotEmpty() }.forEach { chunk ->
+                if (chunk.length <= MAX_PARA_CHARS) {
+                    paras.add(chunk)
+                } else {
+                    paras.addAll(splitBySentence(chunk, MAX_PARA_CHARS))
+                }
+            }
+        }
+
         fun flushPara() {
-            val t = paragraph.toString().trim()
-            if (t.isNotEmpty()) (cur.paragraphs as MutableList).add(t)
+            emitPara(paragraph.toString())
             paragraph.clear()
         }
 
@@ -72,26 +96,76 @@ object BookStore {
 
         lines.forEachIndexed { i, raw ->
             val line = raw.trim()
+                .removePrefix("\uFEFF")
+                .let { if (it.startsWith(":\u3000\u3000")) it.removePrefix(":\u3000\u3000").trim() else it }
+                .let { if (it.startsWith("：\u3000\u3000")) it.removePrefix("：\u3000\u3000").trim() else it }
             when {
-                line.isEmpty() -> flushPara()
-                // wiki 导航行 *[[/卷一|卷一]] 直接跳过
+                line.isEmpty() || line == "__TOC__" -> flushPara()
                 line.startsWith("*[[") -> {}
-                // wiki 卷目行「第一卷論六十甲子上」（正文卷标记是裸「第一卷」）跳过
+                // wiki 卷目「第一卷論…」连写跳过；裸「卷一」「第一卷」作标题
                 volumeTocLine.matches(line) -> {}
-                // = 标题（= 五行总论 = / ==论月令== / === 三春甲木 ===）
-                line.startsWith("=") && line.endsWith("=") && line.trim('=') != line -> {
-                    val t = line.trim('=').trim().replace(Regex("\\s+"), " ")
+                isMarkdownOrEqHeading(line) -> {
+                    val t = stripHeadingMarks(line)
                     if (t.isNotEmpty()) newSection(t)
                 }
-                // 短行章节标题（叙 / 原序 / 五星正说类 等），需排除柱图与命例时间串
+                isVolumeOrCircleHeading(line) -> newSection(line.trimStart('○', '●', '【', '】').trim())
                 isHeadingLine(line) && isIsolatedHeading(lines, i) -> newSection(line)
-                else -> paragraph.append(line)
+                else -> {
+                    // 行与行之间留换行，便于超长缓冲按行切开；中文本身不需要空格
+                    if (paragraph.isNotEmpty()) paragraph.append('\n')
+                    paragraph.append(line)
+                    // 无空行的书：积到上限就按句读提前落段，避免整卷并成一块
+                    if (paragraph.length >= MAX_PARA_CHARS) {
+                        val s = paragraph.toString()
+                        val cut = lastSentenceBreak(s, MAX_PARA_CHARS)
+                        if (cut > 0) {
+                            emitPara(s.substring(0, cut))
+                            paragraph.clear()
+                            paragraph.append(s.substring(cut).trimStart())
+                        }
+                    }
+                }
             }
         }
         flushPara()
         if (cur.paragraphs.isNotEmpty() || cur.title.isNotEmpty()) sections.add(cur)
 
-        return Book(meta, meta.title, sections.ifEmpty { listOf(BookSection("", emptyList())) })
+        val cleaned = sections.filter { it.paragraphs.isNotEmpty() || it.title.isNotEmpty() }
+        return Book(
+            meta,
+            meta.title,
+            cleaned.ifEmpty { listOf(BookSection(meta.title, listOf("（正文为空或未能解析）"))) },
+        )
+    }
+
+    private fun isMarkdownOrEqHeading(line: String): Boolean {
+        if (line.startsWith("=") && line.endsWith("=") && line.trim('=') != line) return true
+        if (line.startsWith("#")) return true
+        // 网页壳标题行：第003章 《子平真诠》… | 古籍典藏
+        if (line.contains("| 古籍") || (line.startsWith("第") && line.contains("章") && line.contains("《"))) return true
+        // 纯等号分隔线
+        if (line.length >= 8 && line.all { it == '=' || it == '-' }) return true
+        return false
+    }
+
+    private fun stripHeadingMarks(line: String): String {
+        var t = line.trim()
+        if (t.all { it == '=' || it == '-' }) return ""
+        t = t.trim('=').trim()
+        while (t.startsWith("#")) t = t.removePrefix("#").trim()
+        t = t.replace(Regex("\\s+"), " ")
+        // 去掉网页壳尾巴
+        t = t.substringBefore("|").trim()
+        return t
+    }
+
+    /** 卷一 / ○论五行 / 【渊海子平】 */
+    private fun isVolumeOrCircleHeading(line: String): Boolean {
+        if (line.length > 24) return false
+        if (bareVolume.matches(line)) return true
+        if (line.startsWith("○") || line.startsWith("●")) return true
+        if (line.startsWith("【") && line.endsWith("】") && line.length <= 16) return true
+        return false
     }
 
     /** 短行标题判定：≤14 字、无句读、非括号补注、非干支柱图、非命例时间串 */
@@ -99,14 +173,12 @@ object BookStore {
         if (line.length > 14) return false
         if (line.startsWith("（") || line.startsWith("(")) return false
         if (line.any { it in HEADING_PUNCT }) return false
-        // 纯干支字符行：四柱柱图（庚丙庚丙 / 壬 旺 庚 甲 等）
         if (line.all { it in GANZHI_CHARS || it.isWhitespace() }) return false
-        // 命例时间串：庚子日丙子时… / 己亥时 / 时日月年
         if (line.endsWith("时") || (line.contains("日") && line.contains("时"))) return false
         return true
     }
 
-    /** 独立成行判定：上一行为空（段首）且下一行不是紧挨的短行（柱图连排） */
+    /** 独立成行：上一行为空，且下一行不像紧挨短标题/柱图 */
     private fun isIsolatedHeading(lines: List<String>, i: Int): Boolean {
         val prevBlank = i == 0 || lines[i - 1].isBlank()
         if (!prevBlank) return false
@@ -114,9 +186,34 @@ object BookStore {
         return next.isEmpty() || next.length > 14 || next.any { it in HEADING_PUNCT }
     }
 
+    private fun splitBySentence(text: String, max: Int): List<String> {
+        if (text.length <= max) return listOf(text)
+        val out = mutableListOf<String>()
+        var rest = text
+        while (rest.length > max) {
+            val cut = lastSentenceBreak(rest, max).takeIf { it > 0 } ?: max
+            out += rest.substring(0, cut).trim()
+            rest = rest.substring(cut).trimStart()
+        }
+        if (rest.isNotEmpty()) out += rest
+        return out
+    }
+
+    /** 在 limit 附近找最近句读；找不到返回 0 */
+    private fun lastSentenceBreak(text: String, limit: Int): Int {
+        val end = minOf(limit, text.length)
+        val window = text.substring(0, end)
+        for (i in window.indices.reversed()) {
+            if (window[i] in "。！？；\n") return i + 1
+        }
+        return 0
+    }
+
     private const val GANZHI_CHARS = "甲乙丙丁戊己庚辛壬癸子丑寅卯辰巳午未申酉戌亥"
     private const val HEADING_PUNCT = "。！？；，、：…·—“”‘’《》"
 
     /** wiki 卷目行：第X卷+卷题（无空格相连） */
-    private val volumeTocLine = Regex("^第[一二三四五六七八九十○0-9]+卷[^ ].*$")
+    private val volumeTocLine = Regex("^第[一二三四五六七八九十○0-9]+卷\\S.+$")
+    /** 裸卷标：卷一 / 第一卷 */
+    private val bareVolume = Regex("^第?[一二三四五六七八九十百○0-9]+卷$")
 }

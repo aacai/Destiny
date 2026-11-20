@@ -79,6 +79,49 @@ object XiuTable {
         203.36, 215.58, 225.16, 239.10, 240.84, 251.46, 282.68, 286.46,
         303.44, 311.85, 329.84, 346.88,
     )
+
+    /**
+     * 《星学大成》固定今度宿宽（角→轸，和=360）。
+     * 对照星命排盘 `getcs` 在 `pz=1` 时写入的表。
+     */
+    val DachengWidths: List<Double> = listOf(
+        9.0, 18.0, 13.0, 15.0, 11.0, 15.5, 0.5, 9.0,
+        30.0, 3.0, 13.0, 7.0, 17.0, 20.0, 19.0, 12.0,
+        10.0, 16.0, 6.0, 6.0, 17.0, 10.0, 22.0, 7.0,
+        11.0, 9.0, 16.0, 18.0,
+    )
+
+    /**
+     * 自定义宿度默认占位表（星命排盘 UI `gong.xiudu`，和=360）。
+     * 非实测今宿；选「自定义」且未另传 [QizhengConfig.customXiuWidths] 时用此表。
+     */
+    val DefaultCustomWidths: List<Double> = listOf(
+        8.9, 17.6, 10.4, 14.8, 12.1, 15.8, 1.0, 11.8,
+        30.5, 2.9, 15.3, 5.9, 15.0, 18.7, 17.1, 12.8,
+        8.9, 16.3, 5.4, 6.4, 18.6, 10.7, 23.8, 7.9,
+        10.9, 9.4, 15.3, 15.8,
+    )
+
+    private val startsDacheng: DoubleArray = startsFromWidths(DachengWidths)
+    private val startsCustomDefault: DoubleArray = startsFromWidths(DefaultCustomWidths)
+
+    private fun startsFromWidths(widths: List<Double>): DoubleArray {
+        require(widths.size == 28) { "二十八宿宽须 28 项" }
+        val arr = DoubleArray(28)
+        var acc = 0.0
+        for (i in 0 until 28) {
+            arr[i] = acc
+            acc += widths[i]
+        }
+        return arr
+    }
+
+    /** 校验自定义宿宽：28 项且和≈360 */
+    fun normalizeCustomWidths(widths: List<Double>?): List<Double> {
+        if (widths == null || widths.size != 28) return DefaultCustomWidths
+        val sum = widths.sum()
+        return if (kotlin.math.abs(sum - 360.0) < 0.05) widths else DefaultCustomWidths
+    }
     data class Location(
         val name: String,
         /** 宿内古度（0..该宿古宽），对照参考「箕四」「斗19.4」 */
@@ -91,27 +134,66 @@ object XiuTable {
     fun names(): List<String> = raw.map { it.name }
 
     /** [frame] 框架下宿 idx 的角宿基准起点（今度，未加零点） */
-    private fun frameStart(idx: Int, frame: XiuFrame): Double = when (frame) {
-        XiuFrame.MODERN -> startsModern[idx]
+    private fun frameStart(idx: Int, frame: XiuFrame, customWidths: List<Double>?): Double = when (frame) {
+        XiuFrame.MODERN, XiuFrame.XUANXIAO -> startsModern[idx]
         XiuFrame.ANCIENT_SCALED, XiuFrame.ANCIENT_J2000 -> startsAncient[idx] * scale
+        XiuFrame.DACHENG -> startsDacheng[idx]
+        XiuFrame.CUSTOM -> {
+            val w = normalizeCustomWidths(customWidths)
+            if (w === DefaultCustomWidths) startsCustomDefault[idx]
+            else startsFromWidths(w)[idx]
+        }
     }
 
-    /** 宿界在黄道上的绝对黄经；[equatorial] 时转赤经返回。绘制与计算都应显式传入 [zeroDeg] 与宿界框架 [frame] */
-    fun startOf(idx: Int, zeroDeg: Double, frame: XiuFrame = XiuFrame.MODERN, equatorial: Boolean = false): Double {
-        val lon = frameStart(idx, frame) + when (frame) {
-            XiuFrame.ANCIENT_J2000 -> ZeroAtJ2000
-            else -> zeroDeg
+    /**
+     * 有效宿零点。
+     *
+     * **玄枵虚中**：今宿宽不变，把虚宿中点锚在**子宫中点**。
+     * 本盘地支映射下子宫 = 黄经 300°–330°，中点 **315°**
+     * （对照星命排盘 `xl.JS`：`se = 虚中 − 315`；《左传》「玄枵，虚中也」）。
+     * 古宿岁差用 J2000 固定锚；其余用排盘时刻岁差零点。
+     */
+    fun effectiveZero(
+        baseZero: Double,
+        frame: XiuFrame,
+        customWidths: List<Double>? = null,
+    ): Double = when (frame) {
+        XiuFrame.ANCIENT_J2000 -> ZeroAtJ2000
+        XiuFrame.XUANXIAO -> {
+            val xu = 10 // 虚（角→轸）
+            val rel = startsModern[xu]
+            val next = startsModern[xu + 1] // 危
+            val w = (if (next < rel) next + 360.0 else next) - rel
+            // 315° = 子宫正中（非冬至点 270°；270° 在本映射下是丑宫中）
+            AstroMath.norm360(315.0 - (rel + w / 2.0))
         }
+        else -> baseZero
+    }
+
+    /** 宿界在黄道上的绝对黄经；[equatorial] 时转赤经返回。 */
+    fun startOf(
+        idx: Int,
+        zeroDeg: Double,
+        frame: XiuFrame = XiuFrame.MODERN,
+        equatorial: Boolean = false,
+        customWidths: List<Double>? = null,
+    ): Double {
+        val z = effectiveZero(zeroDeg, frame, customWidths)
+        val lon = frameStart(idx, frame, customWidths) + z
         return if (equatorial) AstroMath.rightAscension(lon) else AstroMath.norm360(lon)
     }
 
-    /** 宿宽（今度，360 制），用于绘制宿环（与 [startOf] 同框架同零点；赤道制下按赤经量宽） */
-    fun widthAt(idx: Int, zeroDeg: Double, frame: XiuFrame = XiuFrame.MODERN, equatorial: Boolean = false): Double {
+    /** 宿宽（今度，360 制） */
+    fun widthAt(
+        idx: Int,
+        zeroDeg: Double,
+        frame: XiuFrame = XiuFrame.MODERN,
+        equatorial: Boolean = false,
+        customWidths: List<Double>? = null,
+    ): Double {
         val nextIdx = if (idx + 1 < raw.size) idx + 1 else 0
-        val cur = startOf(idx, zeroDeg, frame, equatorial)
-        val nextRaw = startOf(nextIdx, zeroDeg, frame, equatorial)
-        // 回绕判断看黄经而非数组下标：宿界回绕点在「室→壁」（黄经 360→0），
-        // 不一定落在数组末尾（角宿是数组首元，但其起点黄经大于轸宿）
+        val cur = startOf(idx, zeroDeg, frame, equatorial, customWidths)
+        val nextRaw = startOf(nextIdx, zeroDeg, frame, equatorial, customWidths)
         val next = if (nextRaw < cur) nextRaw + 360.0 else nextRaw
         return next - cur
     }
@@ -119,10 +201,8 @@ object XiuTable {
     /**
      * 落宿。
      *
-     * [zeroDeg] 今宿零点（岁差），由排盘时刻算出后传入。
-     * [xiuSystem] 宿内读数量纲：[XiuSystem.ANCIENT] 返回 365.25 古度，
-     * [XiuSystem.MODERN] 返回 360 今度；**宿界的角度位置两者一致**，仅读数不同。
-     * [frame] 宿界框架（今宿界 / 回归古宿 / 古宿岁差），宿界位置随之切换。
+     * [zeroDeg] 今宿零点（岁差），由排盘时刻算出后传入；玄枵虚中 / 古宿岁差会再换算。
+     * [customWidths] 仅 [XiuFrame.CUSTOM] 使用。
      */
     fun locate(
         longitude: Double,
@@ -130,23 +210,21 @@ object XiuTable {
         xiuSystem: XiuSystem = XiuSystem.ANCIENT,
         frame: XiuFrame = XiuFrame.MODERN,
         equatorial: Boolean = false,
+        customWidths: List<Double>? = null,
     ): Location {
-        // 二十八宿首尾相接铺满周天，唯一满足「起点 ≤ lon < 起点+宿宽」的即所在宿
         for (i in 0 until 28) {
-            val delta = AstroMath.norm360(longitude - startOf(i, zeroDeg, frame, equatorial))
-            if (delta < widthAt(i, zeroDeg, frame, equatorial)) {
+            val delta = AstroMath.norm360(longitude - startOf(i, zeroDeg, frame, equatorial, customWidths))
+            if (delta < widthAt(i, zeroDeg, frame, equatorial, customWidths)) {
                 val degModern = delta
-                // ANCIENT 读数 = 今度折算回 365.25 古度（保持「箕N」显示风格）；MODERN = 今度本身
                 val deg = if (xiuSystem == XiuSystem.ANCIENT) degModern / scale else degModern
                 val x = raw[i]
                 return Location(x.name, deg, i, x.element)
             }
         }
-        // 浮点边界兜底（理论上不可达）
         val x = raw[0]
         return Location(
             x.name,
-            AstroMath.norm360(longitude - startOf(0, zeroDeg, frame, equatorial)) / scale,
+            AstroMath.norm360(longitude - startOf(0, zeroDeg, frame, equatorial, customWidths)) / scale,
             0,
             x.element,
         )

@@ -55,6 +55,8 @@ import zhiqiu.app.destiny.ui.theme.DestinyColorMode
 import zhiqiu.qizheng.ClockMode
 import zhiqiu.qizheng.HuaYaoSchool
 import zhiqiu.qizheng.MingGongMethod
+import zhiqiu.qizheng.ShenGongMethod
+import zhiqiu.qizheng.NodeConvention
 import zhiqiu.qizheng.PanZhiPresets
 import zhiqiu.app.destiny.qizheng.buildFromProfile
 import zhiqiu.qizheng.PatternView
@@ -122,21 +124,31 @@ fun QizhengSection(
     var mingModeIdx by rememberSaveable(profile.id) { mutableIntStateOf(0) }
     // 紫气赤道匀速
     var ziQiEquatorial by rememberSaveable(profile.id) { mutableStateOf(false) }
+    // 罗计：0 传统 1 印度
+    var luoJiIdx by rememberSaveable(profile.id) { mutableIntStateOf(0) }
+    // 安身：0 果老 1 琴堂 2 日出 3 日落
+    var shenGongIdx by rememberSaveable(profile.id) { mutableIntStateOf(0) }
+    // 天盘时分
+    var tianPan by rememberSaveable(profile.id) { mutableStateOf(false) }
 
-    // 盘制：坐标（0黄道回归 1黄道恒星 2赤道恒星）× 宿制（0果老 1回归今宿 2回归古宿 3古宿岁差 4郑案今宿）
+    // 盘制：坐标 × 宿制（0果老…4大成 5玄枵 6自定义 7郑案）
     var coordIdx by rememberSaveable(profile.id) { mutableIntStateOf(initialPanZhiIdxs(profile.qizhengPanZhi).first) }
     var xiuIdx by rememberSaveable(profile.id) { mutableIntStateOf(initialPanZhiIdxs(profile.qizhengPanZhi).second) }
 
     val chart = remember(
         profile, timeMode, cy, cm, cd, ch, cmi,
         coordIdx, xiuIdx, fixedMing, huaYaoSchoolIdx, trueSolar, mingModeIdx, ziQiEquatorial,
+        luoJiIdx, shenGongIdx, tianPan,
     ) {
         runCatching {
             val base = when (xiuIdx) {
                 1 -> PanZhiPresets.ModernReading
                 2 -> PanZhiPresets.Ancient
                 3 -> PanZhiPresets.AncientJ2000
-                4 -> PanZhiPresets.ZhengAn
+                4 -> PanZhiPresets.DaCheng
+                5 -> PanZhiPresets.XuanXiao
+                6 -> PanZhiPresets.CustomXiu
+                7 -> PanZhiPresets.ZhengAn
                 else -> PanZhiPresets.GuoLao
             }
             val cfg = base.copy(
@@ -151,6 +163,14 @@ fun QizhengSection(
                     else -> MingGongMethod.GUOLAO
                 },
                 ziQiMode = if (ziQiEquatorial) ZiQiMode.YEARS_28_EQ else ZiQiMode.YEARS_28,
+                nodeConvention = if (luoJiIdx == 1) NodeConvention.INDIAN else NodeConvention.TRADITIONAL,
+                shenGongMethod = when (shenGongIdx) {
+                    1 -> ShenGongMethod.QINTANG_YOU
+                    2 -> ShenGongMethod.SUNRISE
+                    3 -> ShenGongMethod.SUNSET
+                    else -> ShenGongMethod.GUOLAO_MOON
+                },
+                tianPan = tianPan,
             )
             when (timeMode) {
                 QzTimeMode.Demo -> QizhengBuilder.build(
@@ -190,6 +210,9 @@ fun QizhengSection(
             trueSolar = trueSolar,
             mingModeIdx = mingModeIdx,
             ziQiEquatorial = ziQiEquatorial,
+            luoJiIdx = luoJiIdx,
+            shenGongIdx = shenGongIdx,
+            tianPan = tianPan,
             onCoordChange = {
                 coordIdx = it
                 onSavePanZhi?.invoke(persistPanZhiName(coordIdx, xiuIdx))
@@ -204,6 +227,9 @@ fun QizhengSection(
             onTrueSolarChange = { trueSolar = it },
             onMingModeChange = { mingModeIdx = it },
             onZiQiEquatorialChange = { ziQiEquatorial = it },
+            onLuoJiChange = { luoJiIdx = it },
+            onShenGongChange = { shenGongIdx = it },
+            onTianPanChange = { tianPan = it },
             onBack = { showSettings = false },
         )
         return
@@ -216,71 +242,7 @@ fun QizhengSection(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 8.dp, vertical = 6.dp),
     ) {
-        // 顶栏：盘制（必须标明）+ 四柱干支
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.Top,
-        ) {
-            Column {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    Text(
-                        "盘制 ${chart.panZhi}",
-                        color = Accent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        "未人工核对",
-                        color = Danger,
-                        fontSize = 10.sp,
-                        modifier = Modifier
-                            .background(Danger.copy(alpha = 0.10f), RoundedCornerShape(3.dp))
-                            .padding(horizontal = 5.dp, vertical = 1.dp),
-                    )
-                }
-                Text(chart.panZhiDetail, color = Muted, fontSize = 10.sp)
-                if (chart.shenBranch != null) {
-                    Text("身宫 ${chart.shenBranch}", color = Muted, fontSize = 10.sp)
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    chart.stemLine.forEach { c ->
-                        Text(c.toString(), color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Text(if (chart.gender == "女") "坤" else "乾", color = Muted, fontSize = 12.sp)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    chart.branchLine.forEach { c ->
-                        Text(c.toString(), color = Ink, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-            Text(
-                "⚙ 设置",
-                color = Accent,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.clickable { showSettings = true },
-            )
-        }
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // 限运资料卡：单独一行，横向铺开，不挤压盘面
-        LimitGrid(
-            chart = chart,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            columns = 3,
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-
-        // 盘面：独立居中显示，尺寸随可用宽度自适应，窄屏铺满、宽屏不超过上限
+        // 盘面置顶；盘制 / 干支 / 限运挪到下方多行展示
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val baseSize = min(maxWidth, 560.dp)
             var scale by remember { mutableFloatStateOf(1f) }
@@ -432,7 +394,76 @@ fun QizhengSection(
             }
         }
 
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 盘制 / 干支 / 身宫：盘面下方多行
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    "盘制 ${chart.panZhi}",
+                    color = Accent,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    "未人工核对",
+                    color = Danger,
+                    fontSize = 10.sp,
+                    modifier = Modifier
+                        .background(Danger.copy(alpha = 0.10f), RoundedCornerShape(3.dp))
+                        .padding(horizontal = 5.dp, vertical = 1.dp),
+                )
+            }
+            Text(
+                "⚙ 设置",
+                color = Accent,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.clickable { showSettings = true },
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(chart.panZhiDetail, color = Muted, fontSize = 11.sp)
+        if (chart.shenBranch != null) {
+            Spacer(modifier = Modifier.height(2.dp))
+            Text("身宫 ${chart.shenBranch}", color = Muted, fontSize = 11.sp)
+        }
         Spacer(modifier = Modifier.height(8.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(if (chart.gender == "女") "坤造" else "乾造", color = Muted, fontSize = 12.sp)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    chart.stemLine.forEach { c ->
+                        Text(c.toString(), color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    chart.branchLine.forEach { c ->
+                        Text(c.toString(), color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+        LimitGrid(
+            chart = chart,
+            modifier = Modifier.fillMaxWidth(),
+            columns = 2,
+        )
+
+        Spacer(modifier = Modifier.height(10.dp))
 
         // 子 Tab
         val tabs = listOf("四柱", "化曜", "相位", "星格")
@@ -758,6 +789,7 @@ private fun AspectsPane(chart: QizhengChart) {
             chart.config.xiuSystem,
             chart.config.xiuFrame,
             chart.config.equatorial,
+            chart.config.customXiuWidths,
         )
     }.getOrNull()
     val mingInPalace = ((chart.mingDuLon % 30.0) + 30.0) % 30.0
@@ -810,7 +842,7 @@ private fun AspectsPane(chart: QizhengChart) {
 }
 
 /**
- * 星格页：政余喜格 / 政余忌格 两列，只列出成格条目。
+ * 星格页：政余喜格 / 政余忌格 两列；点击条目弹出释义对话框。
  */
 @Composable
 private fun PatternsPane(chart: QizhengChart) {
@@ -819,9 +851,8 @@ private fun PatternsPane(chart: QizhengChart) {
     val Page = theme.page
     val Ink = theme.ink
     val Muted = theme.muted
-    val Line = theme.line
-    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
     val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
+    val Danger = Color(0xFFC62828)
     val xi = chart.patterns.filter { it.auspicious && it.hit }
     val ji = chart.patterns.filter { !it.auspicious && it.hit }
     var selected by remember { mutableStateOf<PatternView?>(null) }
@@ -831,10 +862,15 @@ private fun PatternsPane(chart: QizhengChart) {
             Text("政余喜格", fontSize = 16.sp, color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
             Text("政余忌格", fontSize = 16.sp, color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
         }
-        Spacer(modifier = Modifier.height(8.dp))
+        Text(
+            "点击条目查看释义",
+            fontSize = 12.sp,
+            color = Muted,
+            modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
+        )
         Row(modifier = Modifier.fillMaxWidth()) {
-            PatternColumn(xi, Modifier.weight(1f), onPick = { selected = it })
-            PatternColumn(ji, Modifier.weight(1f), onPick = { selected = it })
+            PatternColumn(xi, Modifier.weight(1f), nameColor = Accent, onPick = { selected = it })
+            PatternColumn(ji, Modifier.weight(1f), nameColor = Danger, onPick = { selected = it })
         }
     }
 
@@ -842,7 +878,8 @@ private fun PatternsPane(chart: QizhengChart) {
         Dialog(onDismissRequest = { selected = null }) {
             Column(
                 modifier = Modifier
-                    .background(Page, RoundedCornerShape(10.dp))
+                    .fillMaxWidth()
+                    .background(Page, RoundedCornerShape(12.dp))
                     .padding(20.dp),
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -851,25 +888,31 @@ private fun PatternsPane(chart: QizhengChart) {
                     Text(
                         if (p.auspicious) "喜格" else "忌格",
                         fontSize = 12.sp,
-                        color = if (p.auspicious) Accent else Color(0xFFC62828),
+                        color = if (p.auspicious) Accent else Danger,
                         fontWeight = FontWeight.SemiBold,
                     )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                Text("判定：${p.detail}", fontSize = 13.sp, color = Muted)
-                if (p.desc.isNotBlank()) {
-                    Spacer(modifier = Modifier.height(10.dp))
-                    Text(p.desc, fontSize = 14.sp, color = Ink, lineHeight = 20.sp)
+                if (p.detail.isNotBlank() && p.detail != p.name) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("判定：${p.detail}", fontSize = 13.sp, color = Muted)
                 }
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
+                Text(
+                    p.desc.ifBlank { if (p.auspicious) "政余喜格" else "政余忌格" },
+                    fontSize = 15.sp,
+                    color = Ink,
+                    lineHeight = 22.sp,
+                )
+                Spacer(modifier = Modifier.height(16.dp))
                 Text(
                     "知道了",
                     color = Accent,
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                     modifier = Modifier
                         .align(Alignment.End)
-                        .clickable { selected = null },
+                        .clickable { selected = null }
+                        .padding(vertical = 4.dp, horizontal = 2.dp),
                 )
             }
         }
@@ -880,11 +923,12 @@ private fun PatternsPane(chart: QizhengChart) {
 private fun PatternColumn(
     items: List<PatternView>,
     modifier: Modifier,
+    nameColor: Color = DestinyTheme.ink,
     onPick: (PatternView) -> Unit,
 ) {
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (items.isEmpty()) {
             Text("无", fontSize = 15.sp, color = DestinyTheme.muted)
@@ -893,8 +937,12 @@ private fun PatternColumn(
                 Text(
                     p.name,
                     fontSize = 15.sp,
-                    color = DestinyTheme.ink,
-                    modifier = Modifier.clickable { onPick(p) },
+                    color = nameColor,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onPick(p) }
+                        .padding(vertical = 6.dp, horizontal = 2.dp),
                 )
             }
         }
@@ -911,7 +959,10 @@ private fun initialPanZhiIdxs(name: String): Pair<Int, Int> = when (name) {
     "回归今宿" -> 0 to 1
     "回归古宿" -> 0 to 2
     "古宿岁差" -> 0 to 3
-    "郑案今宿" -> 1 to 4
+    "星学大成" -> 0 to 4
+    "玄枵虚中" -> 0 to 5
+    "自定义宿度" -> 0 to 6
+    "郑案今宿" -> 1 to 7
     "赤道恒星" -> 2 to 1
     else -> 0 to 0
 }
@@ -919,4 +970,7 @@ private fun initialPanZhiIdxs(name: String): Pair<Int, Int> = when (name) {
 /** （坐标 idx, 宿制 idx）→ 持久化盘制名 */
 private fun persistPanZhiName(coordIdx: Int, xiuIdx: Int): String =
     if (coordIdx == 2) "赤道恒星"
-    else listOf("果老星宗", "回归今宿", "回归古宿", "古宿岁差", "郑案今宿")[xiuIdx.coerceIn(0, 4)]
+    else listOf(
+        "果老星宗", "回归今宿", "回归古宿", "古宿岁差",
+        "星学大成", "玄枵虚中", "自定义宿度", "郑案今宿",
+    )[xiuIdx.coerceIn(0, 7)]

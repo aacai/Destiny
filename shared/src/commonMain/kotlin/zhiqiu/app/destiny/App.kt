@@ -3,6 +3,7 @@ package zhiqiu.app.destiny
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import zhiqiu.app.destiny.oinkcompat.AlertDialog
 import zhiqiu.app.destiny.oinkcompat.MaterialThemeHost
 import zhiqiu.app.destiny.oinkcompat.Text
@@ -74,7 +75,6 @@ private object Routes {
     const val XiaoLiuRen = "xiaoliuren"
     const val MeiHua = "meihua"
     const val Qimen = "qimen"
-    const val XingmingRef = "xingming-ref"
 
     fun chart(profileId: String) = "chart/$profileId"
     fun reader(bookId: String) = "reader/$bookId"
@@ -179,7 +179,8 @@ fun App(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(colors.page)
-                        .padding(top = TitleBarBandHeight),
+                        .padding(top = TitleBarBandHeight)
+                        .safeDrawingPadding(),
                     navController = navController,
                     startDestination = Routes.List,
                 ) {
@@ -201,24 +202,9 @@ fun App(
                         onOpenXiaoLiuRen = { navController.navigate(Routes.XiaoLiuRen) },
                         onOpenMeiHua = { navController.navigate(Routes.MeiHua) },
                         onOpenQimen = { navController.navigate(Routes.Qimen) },
-                        onOpenXingmingRef = { navController.navigate(Routes.XingmingRef) },
                         colorMode = colorMode,
                         onToggleColorMode = { setColorMode(colorMode.toggle()) },
                         onOpenAbout = { navController.navigate(Routes.About) },
-                    )
-                }
-                composable(Routes.XingmingRef) {
-                    zhiqiu.app.destiny.ui.xingmingref.XingmingRefScreen(
-                        profiles = profiles,
-                        onBack = { goBack() },
-                        onSaveProfile = { draft, onSaved ->
-                            scope.launch {
-                                onSaved(repository.upsert(draft))
-                            }
-                        },
-                        onOpenFullChart = { profile ->
-                            navController.navigate(Routes.chart(profile.id))
-                        },
                     )
                 }
                 composable(Routes.About) {

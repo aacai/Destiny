@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -32,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.ArrowLeft
+import zhiqiu.app.destiny.i18n.AppStrings
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
 
 /** 书架：跟随应用主题（日/夜）的浅底 + 彩色封面网格 */
@@ -44,17 +44,16 @@ fun BookshelfScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(DestinyTheme.page)
-            .safeDrawingPadding(),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = onBack) {
-                Icon(imageVector = FeatherIcons.ArrowLeft, contentDescription = "返回", tint = DestinyTheme.ink)
+                Icon(imageVector = FeatherIcons.ArrowLeft, contentDescription = AppStrings.back, tint = DestinyTheme.ink)
             }
             Text(
-                "书架",
+                AppStrings.bookshelf,
                 color = DestinyTheme.ink,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -108,18 +107,18 @@ fun ResultPage(
         val d = dayInfo ?: return@remember null
         buildChart(kinds, d, ZhanSelection(topic, sub), gender)
     }
-    Column(modifier = Modifier.fillMaxSize().background(LocalPanColors.current.page).safeDrawingPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(LocalPanColors.current.page)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             TextButton(onClick = onBackToInput) {
-                Text(if (readOnly) "‹ 返回" else "‹ 起卦", color = PanAccent, fontSize = 15.sp)
+                Text(if (readOnly) LiuYaoStrings.backShort else LiuYaoStrings.start, color = PanAccent, fontSize = 15.sp)
             }
-            Text(if (readOnly) "卦例详情" else "排盘结果", color = PanInk, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text(if (readOnly) LiuYaoStrings.caseDetail else LiuYaoStrings.result, color = PanInk, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             if (!readOnly) {
-            TextButton(onClick = onRestart) { Text("重起", color = PanAccent, fontSize = 13.sp) }
+            TextButton(onClick = onRestart) { Text(LiuYaoStrings.restart, color = PanAccent, fontSize = 13.sp) }
             TextButton(
                 onClick = {
                     val c = chart ?: return@TextButton
@@ -156,7 +155,7 @@ fun ResultPage(
                     )
                     onSaved(id)
                 },
-            ) { Text("保存", color = PanAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
+            ) { Text(LiuYaoStrings.save, color = PanAccent, fontSize = 13.sp, fontWeight = FontWeight.Bold) }
             }
         }
         HorizontalDivider(thickness = 0.5.dp, color = PanLine)

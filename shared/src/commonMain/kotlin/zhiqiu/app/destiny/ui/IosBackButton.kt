@@ -4,15 +4,17 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import zhiqiu.app.destiny.oinkcompat.Icon
-import zhiqiu.app.destiny.oinkcompat.MaterialTheme
 import zhiqiu.app.destiny.oinkcompat.Text
 import zhiqiu.app.destiny.oinkcompat.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.ChevronLeft
+import zhiqiu.app.destiny.ui.theme.DestinyTheme
 
 @Composable
 fun IosBackButton(
@@ -28,12 +30,13 @@ fun IosBackButton(
                 imageVector = FeatherIcons.ChevronLeft,
                 contentDescription = null,
                 modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = DestinyTheme.accent,
             )
             Text(
                 text = label,
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.bodyLarge,
+                color = DestinyTheme.accent,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Medium,
             )
         }
     }

@@ -35,6 +35,7 @@ import zhiqiu.applewidgets.kmp.oink.basic.OinkSwitch
 import zhiqiu.applewidgets.kmp.oink.basic.OinkText
 import zhiqiu.applewidgets.kmp.oink.form.OinkTextField
 import zhiqiu.applewidgets.kmp.oink.layout.OinkDivider
+import zhiqiu.applewidgets.kmp.oink.theme.LocalOinkContentColor
 import zhiqiu.applewidgets.kmp.oink.theme.OinkTheme
 
 /**
@@ -74,6 +75,7 @@ fun Text(
     OinkText(
         text = text,
         modifier = modifier,
+        color = if (color == Color.Unspecified) LocalOinkContentColor.current else color,
         style = resolved,
         textAlign = textAlign,
         overflow = overflow,

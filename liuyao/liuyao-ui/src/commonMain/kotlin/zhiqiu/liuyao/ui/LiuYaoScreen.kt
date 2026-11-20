@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -237,19 +236,19 @@ private fun InputPage(
     val unsetCount = kinds.count { it == null }
     val widthClass = rememberWindowWidthSizeClass()
     val hPad = if (widthClass == WindowWidthSizeClass.Compact) 12.dp else 16.dp
-    Column(modifier = Modifier.fillMaxSize().background(LocalPanColors.current.page).safeDrawingPadding()) {
+    Column(modifier = Modifier.fillMaxSize().background(LocalPanColors.current.page)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("‹ 返回", color = PanAccent, fontSize = 15.sp) }
+            TextButton(onClick = onBack) { Text(LiuYaoStrings.backShort, color = PanAccent, fontSize = 15.sp) }
             Text("六爻起卦", color = PanInk, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.weight(1f))
             TextButton(onClick = onOpenYijing) { Text("易经", color = PanAccent, fontSize = 13.sp) }
             TextButton(
                 onClick = onRestartKinds,
                 enabled = kinds.any { it != null },
-            ) { Text("重起", color = PanAccent, fontSize = 13.sp) }
+            ) { Text(LiuYaoStrings.restart, color = PanAccent, fontSize = 13.sp) }
         }
         HorizontalDivider(thickness = 0.5.dp, color = PanLine)
 

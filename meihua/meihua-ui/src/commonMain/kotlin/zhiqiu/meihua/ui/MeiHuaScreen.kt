@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -43,6 +42,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import zhiqiu.liuyao.Trigram
@@ -60,16 +60,16 @@ import zhiqiu.meihua.castRandom
 import zhiqiu.meihua.innateNumber
 
 private enum class CastTab(val label: String) {
-    NOW("此刻"),
-    LUNAR("农历"),
-    NUMBERS("报数"),
+    NOW(MeiHuaStrings.t("now")),
+    LUNAR(MeiHuaStrings.t("lunar")),
+    NUMBERS(MeiHuaStrings.t("numbers")),
     XIANG("端法"),
     MANUAL("手选"),
     RANDOM("随机"),
 }
 
 /**
- * 梅花易数起卦页：时间 / 数字 / 端法 / 手选 / 随机，结果一屏展示本互变与体用。
+ * 梅花易数起卦页：时间 / 数字 / 端法 / 手选 / 随机；结果区一本变互错综点选详情。
  */
 /** 梅花的一次存档：中性字段，由宿主组装成档案。 */
 data class MeiHuaSave(
@@ -168,15 +168,23 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (MeiHuaSave) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MhTheme.page)
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .background(MhTheme.page),
     ) {
-        TopBar(onBack = onBack, onRule = { showRule = true })
-        Spacer(modifier = Modifier.height(12.dp))
+        // 顶栏固定，不随正文滚动
+        Column(modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)) {
+            TopBar(onBack = onBack, onRule = { showRule = true })
+        }
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 14.dp)
+                .padding(bottom = 10.dp),
+        ) {
+        Spacer(modifier = Modifier.height(4.dp))
 
-        SectionCard("占问") {
+        SectionCard(MeiHuaStrings.question) {
             BasicTextField(
                 value = question,
                 onValueChange = { question = it },
@@ -313,8 +321,9 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (MeiHuaSave) -> Unit) {
                 }
                 .padding(vertical = 12.dp),
             contentAlignment = Alignment.Center,
-        ) { Text("保存此卦", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
+        ) { Text(MeiHuaStrings.saveGua, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
         Spacer(modifier = Modifier.height(24.dp))
+        } // scroll body
     }
 
     if (showRule) {
@@ -330,7 +339,7 @@ private fun TopBar(onBack: () -> Unit, onRule: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            "‹ 返回",
+            MeiHuaStrings.backShort,
             color = MhTheme.accent,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
@@ -356,14 +365,18 @@ private fun TopBar(onBack: () -> Unit, onRule: () -> Unit) {
     }
 }
 
+/** 结果页五卦：本 / 变 / 互 / 错 / 综 */
+private enum class GuaKind(val label: String) {
+    BEN("本"),
+    BIAN("变"),
+    HU("互"),
+    CUO("错"),
+    ZONG("综"),
+}
+
 @Composable
 private fun ResultBoard(chart: MeiHuaChart, expandTrace: Boolean, onToggleTrace: () -> Unit) {
-    SectionCard("口径") {
-        DEFAULT_CONVENTIONS.take(4).forEach { line ->
-            Text("· $line", color = MhTheme.muted, fontSize = 11.sp, modifier = Modifier.padding(bottom = 2.dp))
-        }
-    }
-    Spacer(modifier = Modifier.height(12.dp))
+    var selected by remember(chart) { mutableStateOf(GuaKind.BEN) }
 
     SectionCard("取数算式") {
         Text(
@@ -387,47 +400,32 @@ private fun ResultBoard(chart: MeiHuaChart, expandTrace: Boolean, onToggleTrace:
     }
     Spacer(modifier = Modifier.height(12.dp))
 
-    SectionCard("本卦 · ${chart.ben.fullName}") {
-        Text("${chart.movingYaoName}动　上${chart.upper.label}下${chart.lower.label}", color = MhTheme.muted, fontSize = 12.sp)
-        Spacer(modifier = Modifier.height(10.dp))
-        YaoColumn(bits = chart.ben.bitsBottomUp, moving = chart.movingYao)
-    }
-    Spacer(modifier = Modifier.height(12.dp))
-
-    val tone = MhTheme.tone(chart.relation.auspicious)
-    SectionCard("体用") {
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Meta("体", "${chart.ti.label}·${chart.ti.element.label}（${chart.tiWang.label}）")
-            Meta("用", "${chart.yong.label}·${chart.yong.element.label}（${chart.yongWang.label}）")
-        }
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(chart.relation.label, color = tone, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(chart.relation.verdict, color = tone, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        Spacer(modifier = Modifier.height(8.dp))
+    // 一区五卦：点选下方出详情
+    SectionCard("卦象") {
         Text(
-            "变后用=${chart.bianYong.label}（${chart.bianRelation.label}）· ${chart.changeSummary}",
+            "${chart.movingYaoName}动　上${chart.upper.label}下${chart.lower.label}",
             color = MhTheme.muted,
             fontSize = 12.sp,
         )
-    }
-    Spacer(modifier = Modifier.height(12.dp))
-
-    SectionCard("互卦 · ${chart.hu.fullName}") {
-        if (chart.huFromBian) {
-            Text("乾坤无互，已取变卦之互", color = MhTheme.moving, fontSize = 11.sp)
-            Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            GuaKind.entries.forEach { kind ->
+                GuaPickCell(
+                    kind = kind,
+                    chart = chart,
+                    selected = selected == kind,
+                    onClick = { selected = kind },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
-        Text(
-            "上互${chart.hu.upper.label}　下互${chart.hu.lower.label}　体互${chart.tiHu.label}　用互${chart.yongHu.label}",
-            color = MhTheme.ink,
-            fontSize = 13.sp,
-        )
-    }
-    Spacer(modifier = Modifier.height(12.dp))
-
-    SectionCard("变卦 · ${chart.bian.fullName}") {
-        YaoColumn(bits = chart.bian.bitsBottomUp, moving = chart.movingYao, markChanged = true)
+        Spacer(modifier = Modifier.height(14.dp))
+        HorizontalDivider(color = MhTheme.line)
+        Spacer(modifier = Modifier.height(12.dp))
+        GuaDetailPane(kind = selected, chart = chart)
     }
 
     val cheng = chart.chengGuaShu
@@ -443,97 +441,297 @@ private fun ResultBoard(chart: MeiHuaChart, expandTrace: Boolean, onToggleTrace:
             )
         }
     }
+}
 
-    Spacer(modifier = Modifier.height(12.dp))
-    SectionCard("说卦取象") {
-        XiangBlock("体·${chart.ti.label}", chart.tiXiang.nature, chart.tiXiang.images)
-        Spacer(modifier = Modifier.height(10.dp))
-        XiangBlock("用·${chart.yong.label}", chart.yongXiang.nature, chart.yongXiang.images)
-    }
-
-    Spacer(modifier = Modifier.height(12.dp))
-    SectionCard("周易 · 本卦 ${chart.benText.name}") {
-        Text(chart.benText.guaCi, color = MhTheme.ink, fontSize = 13.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text("动爻爻辞", color = MhTheme.muted, fontSize = 11.sp)
-        Spacer(modifier = Modifier.height(2.dp))
+@Composable
+private fun GuaPickCell(
+    kind: GuaKind,
+    chart: MeiHuaChart,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val entry = chart.entryOf(kind)
+    val stroke = if (selected) MhTheme.accent else MhTheme.line
+    val bg = if (selected) MhTheme.panel else MhTheme.card
+    Column(
+        modifier = modifier
+            .padding(horizontal = 2.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .border(1.5.dp, stroke, RoundedCornerShape(10.dp))
+            .background(bg)
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Text(
-            chart.benText.yaoCi.getOrNull(chart.movingYao - 1).orEmpty(),
-            color = MhTheme.moving,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.SemiBold,
-        )
-    }
-    Spacer(modifier = Modifier.height(12.dp))
-    SectionCard("周易 · 变卦 ${chart.bianText.name}") {
-        Text(chart.bianText.guaCi, color = MhTheme.ink, fontSize = 13.sp)
-        Spacer(modifier = Modifier.height(8.dp))
-        Text(
-            chart.bianText.yaoCi.getOrNull(chart.movingYao - 1).orEmpty(),
-            color = MhTheme.muted,
+            kind.label,
+            color = if (selected) MhTheme.accent else MhTheme.muted,
             fontSize = 13.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        CompactYaoColumn(
+            bits = entry.bitsBottomUp,
+            moving = if (kind == GuaKind.BEN || kind == GuaKind.BIAN) chart.movingYao else -1,
+            markChanged = kind == GuaKind.BIAN,
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            entry.fullName,
+            color = MhTheme.ink,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1,
         )
     }
 }
 
+@Composable
+private fun GuaDetailPane(kind: GuaKind, chart: MeiHuaChart) {
+    val entry = chart.entryOf(kind)
+    val text = chart.textOf(kind)
+    val tone = MhTheme.tone(chart.relation.auspicious)
+
+    Text(
+        "${kind.label}卦 · ${entry.fullName}",
+        color = MhTheme.ink,
+        fontSize = 16.sp,
+        fontWeight = FontWeight.Bold,
+    )
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(
+        "上${entry.upper.label}　下${entry.lower.label}",
+        color = MhTheme.muted,
+        fontSize = 12.sp,
+    )
+    Spacer(modifier = Modifier.height(10.dp))
+    YaoColumn(
+        bits = entry.bitsBottomUp,
+        moving = if (kind == GuaKind.BEN || kind == GuaKind.BIAN) chart.movingYao else -1,
+        markChanged = kind == GuaKind.BIAN,
+    )
+
+    when (kind) {
+        GuaKind.BEN -> {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("体用", color = MhTheme.muted, fontSize = 11.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Meta("体", "${chart.ti.label}·${chart.ti.element.label}（${chart.tiWang.label}）")
+                Meta("用", "${chart.yong.label}·${chart.yong.element.label}（${chart.yongWang.label}）")
+            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(chart.relation.label, color = tone, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(chart.relation.verdict, color = tone, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.height(8.dp))
+            XiangBlock("体·${chart.ti.label}", chart.tiXiang.nature, chart.tiXiang.images)
+            Spacer(modifier = Modifier.height(8.dp))
+            XiangBlock("用·${chart.yong.label}", chart.yongXiang.nature, chart.yongXiang.images)
+        }
+        GuaKind.BIAN -> {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                "变后用=${chart.bianYong.label}（${chart.bianRelation.label}）· ${chart.changeSummary}",
+                color = MhTheme.ink,
+                fontSize = 13.sp,
+            )
+        }
+        GuaKind.HU -> {
+            Spacer(modifier = Modifier.height(12.dp))
+            if (chart.huFromBian) {
+                Text("乾坤无互，已取变卦之互", color = MhTheme.moving, fontSize = 12.sp)
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+            Text(
+                "上互${chart.hu.upper.label}　下互${chart.hu.lower.label}　体互${chart.tiHu.label}　用互${chart.yongHu.label}",
+                color = MhTheme.ink,
+                fontSize = 13.sp,
+            )
+        }
+        GuaKind.CUO -> {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("错卦：本卦六爻阴阳皆反", color = MhTheme.muted, fontSize = 12.sp)
+        }
+        GuaKind.ZONG -> {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text("综卦：本卦上下颠倒", color = MhTheme.muted, fontSize = 12.sp)
+        }
+    }
+
+    Spacer(modifier = Modifier.height(12.dp))
+    Text("卦辞", color = MhTheme.muted, fontSize = 11.sp)
+    Spacer(modifier = Modifier.height(4.dp))
+    Text(text.guaCi, color = MhTheme.ink, fontSize = 13.sp)
+    if (kind == GuaKind.BEN || kind == GuaKind.BIAN) {
+        Spacer(modifier = Modifier.height(10.dp))
+        Text(if (kind == GuaKind.BEN) "动爻爻辞" else "对应爻辞", color = MhTheme.muted, fontSize = 11.sp)
+        Spacer(modifier = Modifier.height(2.dp))
+        Text(
+            text.yaoCi.getOrNull(chart.movingYao - 1).orEmpty(),
+            color = if (kind == GuaKind.BEN) MhTheme.moving else MhTheme.ink,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+private fun MeiHuaChart.entryOf(kind: GuaKind) = when (kind) {
+    GuaKind.BEN -> ben
+    GuaKind.BIAN -> bian
+    GuaKind.HU -> hu
+    GuaKind.CUO -> cuo
+    GuaKind.ZONG -> zong
+}
+
+private fun MeiHuaChart.textOf(kind: GuaKind) = when (kind) {
+    GuaKind.BEN -> benText
+    GuaKind.BIAN -> bianText
+    GuaKind.HU -> huText
+    GuaKind.CUO -> cuoText
+    GuaKind.ZONG -> zongText
+}
+
+/** 爻画总宽；阴爻中间留缝，两段等宽。 */
+private val YaoBarWidth = 120.dp
+private val YaoBarHeight = 9.dp
+private val YaoGap = 12.dp
+private val CompactYaoBarWidth = 36.dp
+private val CompactYaoBarHeight = 4.dp
+private val CompactYaoGap = 4.dp
+
+/** 五卦选择格用的迷你六爻（无序号）。 */
+@Composable
+private fun CompactYaoColumn(
+    bits: List<Int>,
+    moving: Int,
+    markChanged: Boolean = false,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        for (pos in 6 downTo 1) {
+            val yang = bits[pos - 1] == 1
+            val isMoving = pos == moving
+            val stroke = when {
+                isMoving && markChanged -> MhTheme.moving
+                isMoving -> MhTheme.moving
+                else -> MhTheme.ink
+            }
+            MeiHuaYaoGlyph(
+                yang = yang,
+                color = stroke,
+                barWidth = CompactYaoBarWidth,
+                barHeight = CompactYaoBarHeight,
+                gap = CompactYaoGap,
+            )
+        }
+    }
+}
+
+/**
+ * 六爻列：上→初。
+ * 阳爻一横实线；阴爻两段中空（不再用「整条挖白块」）。
+ * 动爻用 ○（阳）/ ×（阴），变卦同位标「变」。
+ */
 @Composable
 private fun YaoColumn(
     bits: List<Int>,
     moving: Int,
     markChanged: Boolean = false,
 ) {
-    // 自上爻向下展示
-    for (pos in 6 downTo 1) {
-        val yang = bits[pos - 1] == 1
-        val isMoving = pos == moving
-        Row(
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(7.dp),
+    ) {
+        for (pos in 6 downTo 1) {
+            val yang = bits[pos - 1] == 1
+            val isMoving = pos == moving
+            val stroke = if (isMoving) MhTheme.moving else MhTheme.ink
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    when (pos) {
+                        1 -> "初"
+                        6 -> "上"
+                        else -> "$pos"
+                    },
+                    color = MhTheme.muted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.width(28.dp),
+                )
+                MeiHuaYaoGlyph(yang = yang, color = stroke)
+                Spacer(modifier = Modifier.width(10.dp))
+                Box(
+                    modifier = Modifier.width(28.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    when {
+                        isMoving && markChanged -> Text(
+                            "变",
+                            color = MhTheme.moving,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        isMoving && yang -> Box(
+                            Modifier
+                                .size(12.dp)
+                                .border(1.6.dp, MhTheme.moving, CircleShape),
+                        )
+                        isMoving && !yang -> Text(
+                            "×",
+                            color = MhTheme.moving,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 单爻：阳一横，阴两截。 */
+@Composable
+private fun MeiHuaYaoGlyph(
+    yang: Boolean,
+    color: Color,
+    barWidth: Dp = YaoBarWidth,
+    barHeight: Dp = YaoBarHeight,
+    gap: Dp = YaoGap,
+) {
+    if (yang) {
+        Box(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 3.dp),
+                .width(barWidth)
+                .height(barHeight)
+                .clip(RoundedCornerShape(2.dp))
+                .background(color),
+        )
+    } else {
+        val seg = (barWidth - gap) / 2
+        Row(
+            modifier = Modifier.width(barWidth),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                when (pos) {
-                    1 -> "初"
-                    6 -> "上"
-                    else -> "$pos"
-                },
-                color = MhTheme.muted,
-                fontSize = 12.sp,
-                modifier = Modifier.width(28.dp),
+            Box(
+                modifier = Modifier
+                    .width(seg)
+                    .height(barHeight)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(color),
             )
             Box(
                 modifier = Modifier
-                    .weight(1f)
-                    .height(10.dp)
+                    .width(seg)
+                    .height(barHeight)
                     .clip(RoundedCornerShape(2.dp))
-                    .background(if (yang) MhTheme.ink else MhTheme.panel)
-                    .then(
-                        if (!yang) Modifier.border(1.dp, MhTheme.line, RoundedCornerShape(2.dp))
-                        else Modifier,
-                    ),
-            ) {
-                if (!yang) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .width(10.dp)
-                            .height(10.dp)
-                            .background(MhTheme.card),
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                when {
-                    isMoving && !markChanged -> "动"
-                    isMoving && markChanged -> "变"
-                    else -> ""
-                },
-                color = MhTheme.moving,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.width(24.dp),
+                    .background(color),
             )
         }
     }

@@ -97,6 +97,73 @@ class QizhengPanZhiTest {
         const val XiuRatio = 365.25 / 360.0
     }
 
+    @Test
+    fun xiuFrame_dacheng_custom_widths_differ_from_modern() {
+        val zero = XiuTable.zeroDeg(0.266474)
+        val modern = XiuTable.widthAt(0, zero, XiuFrame.MODERN)
+        val dacheng = XiuTable.widthAt(0, zero, XiuFrame.DACHENG)
+        val custom = XiuTable.widthAt(0, zero, XiuFrame.CUSTOM)
+        assertEquals(9.0, dacheng, 1e-9, "星学大成角宿宽应为 9°")
+        assertEquals(8.9, custom, 1e-9, "默认自定义角宿宽应为 8.9°")
+        assertNotEquals(modern, dacheng, "大成宿宽应异于今宿")
+        assertEquals("回归星学大成·黄道", PanZhiPresets.DaCheng.displayName)
+        assertEquals("回归玄枵虚中·黄道", PanZhiPresets.XuanXiao.displayName)
+        assertEquals("回归自定义宿·黄道", PanZhiPresets.CustomXiu.displayName)
+        build(PanZhiPresets.DaCheng)
+        build(PanZhiPresets.XuanXiao)
+        build(PanZhiPresets.CustomXiu)
+    }
+
+    @Test
+    fun xiuFrame_xuanxiao_anchors_xu_mid_at_zi() {
+        val zero = XiuTable.zeroDeg(0.266474)
+        val xu = 10
+        val start = XiuTable.startOf(xu, zero, XiuFrame.XUANXIAO)
+        val w = XiuTable.widthAt(xu, zero, XiuFrame.XUANXIAO)
+        val mid = AstroMath.norm360(start + w / 2.0)
+        // 子宫中点 315°（本盘支映射），非冬至 270°
+        assertTrue(abs(mid - 315.0) < 1e-6, "玄枵虚中虚宿中点应在 315°，实际=$mid")
+        assertEquals(0, MingGong.longitudeToBranchIndex(mid), "虚中应落子宫")
+    }
+
+    @Test
+    fun shenGong_sunrise_shifts_by_target_minus_birth() {
+        val moonIdx = 3
+        val birth = 5
+        val target = 2
+        val shen = MingGong.shenBranchIndex(
+            moonLon = MingGong.branchIndexToLonStart(moonIdx) + 15.0,
+            hourBranchIndex = birth,
+            method = ShenGongMethod.SUNRISE,
+            targetHourBranchIndex = target,
+        )
+        assertEquals((moonIdx + (target - birth) + 12) % 12, shen)
+        val chart = build(PanZhiPresets.GuoLao.copy(shenGongMethod = ShenGongMethod.SUNRISE))
+        assertNotNull(chart.shenBranch)
+    }
+
+    @Test
+    fun tianPan_remaps_ming_palace_and_degree() {
+        val off = build(PanZhiPresets.GuoLao)
+        val on = build(PanZhiPresets.GuoLao.copy(tianPan = true))
+        assertTrue("天盘时分" in PanZhiPresets.GuoLao.copy(tianPan = true).detail)
+        assertTrue(on.config.tianPan)
+        // 命度应按软件公式重算，且命宫/十二宫随之变
+        val sun = on.stars.first { it.key == "日" }.longitude
+        val expectDu = MingGong.tianPanMingDuLon(sun, 14, 5)
+        assertEquals(expectDu, on.mingDuLon, 1e-9, "天盘命度公式")
+        assertEquals(
+            MingGong.longitudeToBranchIndex(expectDu),
+            on.mingBranchIndex,
+            "天盘命宫应取命度整宫",
+        )
+        assertEquals("命宫", on.palaces[0].name)
+        assertEquals(on.mingBranch, on.palaces[0].branch)
+        // 与关闭天盘相比，命宫通常不同（时分角会推开）
+        assertNotEquals(off.mingBranchIndex, on.mingBranchIndex, "天盘应重映射命宫")
+        assertNotEquals(off.mingDuLon, on.mingDuLon, "天盘应重算命度")
+    }
+
     // ---------------------------------------------------------------- 黄道基准
 
     @Test

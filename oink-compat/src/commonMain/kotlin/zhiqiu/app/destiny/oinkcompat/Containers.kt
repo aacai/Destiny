@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -53,7 +52,7 @@ fun Scaffold(
     containerColor: Color = Color.Unspecified,
     content: @Composable (androidx.compose.foundation.layout.PaddingValues) -> Unit,
 ) {
-    Column(modifier.fillMaxSize().safeDrawingPadding()) {
+    Column(modifier.fillMaxSize()) {
         topBar()
         Box(Modifier.weight(1f).fillMaxWidth()) {
             content(androidx.compose.foundation.layout.PaddingValues(0.dp))

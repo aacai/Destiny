@@ -107,8 +107,9 @@ data class XiangEntry(
 )
 
 /**
- * 梅花盘：本/互/变 + 体用 + 旺衰 + 取象 + 经文。
+ * 梅花盘：本/变/互/错/综 + 体用 + 旺衰 + 取象 + 经文。
  * [movingYao] 初=1…上=6。
+ * 错=六爻皆反；综=上下颠倒（本卦）。
  */
 data class MeiHuaChart(
     val method: CastMethod,
@@ -118,6 +119,10 @@ data class MeiHuaChart(
     val ben: HexagramEntry,
     val hu: HexagramEntry,
     val bian: HexagramEntry,
+    /** 错卦：本卦六爻阴阳皆反 */
+    val cuo: HexagramEntry,
+    /** 综卦：本卦上下颠倒 */
+    val zong: HexagramEntry,
     val huFromBian: Boolean,
     val ti: Trigram,
     val yong: Trigram,
@@ -142,6 +147,9 @@ data class MeiHuaChart(
     val yongXiang: XiangEntry,
     val benText: ZhouyiText,
     val bianText: ZhouyiText,
+    val huText: ZhouyiText,
+    val cuoText: ZhouyiText,
+    val zongText: ZhouyiText,
     val question: String = "",
 ) {
     val movingYaoName: String

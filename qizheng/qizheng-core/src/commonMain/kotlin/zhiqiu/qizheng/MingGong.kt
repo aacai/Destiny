@@ -55,6 +55,24 @@ object MingGong {
     }
 
     /**
+     * 天盘时分角（度）：对照星命排盘 `(h + m/60 + 1) / 24 * 360`。
+     */
+    fun tianPanTimeDeg(hour: Int, minute: Int): Double =
+        360.0 * (hour + minute / 60.0 + 1.0) / 24.0
+
+    /**
+     * 天盘时分下的命度黄经。
+     *
+     * 对照星命 `getmd` 在 `tianpan && zhuti3==2` 时：
+     * `A = 太阳黄经 + 240 + 太阳宫内度 + 时分角`（今宿/回归下帧偏移为 0 的简化）。
+     * 命宫取该黄经所落整宫地支，再逆布十二宫。
+     */
+    fun tianPanMingDuLon(sunLon: Double, hour: Int, minute: Int): Double {
+        val within = ((sunLon % 30.0) + 30.0) % 30.0
+        return AstroMath.norm360(sunLon + 240.0 + within + tianPanTimeDeg(hour, minute))
+    }
+
+    /**
      * 命宫：生时加太阳宫，顺数至 [MingGongMethod.targetBranchIndex]。
      *
      * 果老法顺至卯（索引 3）；琴堂传本有顺至酉（索引 9）一说，待与参考盘核对。
@@ -81,12 +99,16 @@ object MingGong {
      * 琴堂法的对称性自检：酉时（支 9）生人，步数为 0，身宫即太阴所在宫，
      * 与立命法中「卯时生人命宫 = 太阳宫」同构。
      */
+    /**
+     * @param targetHourBranchIndex 日出/日落安身时，目标出没时辰地支；其余制法可忽略。
+     */
     fun shenBranchIndex(
         moonLon: Double,
         hourBranchIndex: Int,
         method: ShenGongMethod = ShenGongMethod.GUOLAO_MOON,
         zodiacOffset: Double = 0.0,
         equatorial: Boolean = false,
+        targetHourBranchIndex: Int = hourBranchIndex,
     ): Int {
         fun idx(lon: Double) = if (equatorial) equatorialBranchIndex(lon, zodiacOffset)
         else longitudeToBranchIndex(lon, zodiacOffset)
@@ -96,6 +118,12 @@ object MingGong {
                 val moonIdx = idx(moonLon)
                 val you = 9
                 (moonIdx - (you - hourBranchIndex + 12) % 12 + 12) % 12
+            }
+            // 对照星命排盘 anshen=2/3：身宫 = 太阴宫 + (出没时辰 − 生时)
+            ShenGongMethod.SUNRISE, ShenGongMethod.SUNSET -> {
+                val moonIdx = idx(moonLon)
+                val o = (targetHourBranchIndex - hourBranchIndex + 12) % 12
+                (moonIdx + o) % 12
             }
         }
     }

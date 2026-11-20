@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -58,10 +57,10 @@ import zhiqiu.xiaoliuren.lunarDayLabel
 import kotlin.random.Random
 
 private enum class TimeMode(val label: String) {
-    NOW("此刻"),
-    SOLAR("公历"),
-    LUNAR("农历"),
-    COUNTS("报数"),
+    NOW(XiaoLiuRenStrings.t("now")),
+    SOLAR(XiaoLiuRenStrings.t("solar")),
+    LUNAR(XiaoLiuRenStrings.t("lunar")),
+    COUNTS(XiaoLiuRenStrings.t("counts")),
 }
 
 /**
@@ -143,18 +142,18 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(XlrTheme.page)
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .background(XlrTheme.page),
     ) {
+        // 顶栏固定
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                "‹ 返回",
+                XiaoLiuRenStrings.backShort,
                 color = XlrTheme.accent,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -178,8 +177,15 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
                 Text("？", color = XlrTheme.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 14.dp)
+                .padding(bottom = 10.dp),
+        ) {
+        Spacer(modifier = Modifier.height(4.dp))
 
         SectionCard("占问") {
             BasicTextField(
@@ -427,7 +433,7 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
                 .padding(vertical = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text("保存此课", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(XiaoLiuRenStrings.saveCourse, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
         if (savedHint) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -440,6 +446,7 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
             )
         }
         Spacer(modifier = Modifier.height(24.dp))
+        } // scroll body
     }
 
     if (showRule) {
@@ -466,10 +473,10 @@ private fun RuleDialog(chart: XiaoLiuRenChart, onDismiss: () -> Unit) {
                     .verticalScroll(rememberScrollState()),
             ) {
                 RuleSection("取数") {
-                    Bullet("此刻", "取设备时间的农历月、农历日与时辰。")
-                    Bullet("公历", "手选公历年月日时分，自动换算成农历月日与时辰；可为过去的事件补课。")
-                    Bullet("农历", "手选农历月日与时辰；闰月按本月计，只标注、不改落宫。")
-                    Bullet("报数", "随口报三个数，依次作月、日、时之数，推演与农历同式。")
+                    Bullet(XiaoLiuRenStrings.now, XiaoLiuRenStrings.nowDesc)
+                    Bullet(XiaoLiuRenStrings.solar, XiaoLiuRenStrings.solarDesc)
+                    Bullet(XiaoLiuRenStrings.lunar, XiaoLiuRenStrings.lunarDesc)
+                    Bullet(XiaoLiuRenStrings.counts, XiaoLiuRenStrings.countsDesc)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text("时辰之数：子时为一，顺至亥时为十二，故辰时数五位。", color = XlrTheme.muted, fontSize = 12.sp)
                     Spacer(modifier = Modifier.height(8.dp))
@@ -930,16 +937,26 @@ fun XiaoLiuRenCaseViewer(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(XlrTheme.page)
-                .safeDrawingPadding()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .background(XlrTheme.page),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                TextButton(onClick = onBack) { Text("‹ 返回", color = XlrTheme.accent, fontSize = 15.sp) }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onBack) { Text(XiaoLiuRenStrings.backShort, color = XlrTheme.accent, fontSize = 15.sp) }
                 Text("课式详情", color = XlrTheme.ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
-            Spacer(modifier = Modifier.height(14.dp))
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 14.dp),
+            ) {
+            Spacer(modifier = Modifier.height(8.dp))
             if (question.isNotBlank()) {
                 Meta("占问", question)
                 Spacer(modifier = Modifier.height(12.dp))
@@ -951,7 +968,7 @@ fun XiaoLiuRenCaseViewer(
             Meta("课式", chart.castText)
             Spacer(modifier = Modifier.height(10.dp))
             if (chart.solarText.isNotBlank()) {
-                Meta("公历", chart.solarText)
+                Meta(XiaoLiuRenStrings.solar, chart.solarText)
                 Spacer(modifier = Modifier.height(10.dp))
             }
             Meta("三数", "${chart.monthCount}・${chart.dayCount}・${chart.hourCount}")
@@ -979,6 +996,7 @@ fun XiaoLiuRenCaseViewer(
                     }
                 }
             }
+            } // scroll body
         }
     }
 }

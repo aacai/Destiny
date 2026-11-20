@@ -26,6 +26,9 @@ fun assemble(
     val bits = ben.bitsBottomUp.toMutableList()
     bits[movingYao - 1] = if (bits[movingYao - 1] == 1) 0 else 1
     val bian = hexagramOf(bits)
+    // 错：六爻皆反；综：上下颠倒
+    val cuo = hexagramOf(ben.bitsBottomUp.map { 1 - it })
+    val zong = hexagramOf(ben.bitsBottomUp.reversed())
 
     val (huLower, huUpper) = mutualTrigrams(bits = ben.bitsBottomUp)
     var hu = hexagramOf(huUpper, huLower)
@@ -67,6 +70,8 @@ fun assemble(
         ben = ben,
         hu = hu,
         bian = bian,
+        cuo = cuo,
+        zong = zong,
         huFromBian = huFromBian,
         ti = ti,
         yong = yong,
@@ -91,6 +96,9 @@ fun assemble(
         yongXiang = xiangOf(yong),
         benText = zhouyiOf(ben),
         bianText = zhouyiOf(bian),
+        huText = zhouyiOf(hu),
+        cuoText = zhouyiOf(cuo),
+        zongText = zhouyiOf(zong),
         question = question,
     )
 }

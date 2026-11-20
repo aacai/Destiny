@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -52,7 +51,10 @@ import zhiqiu.qimen.PlateKind
 import zhiqiu.qimen.QimenChart
 import zhiqiu.qimen.cast
 
-private enum class TimeMode(val label: String) { Now("此刻"), Pick("自选") }
+private enum class TimeMode(val label: String) {
+    Now(QimenStrings.t("now")),
+    Pick(QimenStrings.t("pick")),
+}
 
 /** 奇门的一次存档：中性字段，由宿主组装成档案。 */
 data class QimenSave(
@@ -116,17 +118,17 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (QimenSave) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(QimenTheme.page)
-            .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .background(QimenTheme.page),
     ) {
+        // 顶栏固定
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "‹ 返回",
+                QimenStrings.backShort,
                 color = QimenTheme.accent,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -155,9 +157,16 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (QimenSave) -> Unit) {
                 Text("？", color = QimenTheme.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
             }
         }
-
-        Spacer(modifier = Modifier.height(12.dp))
-        SectionCard("占问") {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 14.dp)
+                .padding(bottom = 10.dp),
+        ) {
+        Spacer(modifier = Modifier.height(4.dp))
+        SectionCard(QimenStrings.question) {
             BasicTextField(
                 value = question,
                 onValueChange = { question = it },
@@ -268,18 +277,24 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (QimenSave) -> Unit) {
                         .padding(vertical = 12.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("保存此局", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                    Text(QimenStrings.saveJu, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 }
             },
             onFailure = { error ->
                 Text(
-                    error.message ?: "这个时间排不出来",
+                    "这个时间排不出来",
                     color = QimenTheme.unlucky,
                     fontSize = 13.sp,
                 )
+                val detail = error.message?.takeIf { it.isNotBlank() && !it.startsWith("index", ignoreCase = true) }
+                if (detail != null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(detail, color = QimenTheme.muted, fontSize = 11.sp)
+                }
             },
         )
         Spacer(modifier = Modifier.height(16.dp))
+        } // scroll body
     }
 
     if (showRule) {

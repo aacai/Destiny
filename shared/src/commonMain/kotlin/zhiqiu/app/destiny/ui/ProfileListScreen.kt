@@ -36,12 +36,11 @@ import zhiqiu.app.destiny.oinkcompat.TooltipBox
 import zhiqiu.app.destiny.oinkcompat.TooltipDefaults
 import zhiqiu.app.destiny.oinkcompat.rememberTooltipState
 import androidx.compose.ui.text.input.VisualTransformation
-import zhiqiu.app.destiny.oinkcompat.Scaffold
+import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
 import zhiqiu.app.destiny.oinkcompat.Text
 import zhiqiu.app.destiny.oinkcompat.TextButton
-import zhiqiu.app.destiny.oinkcompat.TopAppBar
-import zhiqiu.app.destiny.oinkcompat.TopAppBarDefaults
 import zhiqiu.app.destiny.oinkcompat.CircularProgressIndicator
+import zhiqiu.app.destiny.i18n.AppStrings
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -132,7 +131,6 @@ private fun TipIconButton(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileListScreen(
     profiles: List<Profile>,
@@ -147,7 +145,6 @@ fun ProfileListScreen(
     onOpenXiaoLiuRen: () -> Unit = {},
     onOpenMeiHua: () -> Unit = {},
     onOpenQimen: () -> Unit = {},
-    onOpenXingmingRef: () -> Unit = {},
     onOpenAbout: () -> Unit = {},
     colorMode: DestinyColorMode = DestinyColorMode.Light,
     onToggleColorMode: () -> Unit = {},
@@ -221,82 +218,80 @@ fun ProfileListScreen(
             if (ascending) filtered.sortedBy { it.createdAt } else filtered.sortedByDescending { it.createdAt }
     }
 
-    Scaffold(
-        containerColor = DestinyTheme.page,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Column {
-                        Text("档案", color = DestinyTheme.ink, fontWeight = FontWeight.Bold)
-                        Text(
-                            if (q.isBlank()) "共 ${profiles.size} 个档案"
-                            else "匹配 ${sorted.size} / ${profiles.size}",
-                            color = DestinyTheme.muted,
-                            fontSize = 12.sp,
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DestinyTheme.page),
-                actions = {
-                    TipIconButton(
-                        icon = if (colorMode == DestinyColorMode.Dark) FeatherIcons.Sun else FeatherIcons.Moon,
-                        contentDescription = if (colorMode == DestinyColorMode.Dark) "日间模式" else "夜间模式",
-                        onClick = onToggleColorMode,
-                    )
-                    Box {
-                        TipIconButton(
-                            icon = FeatherIcons.MoreVertical,
-                            contentDescription = "数据与备份",
-                            onClick = { showMenu = !showMenu },
-                        )
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                            containerColor = DestinyTheme.card,
-                        ) {
-                            MenuAction(FeatherIcons.Upload, "导出备份") {
-                                showMenu = false
-                                exportMsg = ""
-                                showExport = true
-                            }
-                            MenuAction(FeatherIcons.Download, "导入备份") {
-                                showMenu = false
-                                importMsg = ""
-                                showImport = true
-                            }
-                            MenuAction(FeatherIcons.Share2, "分享到链接") {
-                                showMenu = false
-                                shareMsg = ""
-                                shareQr.value = null
-                                showShare = true
-                            }
-                            MenuAction(FeatherIcons.Link, "从链接导入") {
-                                showMenu = false
-                                linkImportMsg = ""
-                                showLinkImport = true
-                            }
-                            MenuAction(FeatherIcons.BookOpen, "关于") {
-                                showMenu = false
-                                onOpenAbout()
-                            }
-                        }
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        Column(
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DestinyTheme.page),
+    ) {
+        // 固定顶栏（不用 M3 TopAppBar）
+        Row(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(start = 16.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(AppStrings.archive, color = DestinyTheme.ink, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text(
+                    if (q.isBlank()) "共 ${profiles.size} 个档案"
+                    else "匹配 ${sorted.size} / ${profiles.size}",
+                    color = DestinyTheme.muted,
+                    fontSize = 12.sp,
+                )
+            }
+            TipIconButton(
+                icon = if (colorMode == DestinyColorMode.Dark) FeatherIcons.Sun else FeatherIcons.Moon,
+                contentDescription = if (colorMode == DestinyColorMode.Dark) AppStrings.dayMode else AppStrings.nightMode,
+                onClick = onToggleColorMode,
+            )
+            Box {
+                TipIconButton(
+                    icon = FeatherIcons.MoreVertical,
+                    contentDescription = AppStrings.dataBackup,
+                    onClick = { showMenu = !showMenu },
+                )
+                DropdownMenu(
+                    expanded = showMenu,
+                    onDismissRequest = { showMenu = false },
+                    containerColor = DestinyTheme.card,
+                ) {
+                    MenuAction(FeatherIcons.Upload, AppStrings.exportBackup) {
+                        showMenu = false
+                        exportMsg = ""
+                        showExport = true
+                    }
+                    MenuAction(FeatherIcons.Download, AppStrings.importBackup) {
+                        showMenu = false
+                        importMsg = ""
+                        showImport = true
+                    }
+                    MenuAction(FeatherIcons.Share2, AppStrings.shareLink) {
+                        showMenu = false
+                        shareMsg = ""
+                        shareQr.value = null
+                        showShare = true
+                    }
+                    MenuAction(FeatherIcons.Link, AppStrings.importLink) {
+                        showMenu = false
+                        linkImportMsg = ""
+                        showLinkImport = true
+                    }
+                    MenuAction(FeatherIcons.BookOpen, AppStrings.about) {
+                        showMenu = false
+                        onOpenAbout()
+                    }
+                }
+            }
+        }
+        HorizontalDivider(thickness = 0.5.dp, color = DestinyTheme.line)
+        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
             ToolStrip(
                 onAdd = onAdd,
                 onOpenLiuyao = onOpenLiuyao,
                 onOpenXiaoLiuRen = onOpenXiaoLiuRen,
                 onOpenMeiHua = onOpenMeiHua,
                 onOpenQimen = onOpenQimen,
-                onOpenXingmingRef = onOpenXingmingRef,
                 onOpenBooks = onOpenBooks,
             )
             SearchBar(
@@ -365,11 +360,11 @@ fun ProfileListScreen(
                         pendingDelete = null
                         onDelete(profile)
                     },
-                ) { Text("删除", color = DestinyTheme.danger) }
+                ) { Text(AppStrings.delete, color = DestinyTheme.danger) }
             },
             dismissButton = {
                 TextButton(onClick = { pendingDelete = null }) {
-                    Text("取消", color = DestinyTheme.muted)
+                    Text(AppStrings.cancel, color = DestinyTheme.muted)
                 }
             },
         )
@@ -471,7 +466,7 @@ private fun ExportDialog(
     AlertDialog(
         onDismissRequest = onClose,
         confirmButton = {
-            TextButton(onClick = onClose) { Text("关闭", color = DestinyTheme.accent) }
+            TextButton(onClick = onClose) { Text(AppStrings.close, color = DestinyTheme.accent) }
         },
         title = { Text("导出数据", color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
         text = {
@@ -492,7 +487,7 @@ private fun ExportDialog(
                         value = password,
                         onValueChange = { password = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = "密码",
+                        label = AppStrings.password,
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                     )
@@ -527,7 +522,7 @@ private fun ImportDialog(
     AlertDialog(
         onDismissRequest = onClose,
         confirmButton = {
-            TextButton(onClick = onClose) { Text("取消", color = DestinyTheme.muted) }
+            TextButton(onClick = onClose) { Text(AppStrings.cancel, color = DestinyTheme.muted) }
         },
         title = { Text("导入数据", color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
         text = {
@@ -567,7 +562,6 @@ private fun ToolStrip(
     onOpenXiaoLiuRen: () -> Unit,
     onOpenMeiHua: () -> Unit,
     onOpenQimen: () -> Unit,
-    onOpenXingmingRef: () -> Unit,
     onOpenBooks: () -> Unit,
 ) {
     Row(
@@ -579,12 +573,11 @@ private fun ToolStrip(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         ToolCard(FeatherIcons.Plus, "新建档案", "排盘建档", onAdd, primary = true)
-        ToolCard(FeatherIcons.Star, "星命 Demo", "政余对照", onOpenXingmingRef)
         ToolCard(FeatherIcons.Hexagon, "六爻", "摇卦断事", onOpenLiuyao)
         ToolCard(FeatherIcons.Compass, "小六壬", "掌诀起课", onOpenXiaoLiuRen)
         ToolCard(FeatherIcons.Aperture, "梅花", "易数起卦", onOpenMeiHua)
         ToolCard(FeatherIcons.Grid, "奇门", "时家排盘", onOpenQimen)
-        ToolCard(FeatherIcons.BookOpen, "书架", "古籍原文", onOpenBooks)
+        ToolCard(FeatherIcons.BookOpen, AppStrings.bookshelf, AppStrings.ancientTexts, onOpenBooks)
     }
 }
 
@@ -706,7 +699,7 @@ private fun TypeFilterRow(
     ) {
         val options = listOf(null) + CaseType.ALL
         options.forEach { type ->
-            val label = if (type == null) "全部" else CaseType.label(type)
+            val label = if (type == null) AppStrings.all else CaseType.label(type)
             val active = type == current
             val count = if (type == null) counts.values.sum() else (counts[type] ?: 0)
             Row(
@@ -872,13 +865,13 @@ private fun ProfileRow(
         @OptIn(ExperimentalMaterial3Api::class)
         TooltipBox(
             positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
-            tooltip = { PlainTooltip { Text("删除") } },
+            tooltip = { PlainTooltip { Text(AppStrings.delete) } },
             state = rememberTooltipState(),
         ) {
             IconButton(onClick = onDelete) {
                 Icon(
                     imageVector = FeatherIcons.Trash2,
-                    contentDescription = "删除",
+                    contentDescription = AppStrings.delete,
                     tint = theme.danger,
                     modifier = Modifier.size(18.dp),
                 )
@@ -908,11 +901,11 @@ private fun ShareDialog(
                     }
                 }
                 TextButton(onClick = onClose) {
-                    Text("关闭", color = DestinyTheme.accent)
+                    Text(AppStrings.close, color = DestinyTheme.accent)
                 }
             }
         },
-        title = { Text("分享到链接", color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
+        title = { Text(AppStrings.shareLink, color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
                 Text(
@@ -931,7 +924,7 @@ private fun ShareDialog(
                         value = password,
                         onValueChange = { password = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = "密码",
+                        label = AppStrings.password,
                         singleLine = true,
                         visualTransformation = PasswordVisualTransformation(),
                     )
@@ -996,9 +989,9 @@ private fun LinkImportDialog(
     AlertDialog(
         onDismissRequest = onClose,
         confirmButton = {
-            TextButton(onClick = onClose) { Text("取消", color = DestinyTheme.muted) }
+            TextButton(onClick = onClose) { Text(AppStrings.cancel, color = DestinyTheme.muted) }
         },
-        title = { Text("从链接导入", color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
+        title = { Text(AppStrings.importLink, color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
         text = {
             Column {
                 Text(

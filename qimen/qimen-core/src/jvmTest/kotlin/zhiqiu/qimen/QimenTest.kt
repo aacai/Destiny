@@ -117,6 +117,16 @@ class QimenTest {
     }
 
     @Test
+    fun 下午时辰五鼠遁不越界且与节气历一致() {
+        // 曾因时干未对 10 取模，下午抛 index:16,size:10
+        for (hour in listOf(14, 16, 18, 20, 22)) {
+            val time = SolarTime(2026, 11, 20, hour, 0, 0)
+            val chart = cast(2026, 11, 20, hour, 0, PlateKind.Zhuan, DayBoundary.Hour23)
+            assertEquals(time.getSixtyCycleHour().getSixtyCycle().getName(), chart.pillars[3].label, "时=$hour")
+        }
+    }
+
+    @Test
     fun 二十三点换日与零点换日的日柱不同() {
         val time = SolarTime(2026, 6, 15, 23, 30, 0)
         val early = cast(2026, 6, 15, 23, 30, PlateKind.Zhuan, DayBoundary.Hour23)

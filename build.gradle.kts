@@ -18,10 +18,7 @@ extra["appVersion"] = "0.0.1"
 subprojects {
     configurations.configureEach {
         resolutionStrategy.eachDependency {
-            if (requested.group == "org.jetbrains.compose.material3") {
-                useVersion(libs.versions.material3.get())
-                because("Align Material3 with Compose Multiplatform ${libs.versions.composeMultiplatform.get()}")
-            } else if (
+            if (
                 requested.group == "org.jetbrains.compose.annotation-internal" ||
                 requested.group == "org.jetbrains.compose.collection-internal"
             ) {

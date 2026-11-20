@@ -79,14 +79,16 @@ fun QizhengWheel(
     val cX = basePx / 2f
     val cY = basePx / 2f
     val rTintIn = min(cX, cY) * 0.84f * 0.52f
-    val rTintOut = min(cX, cY) * 0.84f * 0.60f
+    val rTintOut = min(cX, cY) * 0.84f * 0.59f
     val ming = chart.mingBranchIndex
     // 宿零点随岁差走，绘制必须与排盘用同一个值（取代原先的全局状态）
     val xiuZero = chart.xiuZeroDeg
     // 宿界框架（今宿界/回归古宿/古宿岁差），绘制与排盘须同一框架
     val xiuFrame = chart.config.xiuFrame
+    val customXiu = chart.config.customXiuWidths
     // 赤道恒星制：盘面全按赤经布
     val eq = chart.config.equatorial
+    // 天盘时分的宫序重映射在 Builder 完成（新命宫居下）；此处不再叠视觉转角
     val spans = chart.daXianSpans.ifEmpty { List(12) { 10.0 } }
     val totalYears = spans.sum().coerceAtLeast(1.0)
     val yearShen = chart.yearShenShaByBranch.ifEmpty { chart.shenShaByBranch }
@@ -125,8 +127,8 @@ fun QizhengWheel(
                     var best = -1
                     var bestD = Double.MAX_VALUE
                     for (idx in 0 until 28) {
-                        val start = XiuTable.startOf(idx, xiuZero, xiuFrame, eq)
-                        val width = XiuTable.widthAt(idx, xiuZero, xiuFrame, eq)
+                        val start = XiuTable.startOf(idx, xiuZero, xiuFrame, eq, customXiu)
+                        val width = XiuTable.widthAt(idx, xiuZero, xiuFrame, eq, customXiu)
                         val aMid = lonScreenAngle(start + width / 2.0, ming, eq, chart.zodiacOffset)
                         val d = kotlin.math.abs(
                             kotlin.math.atan2(
@@ -163,9 +165,9 @@ fun QizhengWheel(
         val rShenYOut = rAgeIn
         val rShenYIn = r * 0.80f
         val rShenDOut = rShenYIn
-        val rShenDIn = r * 0.70f
+        val rShenDIn = r * 0.72f
         val rStarOut = rShenDIn
-        val rStarIn = r * 0.60f
+        val rStarIn = r * 0.59f
         val rXiuOut = rStarIn
         val rXiuIn = r * 0.52f
         val rPalaceOut = rXiuIn
@@ -196,8 +198,8 @@ fun QizhengWheel(
         // 二十八宿染色：只填宿环格子。屏幕角走短弧（不按黄经逐点，避免宫界处锯齿）
         if (xiuColors != null) {
             for (idx in 0 until 28) {
-                val start = XiuTable.startOf(idx, xiuZero, xiuFrame, eq)
-                val width = XiuTable.widthAt(idx, xiuZero, xiuFrame, eq)
+                val start = XiuTable.startOf(idx, xiuZero, xiuFrame, eq, customXiu)
+                val width = XiuTable.widthAt(idx, xiuZero, xiuFrame, eq, customXiu)
                 val a0 = angOfLon(start)
                 val sweep = shortDelta(a0, angOfLon(start + width))
                 val steps = 16
@@ -270,50 +272,63 @@ fun QizhengWheel(
         )
 
         // 5) 七政四余：黄道度刻度（画在星曜层内缘，明显）+ 星曜错开 + 引线连回真实刻度
-        val starRad = (r * 0.028f).coerceIn(8f, 11f)
-        // 布局仿参考图：星曜摆外侧，刻度留在内缘，引线自外向内连
-        val rStarCenter = rStarOut - starRad - 3f
-        val rTickBase = rStarIn
-        val tickMaxLen = tickUnit * 2.6f
+        val starRad = (r * 0.024f).coerceIn(7f, 10f)
+        // 刻度贴星环内缘，星曜圈贴外缘，两者径向不重叠；引线只在这条带内连接。
+        val rTickBase = rStarIn + 1.5f
+        val tickMaxLen = tickUnit * 2.0f
 
-        // ---- 刻度环：每度一根短线，30°/5° 加长加粗（赤道制按黄经度转赤经定位）----
-        for (deg in 0 until 360) {
-            val a = angOfLon(if (eq) AstroMath.rightAscension(deg.toDouble()) else deg.toDouble())
-            val len = when {
-                deg % 30 == 0 -> tickUnit * 2.6f   // 宫界长刻度
-                deg % 5 == 0 -> tickUnit * 1.7f    // 五度中刻度
-                else -> tickUnit * 1.0f            // 每度短刻度
+        // ---- 黄道度刻度（函数化：星层之后再画一次，确保不被星圈盖住）----
+        fun drawDegreeTicks() {
+            for (deg in 0 until 360) {
+                val a = angOfLon(if (eq) AstroMath.rightAscension(deg.toDouble()) else deg.toDouble())
+                val len = when {
+                    deg % 30 == 0 -> tickUnit * 2.0f   // 宫界长刻度
+                    deg % 5 == 0 -> tickUnit * 1.35f   // 五度中刻度
+                    else -> tickUnit * 0.8f            // 每度短刻度
+                }
+                drawLine(
+                    Tick, pt(a, rTickBase), pt(a, rTickBase + len),
+                    strokeWidth = when {
+                        deg % 30 == 0 -> 1.6f
+                        deg % 5 == 0 -> 1.15f
+                        else -> 0.7f
+                    },
+                )
             }
-            drawLine(
-                Tick, pt(a, rTickBase), pt(a, rTickBase + len),
-                strokeWidth = when {
-                    deg % 30 == 0 -> 1.6f
-                    deg % 5 == 0 -> 1.15f
-                    else -> 0.7f
-                },
-            )
         }
+        drawDegreeTicks()
 
         // ---- 星曜层（避让 + 引线 + 星徽 + 文字 + 庙旺）----
-        // 注意：此层**最后绘制**（仅晚于宫名/卦支），否则宿环界线与宿名会盖住星曜文字下缘
+        // 注意：此层在宫名/卦支之后绘制，避免宿环界线与宿名盖住星曜文字下缘；
+        // 度刻度会在星层后再画一遍，保证刻度始终可见。
         fun drawStarLayer() {
             // 切向避让：角距不足则顺延，避免星曜互相叠压
             data class StarItem(val index: Int, val star: StarView, val angle: Double)
             val sortedStars = chart.stars.mapIndexed { i, s -> StarItem(i, s, angOfLon(s.longitude)) }
                 .sortedBy { it.angle }
             // 每颗星预测量文字，圈半径要能完整包住文字（文字外围画圈线）
-            val starLabelFs = fs(11)
+            val starLabelFs = fs(9)
             val labelStyle = TextStyle(fontSize = starLabelFs, fontWeight = FontWeight.Bold)
             val layouts = chart.stars.map { measurer.measure(it.label, labelStyle) }
             // 圈半径：取文字宽/高的一半再加内边距，保证文字不撑出圈
-            val labelRads = layouts.map { lay ->
+            val rawLabelRads = layouts.map { lay ->
                 maxOf(starRad, lay.size.width / 2f + 4f, lay.size.height / 2f + 3f)
             }
+            // 刻度带：内缘短刻度 + 引线落点；星圈内缘不得侵入此带
+            val tickReserve = tickMaxLen + 4f
+            val band = (rStarOut - rStarIn - tickReserve - 4f).coerceAtLeast(starRad * 2f)
+            // 单侧最大半径：整圈直径不超过可用带宽，否则缩圈以免压住度刻度
+            val maxAllowedR = (band / 2f).coerceAtLeast(starRad * 0.85f)
+            val labelRads = rawLabelRads.map { it.coerceAtMost(maxAllowedR) }
             val maxLabelR = labelRads.maxOrNull() ?: starRad
+            // 圈贴外缘；若仍可能压刻度则整体内移到安全中线
+            val rStarCenterIdeal = rStarOut - maxLabelR - 2f
+            val rStarCenterMin = rStarIn + tickReserve + maxLabelR
+            val rStarCenter = maxOf(rStarCenterMin, minOf(rStarCenterIdeal, rStarOut - maxLabelR - 2f))
             val count = sortedStars.size
-            // 最小角距（弧度，含间隙）；星太多时必须压到能塞进一圈，否则贪心会推出 360°
+            // 最小角距按「圈 + 两侧辅助标记」算，避免切线方向的小字压到邻星
             val minSep = minOf(
-                (maxLabelR * 2f + 4f) / rStarCenter,
+                (maxLabelR * 2f + 28f) / rStarCenter.coerceAtLeast(1f),
                 (2.0 * PI / count).toFloat() * 0.95f,
             )
             val adj = DoubleArray(count) { sortedStars[it].angle }
@@ -331,20 +346,13 @@ fun QizhengWheel(
                 }
             }
             val adjMap = HashMap<Int, Double>(count)
-            // 相邻星交替内外错层：即便角距仍不够，文字也落在不同半径圈上互不覆盖
-            val layerMap = HashMap<Int, Int>(count)
-            sortedStars.forEachIndexed { i, item ->
-                adjMap[item.index] = adj[i]
-                layerMap[item.index] = i % 2
-            }
-            val layerOffset = maxLabelR * 2f + 2f
+            sortedStars.forEachIndexed { i, item -> adjMap[item.index] = adj[i] }
 
             // 引线 + 圈线 + 文字
             chart.stars.forEachIndexed { idx, star ->
                 val realAng = angOfLon(star.longitude)
                 val shownAng = adjMap[idx] ?: realAng   // 避让后的展示角
-                val shownR = rStarCenter - (layerMap[idx] ?: 0) * layerOffset
-                val p = pt(shownAng, shownR)
+                val p = pt(shownAng, rStarCenter)
                 val rad = labelRads.getOrElse(idx) { starRad }
                 val style = planetStyle(star.key, Paper)
                 val ringColor = if (style.badge) style.fill else StarGreen
@@ -373,30 +381,30 @@ fun QizhengWheel(
                     layout,
                     topLeft = Offset(p.x - layout.size.width / 2f, p.y - layout.size.height / 2f),
                 )
-                // 迟留伏逆：逆用红点；迟/留/伏用小字标在圈旁
+                // 辅助标记只沿切线偏移，留在同一星带内，不越界压到刻度、宿名或宫名。
+                val tx = (-sin(shownAng)).toFloat()
+                val ty = (-cos(shownAng)).toFloat()
                 if (star.retro) {
-                    drawCircle(Paper, 3.4f, Offset(p.x + rad * 0.8f, p.y - rad * 0.8f))
-                    drawCircle(Red, 2.2f, Offset(p.x + rad * 0.8f, p.y - rad * 0.8f))
+                    val rp = Offset(p.x + tx * (rad + 5f), p.y + ty * (rad + 5f))
+                    drawCircle(Paper, 3.4f, rp)
+                    drawCircle(Red, 2.2f, rp)
                 } else if (star.motion in setOf("迟", "留", "伏")) {
                     val mLayout = measurer.measure(
                         star.motion,
-                        TextStyle(fontSize = fs(7), color = Red, fontWeight = FontWeight.Bold),
+                        TextStyle(fontSize = fs(6), color = Red, fontWeight = FontWeight.Bold),
                     )
+                    val mp = Offset(p.x + tx * (rad + 7f), p.y + ty * (rad + 7f))
                     drawText(
                         mLayout,
-                        topLeft = Offset(
-                            p.x + rad * 0.7f - mLayout.size.width / 2f,
-                            p.y - rad * 0.9f - mLayout.size.height / 2f,
-                        ),
+                        topLeft = Offset(mp.x - mLayout.size.width / 2f, mp.y - mLayout.size.height / 2f),
                     )
                 }
-                // 庙旺利陷：标在圈朝盘心一侧
                 chart.dignity[star.key]?.let { level ->
-                    val dp = pt(shownAng, shownR - rad - 6f)
                     val dLayout = measurer.measure(
                         level,
-                        TextStyle(fontSize = fs(7), color = SunGold, fontWeight = FontWeight.Bold),
+                        TextStyle(fontSize = fs(6), color = SunGold, fontWeight = FontWeight.Bold),
                     )
+                    val dp = Offset(p.x - tx * (rad + 7f), p.y - ty * (rad + 7f))
                     drawText(
                         dLayout,
                         topLeft = Offset(dp.x - dLayout.size.width / 2f, dp.y - dLayout.size.height / 2f),
@@ -409,10 +417,10 @@ fun QizhengWheel(
         val xiuBorder = if (xiuColors != null) Ink else Soft
         val xiuBorderW = if (xiuColors != null) 1.8f else 1.3f
         for (idx in 0 until 28) {
-            val start = XiuTable.startOf(idx, xiuZero, xiuFrame, eq)
+            val start = XiuTable.startOf(idx, xiuZero, xiuFrame, eq, customXiu)
             val a0 = angOfLon(start)
             drawLine(xiuBorder, pt(a0, rXiuOut), pt(a0, rXiuIn), strokeWidth = xiuBorderW)
-            val mid = start + XiuTable.widthAt(idx, xiuZero, xiuFrame, eq) / 2.0
+            val mid = start + XiuTable.widthAt(idx, xiuZero, xiuFrame, eq, customXiu) / 2.0
             val a = angOfLon(mid)
             val layout = measurer.measure(
                 XiuTable.names()[idx],
@@ -442,8 +450,10 @@ fun QizhengWheel(
             drawRadialText(layout, pt(a, (rGuaOut + rGuaIn) / 2f), a)
         }
 
-        // 星曜层最后画：任何环线/宿名/宫名都不再盖住星曜文字
+        // 星曜层：盖住宿名/宫名环线，但自身不侵入刻度带
         drawStarLayer()
+        // 度刻度压在星层之上，避免引线/圆标挡住刻度
+        drawDegreeTicks()
 
         // 9) 盘心立命
         val top = measurer.measure(

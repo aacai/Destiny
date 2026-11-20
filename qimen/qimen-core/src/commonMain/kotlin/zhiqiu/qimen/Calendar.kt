@@ -66,8 +66,8 @@ fun pillarsOf(time: SolarTime, boundary: DayBoundary): List<Pillar> {
     val day = pillarOf(dayCycle)
     val branchIndex = if (time.hour == 23) 0 else (time.hour + 1) / 2
     val branch = Branch.entries[branchIndex]
-    // 五鼠遁：时干由日干推出，日界改了日干，时干跟着改。
-    val stem = Stem.entries[(day.stem.ordinal % 5) * 2 + branchIndex]
+    // 五鼠遁：甲己→甲子、乙庚→丙子、丙辛→戊子、丁壬→庚子、戊癸→壬子，再按时支顺推，干序取模 10。
+    val stem = Stem.entries[((day.stem.ordinal % 5) * 2 + branchIndex) % 10]
     return listOf(
         pillarOf(cycleHour.getYear()),
         pillarOf(cycleHour.getMonth()),

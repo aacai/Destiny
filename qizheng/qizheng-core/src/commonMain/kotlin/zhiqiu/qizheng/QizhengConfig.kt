@@ -78,14 +78,20 @@ enum class XiuSystem(val label: String) {
  *
  * | 框架 | 宿宽 | 角宿零点锚 |
  * |---|---|---|
- * | [MODERN] | 今宿宽（实测今宿界，见 [XiuTable.startsModern]） | 随岁差东移（回归黄经） |
- * | [ANCIENT_SCALED] | 古宿宽 × 360/365.25（回归古宿） | 随岁差东移（回归黄经） |
- * | [ANCIENT_J2000] | 古宿宽 × 360/365.25 | 固定 J2000 恒星锚（古宿岁差） |
+ * | [MODERN] | 今宿宽（实测今宿界） | 随岁差东移 |
+ * | [ANCIENT_SCALED] | 古宿宽 × 360/365.25 | 随岁差东移 |
+ * | [ANCIENT_J2000] | 古宿宽 × 360/365.25 | 固定 J2000 恒星锚 |
+ * | [DACHENG] | 《星学大成》固定今度表 | 随岁差东移 |
+ * | [XUANXIAO] | 今宿宽，虚宿居中 | 虚宿中点锚子正 |
+ * | [CUSTOM] | [QizhengConfig.customXiuWidths] | 随岁差东移 |
  */
 enum class XiuFrame(val label: String) {
     MODERN("今宿界"),
     ANCIENT_SCALED("回归古宿"),
     ANCIENT_J2000("古宿岁差"),
+    DACHENG("星学大成"),
+    XUANXIAO("玄枵虚中"),
+    CUSTOM("自定义宿度"),
 }
 
 // ------------------------------------------------------------------ 宫位与立命
@@ -131,6 +137,10 @@ enum class MingGongMethod(val label: String, val targetBranchIndex: Int) {
 enum class ShenGongMethod(val label: String) {
     GUOLAO_MOON("果老·太阴宫"),
     QINTANG_YOU("琴堂·太阴逆至酉"),
+    /** 太阴宫起，按「出没时辰 − 生时」推移（对照星命排盘 anshen=2） */
+    SUNRISE("日出安身"),
+    /** 同上，目标时辰取日落（anshen=3） */
+    SUNSET("日落安身"),
 }
 
 // ------------------------------------------------------------------ 时间基准
@@ -224,6 +234,11 @@ data class QizhengConfig(
     // 二十八宿（宿界框架 + 宿内读数量纲）
     val xiuSystem: XiuSystem = XiuSystem.ANCIENT,
     val xiuFrame: XiuFrame = XiuFrame.MODERN,
+    /**
+     * 自定义二十八宿宽度（角→轸，今度，须 28 项且和≈360）。
+     * 仅 [XiuFrame.CUSTOM] 使用；null 时用 [XiuTable.DefaultCustomWidths]。
+     */
+    val customXiuWidths: List<Double>? = null,
 
     // 宫位与立命
     val houseSystem: HouseSystem = HouseSystem.WHOLE_SIGN,
@@ -254,6 +269,13 @@ data class QizhengConfig(
 
     // 亮度
     val dignityMode: DignityMode = DignityMode.OFF,
+
+    /**
+     * 天盘时分：按出生时刻重算命度并重映射命宫/十二宫
+     * （对照星命 `getmd`：`命度 = 日+240+宫内度+时分角`，命宫取该度整宫）。
+     * 盘面以新命宫居下，不再另做纯视觉转盘（避免与宫序重映射叠算）。
+     */
+    val tianPan: Boolean = false,
 ) {
     /**
      * 排盘结果顶栏显示的盘制名，如「回归今宿·黄道」。
@@ -273,6 +295,9 @@ data class QizhengConfig(
                     XiuFrame.MODERN -> "今宿"
                     XiuFrame.ANCIENT_SCALED -> "古宿"
                     XiuFrame.ANCIENT_J2000 -> "古宿岁差"
+                    XiuFrame.DACHENG -> "星学大成"
+                    XiuFrame.XUANXIAO -> "玄枵虚中"
+                    XiuFrame.CUSTOM -> "自定义宿"
                 }
             )
             if (!equatorial) append("·黄道")
@@ -298,9 +323,10 @@ data class QizhengConfig(
             )
             add(if (useZiQi) "孛远点/炁${ziQiMode.label}" else "孛远点/无紫炁")
             if (shenShaSet == ShenShaSet.NONE) add("无神煞")
-            if (!useShenGong) add("无身宫")
+            if (!useShenGong) add("无身宫") else add(shenGongMethod.label)
             if (clockMode == ClockMode.TRUE_SOLAR) add("真太阳时")
             if (dignityMode != DignityMode.OFF) add("庙旺")
+            if (tianPan) add("天盘时分")
             add(huaYaoSchool.label)
         }.joinToString(" · ")
 }
@@ -381,11 +407,21 @@ object PanZhiPresets {
     val WithDignity = QizhengConfig(dignityMode = DignityMode.GUOLAO)
 
     /** 可选盘制清单（名称 → 配置），供 UI 下拉/弹窗使用 */
+    /** 星学大成固定宿宽 */
+    val DaCheng = QizhengConfig(xiuFrame = XiuFrame.DACHENG, xiuSystem = XiuSystem.MODERN)
+    /** 玄枵虚中：今宿宽 + 虚宿居中 */
+    val XuanXiao = QizhengConfig(xiuFrame = XiuFrame.XUANXIAO, xiuSystem = XiuSystem.MODERN)
+    /** 自定义宿度（默认占位表） */
+    val CustomXiu = QizhengConfig(xiuFrame = XiuFrame.CUSTOM, xiuSystem = XiuSystem.MODERN)
+
     val all: List<Pair<String, QizhengConfig>> = listOf(
         "果老星宗" to GuoLao,
         "回归今宿" to ModernReading,
         "回归古宿" to Ancient,
         "古宿岁差" to AncientJ2000,
+        "星学大成" to DaCheng,
+        "玄枵虚中" to XuanXiao,
+        "自定义宿度" to CustomXiu,
         "郑案今宿" to ZhengAn,
         "赤道恒星" to Equatorial,
         "真太阳时" to TrueSolar,

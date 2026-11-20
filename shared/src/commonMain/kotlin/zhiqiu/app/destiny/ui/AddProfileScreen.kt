@@ -29,14 +29,11 @@ import androidx.compose.foundation.verticalScroll
 import zhiqiu.app.destiny.oinkcompat.AlertDialog
 import zhiqiu.app.destiny.oinkcompat.Button
 import zhiqiu.app.destiny.oinkcompat.ButtonDefaults
-import zhiqiu.app.destiny.oinkcompat.ExperimentalMaterial3Api
 import zhiqiu.app.destiny.oinkcompat.Icon
-import zhiqiu.app.destiny.oinkcompat.Scaffold
+import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
 import zhiqiu.app.destiny.oinkcompat.Switch
 import zhiqiu.app.destiny.oinkcompat.Text
 import zhiqiu.app.destiny.oinkcompat.TextButton
-import zhiqiu.app.destiny.oinkcompat.TopAppBar
-import zhiqiu.app.destiny.oinkcompat.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -68,6 +65,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import zhiqiu.app.destiny.chart.computeBaziSummary
 import zhiqiu.app.destiny.chart.resolvedSolarDate
+import zhiqiu.app.destiny.i18n.AppStrings
 import zhiqiu.app.destiny.profile.CaseType
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
@@ -93,7 +91,7 @@ import kotlin.time.ExperimentalTime
 
 private enum class InputMode(val label: String) { Solar("公历"), Lunar("农历"), Bazi("八字") }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalTime::class)
+@OptIn(ExperimentalTime::class)
 @Composable
 fun AddProfileScreen(
     initial: Profile? = null,
@@ -220,32 +218,37 @@ fun AddProfileScreen(
         hm.getOrNull(1)?.trim()?.toIntOrNull()?.takeIf { it in 0..59 }?.let { clockMinute = it }
     }
 
-    Scaffold(
-        containerColor = DestinyTheme.page,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (initial == null) "添加档案" else "编辑档案",
-                        color = DestinyTheme.ink,
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
-                navigationIcon = { IosBackButton(onClick = onCancel) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = DestinyTheme.page),
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DestinyTheme.page),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(48.dp)
+                .padding(start = 4.dp, end = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IosBackButton(onClick = onCancel)
+            Text(
+                if (initial == null) AppStrings.addProfile else AppStrings.editProfile,
+                color = DestinyTheme.ink,
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
             )
-        },
-    ) { padding ->
+        }
+        HorizontalDivider(thickness = 0.5.dp, color = DestinyTheme.line)
         Column(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
+                .weight(1f)
+                .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             // ── 基本信息 ──
-            SectionCard("基本信息") {
+            SectionCard(AppStrings.basicInfo) {
                 FieldBox(
                     value = name,
                     onValueChange = { name = it },
@@ -356,7 +359,7 @@ fun AddProfileScreen(
                         Text("年", color = DestinyTheme.muted, fontSize = 12.sp)
                         Spacer(modifier = Modifier.weight(1f))
                         Text(
-                            "清除",
+                            AppStrings.clear,
                             color = DestinyTheme.muted,
                             fontSize = 13.sp,
                             modifier = Modifier
@@ -416,7 +419,7 @@ fun AddProfileScreen(
                             modifier = Modifier.height(34.dp),
                         ) {
                             Text(
-                                if (lookingUp) "反查中…" else "确定",
+                                if (lookingUp) "反查中…" else AppStrings.confirm,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.SemiBold,
                             )
@@ -520,10 +523,10 @@ fun AddProfileScreen(
         AlertDialog(
             onDismissRequest = { showDatePicker = false },
             confirmButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("确定", color = DestinyTheme.accent) }
+                TextButton(onClick = { showDatePicker = false }) { Text(AppStrings.confirm, color = DestinyTheme.accent) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("取消", color = DestinyTheme.muted) }
+                TextButton(onClick = { showDatePicker = false }) { Text(AppStrings.cancel, color = DestinyTheme.muted) }
             },
             title = {
                 Text(

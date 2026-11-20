@@ -7,13 +7,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
 import zhiqiu.app.destiny.oinkcompat.Text
 import zhiqiu.app.destiny.oinkcompat.TextButton
+import zhiqiu.app.destiny.i18n.AppStrings
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -31,14 +31,14 @@ const val OFFICIAL_ADDRESS: String = "https://github.com/zhiqiu"
 @Composable
 fun AboutScreen(onBack: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxSize().background(DestinyTheme.page).safeDrawingPadding(),
+        modifier = Modifier.fillMaxSize().background(DestinyTheme.page),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onBack) { Text("‹ 返回", color = DestinyTheme.accent, fontSize = 15.sp) }
-            Text("关于", color = DestinyTheme.ink, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            TextButton(onClick = onBack) { Text(AppStrings.backShort, color = DestinyTheme.accent, fontSize = 15.sp) }
+            Text(AppStrings.about, color = DestinyTheme.ink, fontSize = 17.sp, fontWeight = FontWeight.Bold)
         }
         HorizontalDivider(thickness = 0.5.dp, color = DestinyTheme.line)
 

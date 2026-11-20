@@ -9,17 +9,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import zhiqiu.app.destiny.oinkcompat.ExperimentalMaterial3Api
-import zhiqiu.app.destiny.oinkcompat.FloatingActionButton
+import androidx.compose.foundation.shape.CircleShape
 import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
 import zhiqiu.app.destiny.oinkcompat.Icon
-import zhiqiu.app.destiny.oinkcompat.MaterialTheme
-import zhiqiu.app.destiny.oinkcompat.NavigationBar
-import zhiqiu.app.destiny.oinkcompat.NavigationBarItem
-import zhiqiu.app.destiny.oinkcompat.Scaffold
 import zhiqiu.app.destiny.oinkcompat.Text
+import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -30,9 +28,14 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.BookOpen
 import compose.icons.feathericons.Compass
@@ -45,9 +48,12 @@ import io.github.vinceglb.filekit.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
+import zhiqiu.app.destiny.db.ProfileImage
+import zhiqiu.app.destiny.platform.AppBackHandler
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.profile.ProfileRepository
 import zhiqiu.app.destiny.ui.bazi.BaziSection
+import zhiqiu.app.destiny.ui.note.rememberNoteEditorState
 import zhiqiu.app.destiny.ui.qizheng.QizhengSection
 import zhiqiu.app.destiny.ui.theme.DestinyColorMode
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
@@ -58,7 +64,6 @@ import zhiqiu.iztro.ui.Iztrolabe
 private val TAB_CATEGORY = listOf("bazi", "ziwei", "qizheng")
 private val TAB_LABEL = listOf("八字", "紫微", "七政")
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChartPagerScreen(
     profile: Profile,
@@ -69,17 +74,34 @@ fun ChartPagerScreen(
     onSaveQizhengPanZhi: (String) -> Unit = {},
 ) {
     var tab by remember { mutableIntStateOf(if (profile.birthday.isBlank()) 3 else 0) }
-    var drawerOpen by remember { mutableStateOf(false) }
-    var noteDraft by remember(profile.id) { mutableStateOf(profile.note) }
+    var sheetOpen by remember { mutableStateOf(false) }
     var pickCategory by remember { mutableStateOf<String?>(null) }
+    // 八字/紫微首次进入后保活，避免每次切 Tab 整盘销毁重建
+    var baziMounted by remember(profile.id) { mutableStateOf(false) }
+    var ziweiMounted by remember(profile.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val theme = DestinyTheme
     val iztroMode = if (colorMode == DestinyColorMode.Dark) IztroColorMode.Dark else IztroColorMode.Light
     val iztroThemeConfig = LocalDestinyAppThemes.current.iztro
+    val hasBirth = profile.birthday.isNotBlank()
 
-    LaunchedEffect(tab) { drawerOpen = false }
-    LaunchedEffect(profile.note) {
-        if (!drawerOpen) noteDraft = profile.note
+    val noteState = rememberNoteEditorState(
+        profileId = profile.id,
+        savedNote = profile.note,
+        onSave = { text ->
+            // 仅更新 note，避免无意义字段变化；已在 Default 线程
+            repository.upsert(profile.copy(note = text))
+        },
+    )
+
+    LaunchedEffect(tab, hasBirth) {
+        if (tab == 0 && hasBirth) baziMounted = true
+        if (tab == 1 && hasBirth) ziweiMounted = true
+    }
+
+    // 离开盘面页时 flush 批注
+    DisposableEffect(profile.id) {
+        onDispose { noteState.flush() }
     }
 
     val category = TAB_CATEGORY.getOrNull(tab)
@@ -107,204 +129,209 @@ fun ChartPagerScreen(
         },
     )
 
-    fun saveNote() {
-        val trimmed = noteDraft.trim()
-        if (trimmed == profile.note) return
-        scope.launch(Dispatchers.Default) {
-            repository.upsert(profile.copy(note = trimmed))
-        }
+    fun openFullMemo() {
+        noteState.flush()
+        sheetOpen = false
+        tab = 3
     }
 
-    fun closeDrawer() {
-        saveNote()
-        drawerOpen = false
+    val resolveImagePath: (ProfileImage) -> String = { image ->
+        repository.imageAbsolutePath(image.relativePath)
+    }
+    val onPickImageCategory: (String) -> Unit = { cat ->
+        pickCategory = cat
+        pickerLauncher.launch()
+    }
+    val onDeleteImageAction: (ProfileImage) -> Unit = { image ->
+        scope.launch(Dispatchers.Default) { repository.removeImage(image) }
     }
 
-    Scaffold(
-        topBar = {
-            Column {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp)
-                        .background(MaterialTheme.colorScheme.surface)
-                        .padding(start = 4.dp, end = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    IosBackButton(onClick = onBack)
-                    Spacer(Modifier.width(4.dp))
-                    Text(
-                        profile.name.ifBlank { "原盘" },
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                HorizontalDivider(thickness = 0.5.dp, color = theme.line)
-            }
-        },
-        bottomBar = {
-            NavigationBar {
-                if (profile.birthday.isNotBlank()) {
-                    NavigationBarItem(
-                        selected = tab == 0,
-                        onClick = { tab = 0 },
-                        icon = { Icon(FeatherIcons.BookOpen, contentDescription = "八字") },
-                        label = { Text("八字") },
-                    )
-                    NavigationBarItem(
-                        selected = tab == 1,
-                        onClick = { tab = 1 },
-                        icon = { Icon(FeatherIcons.Star, contentDescription = "紫微") },
-                        label = { Text("紫微") },
-                    )
-                    NavigationBarItem(
-                        selected = tab == 2,
-                        onClick = { tab = 2 },
-                        icon = { Icon(FeatherIcons.Compass, contentDescription = "七政") },
-                        label = { Text("七政") },
-                    )
-                }
-                NavigationBarItem(
-                    selected = tab == 3,
-                    onClick = { tab = 3 },
-                    icon = { Icon(FeatherIcons.FileText, contentDescription = "批注") },
-                    label = { Text("批注") },
+    Box(modifier = Modifier.fillMaxSize().background(theme.page)) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp)
+                    .background(theme.page)
+                    .padding(start = 4.dp, end = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IosBackButton(onClick = {
+                    noteState.flush()
+                    onBack()
+                })
+                Spacer(Modifier.width(4.dp))
+                Text(
+                    profile.name.ifBlank { "原盘" },
+                    color = theme.ink,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
             }
-        },
-        floatingActionButton = {
-            if (tab in 0..2 && !drawerOpen && profile.birthday.isNotBlank()) {
-                FloatingActionButton(
-                    onClick = {
-                        noteDraft = profile.note
-                        drawerOpen = true
-                    },
-                    containerColor = Color(0xFF8B3A3A),
-                    contentColor = Color.White,
-                ) {
-                    Icon(
-                        imageVector = FeatherIcons.Edit,
-                        contentDescription = "批注",
+            HorizontalDivider(thickness = 0.5.dp, color = theme.line)
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                if ((baziMounted || tab == 0) && hasBirth) {
+                    val baziVisible = tab == 0
+                    BaziSection(
+                        profile = profile,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(if (baziVisible) 1f else 0f)
+                            .graphicsLayer { alpha = if (baziVisible) 1f else 0f }
+                            .then(if (baziVisible) Modifier else Modifier.size(0.dp)),
                     )
                 }
-            }
-        },
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding),
-        ) {
-            val hasBirth = profile.birthday.isNotBlank()
-            when (tab) {
-                0 -> if (hasBirth) BaziSection(profile) else MemoTabScreen(
-                    profile = profile,
-                    imagesByCategory = imagesByCategory,
-                    resolvePath = { image -> repository.imageAbsolutePath(image.relativePath) },
-                    onNoteSaved = { text ->
-                        scope.launch(Dispatchers.Default) {
-                            repository.upsert(profile.copy(note = text))
-                        }
-                    },
-                    onPickImage = { cat ->
-                        pickCategory = cat
-                        pickerLauncher.launch()
-                    },
-                    onDeleteImage = { image ->
-                        scope.launch(Dispatchers.Default) { repository.removeImage(image) }
-                    },
-                )
-                1 -> if (hasBirth) Iztrolabe(
-                    birthday = profile.birthday,
-                    birthTime = profile.timeIndex,
-                    gender = profile.gender,
-                    birthdayType = profile.birthdayType,
-                    isLeapMonth = profile.isLeapMonth,
-                    fixLeap = profile.fixLeap,
-                    name = profile.name,
-                    colorMode = iztroMode,
-                    onColorModeChange = { mode ->
-                        onColorModeChange(
-                            if (mode == IztroColorMode.Dark) DestinyColorMode.Dark else DestinyColorMode.Light,
+                if ((ziweiMounted || tab == 1) && hasBirth) {
+                    val ziweiVisible = tab == 1
+                    Iztrolabe(
+                        birthday = profile.birthday,
+                        birthTime = profile.timeIndex,
+                        gender = profile.gender,
+                        birthdayType = profile.birthdayType,
+                        isLeapMonth = profile.isLeapMonth,
+                        fixLeap = profile.fixLeap,
+                        name = profile.name,
+                        colorMode = iztroMode,
+                        onColorModeChange = { mode ->
+                            onColorModeChange(
+                                if (mode == IztroColorMode.Dark) DestinyColorMode.Dark else DestinyColorMode.Light,
+                            )
+                        },
+                        themeConfig = iztroThemeConfig,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(if (ziweiVisible) 1f else 0f)
+                            .graphicsLayer { alpha = if (ziweiVisible) 1f else 0f }
+                            .then(if (ziweiVisible) Modifier else Modifier.size(0.dp)),
+                    )
+                }
+                when (tab) {
+                    0, 1 -> if (!hasBirth) {
+                        MemoTabScreen(
+                            profile = profile,
+                            noteState = noteState,
+                            imagesByCategory = imagesByCategory,
+                            resolvePath = resolveImagePath,
+                            onPickImage = onPickImageCategory,
+                            onDeleteImage = onDeleteImageAction,
                         )
-                    },
-                    themeConfig = iztroThemeConfig,
-                    modifier = Modifier.fillMaxSize(),
-                ) else MemoTabScreen(
-                    profile = profile,
-                    imagesByCategory = imagesByCategory,
-                    resolvePath = { image -> repository.imageAbsolutePath(image.relativePath) },
-                    onNoteSaved = { text ->
-                        scope.launch(Dispatchers.Default) {
-                            repository.upsert(profile.copy(note = text))
-                        }
-                    },
-                    onPickImage = { cat ->
-                        pickCategory = cat
-                        pickerLauncher.launch()
-                    },
-                    onDeleteImage = { image ->
-                        scope.launch(Dispatchers.Default) { repository.removeImage(image) }
-                    },
-                )
-                2 -> if (hasBirth) QizhengSection(
-                    profile = profile,
-                    onSavePanZhi = onSaveQizhengPanZhi,
-                ) else MemoTabScreen(
-                    profile = profile,
-                    imagesByCategory = imagesByCategory,
-                    resolvePath = { image -> repository.imageAbsolutePath(image.relativePath) },
-                    onNoteSaved = { text ->
-                        scope.launch(Dispatchers.Default) {
-                            repository.upsert(profile.copy(note = text))
-                        }
-                    },
-                    onPickImage = { cat ->
-                        pickCategory = cat
-                        pickerLauncher.launch()
-                    },
-                    onDeleteImage = { image ->
-                        scope.launch(Dispatchers.Default) { repository.removeImage(image) }
-                    },
-                )
-                else -> MemoTabScreen(
-                    profile = profile,
-                    imagesByCategory = imagesByCategory,
-                    resolvePath = { image -> repository.imageAbsolutePath(image.relativePath) },
-                    onNoteSaved = { text ->
-                        scope.launch(Dispatchers.Default) {
-                            repository.upsert(profile.copy(note = text))
-                        }
-                    },
-                    onPickImage = { cat ->
-                        pickCategory = cat
-                        pickerLauncher.launch()
-                    },
-                    onDeleteImage = { image ->
-                        scope.launch(Dispatchers.Default) { repository.removeImage(image) }
-                    },
-                )
-            }
+                    }
+                    2 -> if (hasBirth) {
+                        QizhengSection(profile = profile, onSavePanZhi = onSaveQizhengPanZhi)
+                    } else {
+                        MemoTabScreen(
+                            profile = profile,
+                            noteState = noteState,
+                            imagesByCategory = imagesByCategory,
+                            resolvePath = resolveImagePath,
+                            onPickImage = onPickImageCategory,
+                            onDeleteImage = onDeleteImageAction,
+                        )
+                    }
+                    else -> MemoTabScreen(
+                        profile = profile,
+                        noteState = noteState,
+                        imagesByCategory = imagesByCategory,
+                        resolvePath = resolveImagePath,
+                        onPickImage = onPickImageCategory,
+                        onDeleteImage = onDeleteImageAction,
+                    )
+                }
 
-            if (drawerOpen && category != null) {
-                ChartMemoDrawer(
-                    sheetTitle = "${TAB_LABEL[tab]}便笺",
-                    note = noteDraft,
-                    images = tabImages,
-                    resolvePath = { image -> repository.imageAbsolutePath(image.relativePath) },
-                    onNoteChange = { noteDraft = it },
-                    onPickImage = {
-                        pickCategory = category
-                        pickerLauncher.launch()
-                    },
-                    onDeleteImage = { image ->
-                        scope.launch(Dispatchers.Default) { repository.removeImage(image) }
-                    },
-                    onClose = ::closeDrawer,
+            }
+            HorizontalDivider(thickness = 0.5.dp, color = theme.line)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(56.dp)
+                    .background(theme.page)
+                    .padding(horizontal = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                val tabs = buildList {
+                    if (profile.birthday.isNotBlank()) {
+                        add(0 to ("八字" to FeatherIcons.BookOpen))
+                        add(1 to ("紫微" to FeatherIcons.Star))
+                        add(2 to ("七政" to FeatherIcons.Compass))
+                    }
+                    add(3 to ("批注" to FeatherIcons.FileText))
+                }
+                tabs.forEach { (idx, pair) ->
+                    val (label, icon) = pair
+                    val selected = tab == idx
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .clickable {
+                                // 进批注 Tab 时关掉 Sheet 并 flush
+                                if (idx == 3 && sheetOpen) {
+                                    noteState.flush()
+                                    sheetOpen = false
+                                }
+                                tab = idx
+                            }
+                            .padding(vertical = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Icon(
+                            icon,
+                            contentDescription = label,
+                            tint = if (selected) theme.accent else theme.muted,
+                        )
+                        Text(
+                            label,
+                            color = if (selected) theme.accent else theme.muted,
+                            fontSize = 11.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                    }
+                }
+            }
+        }
+        if (tab in 0..2 && !sheetOpen && profile.birthday.isNotBlank()) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 16.dp, bottom = 72.dp)
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF8B3A3A))
+                    .clickable { sheetOpen = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = FeatherIcons.Edit,
+                    contentDescription = "批注",
+                    tint = Color.White,
                 )
             }
+        }
+
+        // Sheet 打开时拦截返回：先关 Sheet，不退出盘面页
+        AppBackHandler(enabled = sheetOpen) {
+            noteState.flush()
+            sheetOpen = false
+        }
+
+        // Sheet 盖在整页（含底栏）之上，才能上拉真正全屏写
+        if (sheetOpen && category != null) {
+            ChartMemoDrawer(
+                chartLabel = TAB_LABEL[tab],
+                noteState = noteState,
+                images = tabImages,
+                resolvePath = resolveImagePath,
+                onPickImage = {
+                    pickCategory = category
+                    pickerLauncher.launch()
+                },
+                onDeleteImage = onDeleteImageAction,
+                onOpenFullMemo = ::openFullMemo,
+                onClose = { sheetOpen = false },
+            )
         }
     }
 }
