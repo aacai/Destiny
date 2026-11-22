@@ -31,12 +31,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.zIndex
 import compose.icons.FeatherIcons
 import compose.icons.feathericons.BookOpen
 import compose.icons.feathericons.Compass
@@ -47,6 +45,7 @@ import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
 import io.github.vinceglb.filekit.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.launch
 import zhiqiu.app.destiny.db.ProfileImage
@@ -78,14 +77,17 @@ fun ChartPagerScreen(
     var tab by remember { mutableIntStateOf(if (profile.birthday.isBlank()) 3 else 0) }
     var sheetOpen by remember { mutableStateOf(false) }
     var pickCategory by remember { mutableStateOf<String?>(null) }
-    // 八字/紫微首次进入后保活，避免每次切 Tab 整盘销毁重建
-    var baziMounted by remember(profile.id) { mutableStateOf(false) }
-    var ziweiMounted by remember(profile.id) { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val theme = DestinyTheme
     val iztroMode = if (colorMode == DestinyColorMode.Dark) IztroColorMode.Dark else IztroColorMode.Light
     val iztroThemeConfig = LocalDestinyAppThemes.current.iztro
     val hasBirth = profile.birthday.isNotBlank()
+    // 稳定回调，避免切 Tab 时隐藏的紫微页因 lambda 变化跟着重组
+    val onIztroColorModeChange = remember(onColorModeChange) { { mode: IztroColorMode ->
+        onColorModeChange(
+            if (mode == IztroColorMode.Dark) DestinyColorMode.Dark else DestinyColorMode.Light,
+        )
+    } }
 
     val noteState = rememberNoteEditorState(
         profileId = profile.id,
@@ -95,11 +97,6 @@ fun ChartPagerScreen(
             repository.upsert(profile.copy(note = text))
         },
     )
-
-    LaunchedEffect(tab, hasBirth) {
-        if (tab == 0 && hasBirth) baziMounted = true
-        if (tab == 1 && hasBirth) ziweiMounted = true
-    }
 
     // 离开盘面页时 flush 批注
     DisposableEffect(profile.id) {
@@ -113,19 +110,23 @@ fun ChartPagerScreen(
         flowOf(emptyList())
     }).collectAsState(initial = emptyList())
 
-    val allImages by repository.observeImages(profile.id).collectAsState(initial = emptyList())
-    val imagesByCategory = remember(allImages) { allImages.groupBy { it.category } }
-
+    var pickForMarkdown by remember { mutableStateOf(false) }
     val pickerLauncher = rememberFilePickerLauncher(
         type = FileKitType.Image,
         onResult = { file ->
-            val cat = pickCategory ?: return@rememberFilePickerLauncher
+            val forMarkdown = pickForMarkdown
+            val cat = pickCategory
+            pickForMarkdown = false
             pickCategory = null
-            if (file != null) {
-                scope.launch(Dispatchers.Default) {
-                    val bytes = runCatching { file.readBytes() }.getOrNull() ?: return@launch
-                    val ext = file.name.substringAfterLast('.', "")
-                    repository.addImage(profile.id, cat, bytes, ext)
+            if (file == null) return@rememberFilePickerLauncher
+            scope.launch(Dispatchers.Default) {
+                val bytes = runCatching { file.readBytes() }.getOrNull() ?: return@launch
+                val ext = file.name.substringAfterLast('.', "")
+                val image = repository.addImage(profile.id, if (forMarkdown) "note" else (cat ?: "note"), bytes, ext)
+                if (forMarkdown) {
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        noteState.update(noteState.draft + "\n![](${image.relativePath})\n", autoSave = true)
+                    }
                 }
             }
         },
@@ -137,11 +138,9 @@ fun ChartPagerScreen(
         tab = 3
     }
 
-    val resolveImagePath: (ProfileImage) -> String = { image ->
-        repository.imageAbsolutePath(image.relativePath)
-    }
-    val onPickImageCategory: (String) -> Unit = { cat ->
-        pickCategory = cat
+    val resolveImagePath: (ProfileImage) -> String = { image -> repository.imageAbsolutePath(image.relativePath) }
+    val onPickMarkdownImage: () -> Unit = {
+        pickForMarkdown = true
         pickerLauncher.launch()
     }
     val onDeleteImageAction: (ProfileImage) -> Unit = { image ->
@@ -182,50 +181,37 @@ fun ChartPagerScreen(
             }
             HorizontalDivider(thickness = 0.5.dp, color = theme.line)
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                if ((baziMounted || tab == 0) && hasBirth) {
-                    val baziVisible = tab == 0
-                    BaziSection(
-                        profile = profile,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .zIndex(if (baziVisible) 1f else 0f)
-                            .graphicsLayer { alpha = if (baziVisible) 1f else 0f }
-                            .then(if (baziVisible) Modifier else Modifier.size(0.dp)),
-                    )
-                }
-                if ((ziweiMounted || tab == 1) && hasBirth) {
-                    val ziweiVisible = tab == 1
-                    Iztrolabe(
-                        birthday = profile.birthday,
-                        birthTime = profile.timeIndex,
-                        gender = profile.gender,
-                        birthdayType = profile.birthdayType,
-                        isLeapMonth = profile.isLeapMonth,
-                        fixLeap = profile.fixLeap,
-                        name = profile.name,
-                        colorMode = iztroMode,
-                        onColorModeChange = { mode ->
-                            onColorModeChange(
-                                if (mode == IztroColorMode.Dark) DestinyColorMode.Dark else DestinyColorMode.Light,
-                            )
-                        },
-                        themeConfig = iztroThemeConfig,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .zIndex(if (ziweiVisible) 1f else 0f)
-                            .graphicsLayer { alpha = if (ziweiVisible) 1f else 0f }
-                            .then(if (ziweiVisible) Modifier else Modifier.size(0.dp)),
-                    )
-                }
+                // 只组合当前页：隐藏页不再参与重组/布局，避免切 Tab 时整棵盘面树跟着重组。
+                // 排盘结果由各模块自身的缓存/后台计算兜底，切回时几乎瞬时。
                 when (tab) {
-                    0, 1 -> if (!hasBirth) {
+                    0 -> if (hasBirth) {
+                        BaziSection(profile = profile, modifier = Modifier.fillMaxSize())
+                    } else {
                         MemoTabScreen(
                             profile = profile,
                             noteState = noteState,
-                            imagesByCategory = imagesByCategory,
-                            resolvePath = resolveImagePath,
-                            onPickImage = onPickImageCategory,
-                            onDeleteImage = onDeleteImageAction,
+                            onPickMarkdownImage = onPickMarkdownImage,
+                        )
+                    }
+                    1 -> if (hasBirth) {
+                        Iztrolabe(
+                            birthday = profile.birthday,
+                            birthTime = profile.timeIndex,
+                            gender = profile.gender,
+                            birthdayType = profile.birthdayType,
+                            isLeapMonth = profile.isLeapMonth,
+                            fixLeap = profile.fixLeap,
+                            name = profile.name,
+                            colorMode = iztroMode,
+                            onColorModeChange = onIztroColorModeChange,
+                            themeConfig = iztroThemeConfig,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        MemoTabScreen(
+                            profile = profile,
+                            noteState = noteState,
+                            onPickMarkdownImage = onPickMarkdownImage,
                         )
                     }
                     2 -> if (hasBirth) {
@@ -234,22 +220,15 @@ fun ChartPagerScreen(
                         MemoTabScreen(
                             profile = profile,
                             noteState = noteState,
-                            imagesByCategory = imagesByCategory,
-                            resolvePath = resolveImagePath,
-                            onPickImage = onPickImageCategory,
-                            onDeleteImage = onDeleteImageAction,
+                            onPickMarkdownImage = onPickMarkdownImage,
                         )
                     }
                     else -> MemoTabScreen(
                         profile = profile,
                         noteState = noteState,
-                        imagesByCategory = imagesByCategory,
-                        resolvePath = resolveImagePath,
-                        onPickImage = onPickImageCategory,
-                        onDeleteImage = onDeleteImageAction,
+                        onPickMarkdownImage = onPickMarkdownImage,
                     )
                 }
-
             }
             HorizontalDivider(thickness = 0.5.dp, color = theme.line)
             Row(

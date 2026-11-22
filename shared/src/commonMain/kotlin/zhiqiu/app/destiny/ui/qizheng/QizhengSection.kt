@@ -8,6 +8,8 @@ import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,8 +26,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
-import zhiqiu.app.destiny.oinkcompat.OutlinedTextField
+import zhiqiu.app.destiny.oinkcompat.Card
 import zhiqiu.app.destiny.oinkcompat.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -60,12 +62,13 @@ import zhiqiu.qizheng.NodeConvention
 import zhiqiu.qizheng.PanZhiPresets
 import zhiqiu.app.destiny.qizheng.buildFromProfile
 import zhiqiu.qizheng.PatternView
-import zhiqiu.qizheng.QizhengBuilder
 import zhiqiu.qizheng.QizhengChart
 import zhiqiu.qizheng.ZiQiMode
 import zhiqiu.qizheng.ZodiacMode
 import zhiqiu.qizheng.ui.QizhengSettingsPage
 import zhiqiu.qizheng.ui.QizhengWheel
+import zhiqiu.iztro.bazi.ui.BaziColorMode
+import zhiqiu.iztro.bazi.ui.BaziColors
 
 
 /**
@@ -83,8 +86,6 @@ private val XIU_BASE: List<Color> = listOf(
 )
 private val XIU_PALETTE: List<Color> = List(28) { XIU_BASE[(it * 3) % XIU_BASE.size] }
 
-private enum class QzTimeMode { Natal, Demo, Custom }
-
 @Composable
 fun QizhengSection(
     profile: Profile,
@@ -100,14 +101,9 @@ fun QizhengSection(
     val Line = theme.line
     val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
     val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
-    val Danger = theme.danger
-    var timeMode by remember { mutableStateOf(QzTimeMode.Demo) }
+    // 四柱沿用八字页面同款五行配色与卡底
+    val baziColors = BaziColors.forMode(if (dark) BaziColorMode.Dark else BaziColorMode.Light)
     var subTab by remember { mutableIntStateOf(0) }
-    var cy by remember { mutableIntStateOf(2026) }
-    var cm by remember { mutableIntStateOf(8) }
-    var cd by remember { mutableIntStateOf(29) }
-    var ch by remember { mutableIntStateOf(14) }
-    var cmi by remember { mutableIntStateOf(5) }
 
     var xiuTintEnabled by remember { mutableStateOf(false) }
     var xiuColors by remember { mutableStateOf(XIU_PALETTE) }
@@ -136,7 +132,7 @@ fun QizhengSection(
     var xiuIdx by rememberSaveable(profile.id) { mutableIntStateOf(initialPanZhiIdxs(profile.qizhengPanZhi).second) }
 
     val chart = remember(
-        profile, timeMode, cy, cm, cd, ch, cmi,
+        profile,
         coordIdx, xiuIdx, fixedMing, huaYaoSchoolIdx, trueSolar, mingModeIdx, ziQiEquatorial,
         luoJiIdx, shenGongIdx, tianPan,
     ) {
@@ -172,21 +168,7 @@ fun QizhengSection(
                 },
                 tianPan = tianPan,
             )
-            when (timeMode) {
-                QzTimeMode.Demo -> QizhengBuilder.build(
-                    year = 2026, month = 8, day = 29, hour = 14, minute = 5,
-                    gender = profile.gender.ifBlank { "男" },
-                    lon = profile.longitude ?: 116.4074,
-                    lat = profile.latitude ?: 39.9042,
-                    config = cfg,
-                )
-                QzTimeMode.Natal -> buildFromProfile(
-                    profile, config = cfg,
-                )
-                QzTimeMode.Custom -> buildFromProfile(
-                    profile, cy, cm, cd, ch, cmi, config = cfg,
-                )
-            }
+            buildFromProfile(profile, config = cfg)
         }.getOrNull()
     }
 
@@ -339,171 +321,143 @@ fun QizhengSection(
                 }
         }
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // 时间条：编辑 | 时间 | 本命
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        // 四柱 + 身宫：沿用八字页五行配色与米黄卡底
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(baziColors.panel)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
         ) {
-            TimeChip(
-                text = "编辑",
-                selected = timeMode == QzTimeMode.Custom,
-                onClick = { timeMode = QzTimeMode.Custom },
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .border(1.dp, Line, RoundedCornerShape(4.dp))
-                    .clickable { timeMode = QzTimeMode.Custom }
-                    .padding(horizontal = 10.dp, vertical = 8.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    buildString {
-                        append(chart.year.toString().padStart(4, '0'))
-                        append('-')
-                        append(chart.month.toString().padStart(2, '0'))
-                        append('-')
-                        append(chart.day.toString().padStart(2, '0'))
-                        append(' ')
-                        append(chart.hour.toString().padStart(2, '0'))
-                        append(':')
-                        append(chart.minute.toString().padStart(2, '0'))
-                    },
-                    color = Ink,
-                    fontSize = 13.sp,
+                    if (chart.gender == "女") "坤造" else "乾造",
+                    color = baziColors.muted,
+                    fontSize = 12.sp,
+                    modifier = Modifier.width(38.dp),
                 )
+                val stems = chart.stemLine.map { it.toString() }
+                val branches = chart.branchLine.map { it.toString() }
+                Row(modifier = Modifier.weight(1f), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    val labels = listOf("年柱", "月柱", "日柱", "时柱")
+                    for (i in stems.indices) {
+                        val stem = stems.getOrNull(i).orEmpty()
+                        val branch = branches.getOrNull(i).orEmpty()
+                        val label = labels.getOrNull(i).orEmpty()
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(label, color = baziColors.label, fontSize = 12.sp)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(stem, color = baziColors.ofStem(stem), fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                            Text(branch, color = baziColors.ofBranch(branch), fontSize = 32.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+                if (chart.shenBranch != null) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("身宫", color = baziColors.label, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            chart.shenBranch!!,
+                            color = baziColors.ofBranch(chart.shenBranch!!),
+                            fontSize = 26.sp,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
             }
-            TimeChip(
-                text = "本命",
-                selected = timeMode == QzTimeMode.Natal,
-                onClick = { timeMode = QzTimeMode.Natal },
-            )
-            TimeChip(
-                text = "演示",
-                selected = timeMode == QzTimeMode.Demo,
-                onClick = { timeMode = QzTimeMode.Demo },
-            )
         }
 
-        if (timeMode == QzTimeMode.Custom) {
-            Spacer(modifier = Modifier.height(6.dp))
-            TimeEditRow(cy, cm, cd, ch, cmi) { y, m, d, h, mi ->
-                cy = y; cm = m; cd = d; ch = h; cmi = mi
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // 限运：一行紧凑标签
+        Card(contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp)) {
+            val l = chart.limits
+            val limits = listOf(
+                "大限" to l.daXian, "太岁" to l.taiSui, "小限" to l.xiaoXian,
+                "月限" to l.yueXian, "缠木" to l.shanMu, "顶星" to l.dingXing,
+            )
+            Row(modifier = Modifier.fillMaxWidth()) {
+                limits.forEach { (label, value) ->
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(label, color = Muted, fontSize = 10.sp)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(value, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
-        // 盘制 / 干支 / 身宫：盘面下方多行
+        // 盘制 / 设置：收成一行轻提示
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Text(
-                    "盘制 ${chart.panZhi}",
-                    color = Accent,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Text(
-                    "未人工核对",
-                    color = Danger,
-                    fontSize = 10.sp,
-                    modifier = Modifier
-                        .background(Danger.copy(alpha = 0.10f), RoundedCornerShape(3.dp))
-                        .padding(horizontal = 5.dp, vertical = 1.dp),
-                )
-            }
+            Text("盘制 ${chart.panZhi}", color = Muted, fontSize = 11.sp)
             Text(
-                "⚙ 设置",
+                "设置",
                 color = Accent,
                 fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.clickable { showSettings = true },
             )
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(chart.panZhiDetail, color = Muted, fontSize = 11.sp)
-        if (chart.shenBranch != null) {
-            Spacer(modifier = Modifier.height(2.dp))
-            Text("身宫 ${chart.shenBranch}", color = Muted, fontSize = 11.sp)
-        }
+
         Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(if (chart.gender == "女") "坤造" else "乾造", color = Muted, fontSize = 12.sp)
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    chart.stemLine.forEach { c ->
-                        Text(c.toString(), color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    chart.branchLine.forEach { c ->
-                        Text(c.toString(), color = Ink, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-        LimitGrid(
-            chart = chart,
-            modifier = Modifier.fillMaxWidth(),
-            columns = 2,
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
 
         // 子 Tab
-        val tabs = listOf("四柱", "化曜", "相位", "星格")
-        Row(modifier = Modifier.fillMaxWidth()) {
-            tabs.forEachIndexed { i, title ->
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { subTab = i }
-                        .padding(vertical = 6.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        title,
-                        color = if (subTab == i) Accent else Ink,
-                        fontSize = 13.sp,
-                        fontWeight = if (subTab == i) FontWeight.SemiBold else FontWeight.Normal,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Box(
+        Card {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                val tabs = listOf("四柱", "化曜", "相位", "星格")
+                tabs.forEachIndexed { i, title ->
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth(0.45f)
-                            .height(2.dp)
-                            .background(if (subTab == i) Accent else Color.Transparent),
-                    )
+                            .weight(1f)
+                            .clickable { subTab = i }
+                            .padding(vertical = 6.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(
+                            title,
+                            color = if (subTab == i) Accent else Ink,
+                            fontSize = 13.sp,
+                            fontWeight = if (subTab == i) FontWeight.SemiBold else FontWeight.Normal,
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth(0.45f)
+                                .height(2.dp)
+                                .background(if (subTab == i) Accent else Color.Transparent),
+                        )
+                    }
                 }
             }
-        }
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Line))
+            Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(Line))
 
-        Spacer(modifier = Modifier.height(8.dp))
-        when (subTab) {
-            0 -> PillarsPane(chart)
-            1 -> HuaYaoPane(
-                chart = chart,
-                school = if (huaYaoSchoolIdx == 1) HuaYaoSchool.TIANGUAN else HuaYaoSchool.GUOLAO,
-                onSchoolChange = { huaYaoSchoolIdx = if (it == HuaYaoSchool.TIANGUAN) 1 else 0 },
-            )
-            2 -> AspectsPane(chart)
-            else -> PatternsPane(chart)
+            Spacer(modifier = Modifier.height(8.dp))
+            Box(modifier = Modifier.padding(horizontal = 8.dp)) {
+                when (subTab) {
+                    0 -> PillarsPane(chart)
+                    1 -> HuaYaoPane(
+                        chart = chart,
+                        school = if (huaYaoSchoolIdx == 1) HuaYaoSchool.TIANGUAN else HuaYaoSchool.GUOLAO,
+                        onSchoolChange = { huaYaoSchoolIdx = if (it == HuaYaoSchool.TIANGUAN) 1 else 0 },
+                    )
+                    2 -> AspectsPane(chart)
+                    else -> PatternsPane(chart)
+                }
+            }
+            Spacer(modifier = Modifier.height(10.dp))
         }
         Spacer(modifier = Modifier.height(20.dp))
     }
@@ -531,79 +485,6 @@ private fun MingChip(text: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun TimeChip(text: String, selected: Boolean, onClick: () -> Unit) {
-    val theme = DestinyTheme
-    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
-    val Page = theme.page
-    val Ink = theme.ink
-    val Muted = theme.muted
-    val Line = theme.line
-    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
-    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
-    Box(
-        modifier = Modifier
-            .background(if (selected) (if (dark) Color(0xFF1E3A2F) else Color(0xFFE8F5E9)) else ChipBg, RoundedCornerShape(4.dp))
-            .border(1.dp, if (selected) Accent else Line, RoundedCornerShape(4.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-    ) {
-        Text(text, color = Ink, fontSize = 12.sp)
-    }
-}
-
-@Composable
-private fun TimeEditRow(
-    year: Int, month: Int, day: Int, hour: Int, minute: Int,
-    onChange: (Int, Int, Int, Int, Int) -> Unit,
-) {
-    val theme = DestinyTheme
-    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
-    val Page = theme.page
-    val Ink = theme.ink
-    val Muted = theme.muted
-    val Line = theme.line
-    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
-    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TinyIntField(year, 4) { onChange(it, month, day, hour, minute) }
-        Text("/", fontSize = 12.sp)
-        TinyIntField(month, 2) { onChange(year, it.coerceIn(1, 12), day, hour, minute) }
-        Text("/", fontSize = 12.sp)
-        TinyIntField(day, 2) { onChange(year, month, it.coerceIn(1, 31), hour, minute) }
-        Spacer(modifier = Modifier.width(8.dp))
-        TinyIntField(hour, 2) { onChange(year, month, day, it.coerceIn(0, 23), minute) }
-        Text(":", fontSize = 12.sp)
-        TinyIntField(minute, 2) { onChange(year, month, day, hour, it.coerceIn(0, 59)) }
-    }
-}
-
-@Composable
-private fun TinyIntField(value: Int, maxLen: Int, onValue: (Int) -> Unit) {
-    val theme = DestinyTheme
-    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
-    val Page = theme.page
-    val Ink = theme.ink
-    val Muted = theme.muted
-    val Line = theme.line
-    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
-    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
-    OutlinedTextField(
-        value = value.toString(),
-        onValueChange = { raw ->
-            val digits = raw.filter { it.isDigit() }.take(maxLen)
-            if (digits.isNotEmpty()) onValue(digits.toInt())
-        },
-        modifier = Modifier.width(if (maxLen >= 4) 72.dp else 52.dp),
-        singleLine = true,
-        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp),
-    )
-}
-
-@Composable
 private fun ZoomBtn(label: String, onClick: () -> Unit) {
     val theme = DestinyTheme
     val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
@@ -622,63 +503,6 @@ private fun ZoomBtn(label: String, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Text(label, fontSize = 16.sp, color = Ink, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
-private fun LimitGrid(
-    chart: QizhengChart,
-    modifier: Modifier = Modifier,
-    columns: Int = 3,
-) {
-    val theme = DestinyTheme
-    val dark = LocalDestinyColorMode.current == DestinyColorMode.Dark
-    val Page = theme.page
-    val Ink = theme.ink
-    val Muted = theme.muted
-    val Line = theme.line
-    val ChipBg = if (dark) theme.panel else Color(0xFFF5F5F5)
-    val Accent = if (dark) Color(0xFF81C784) else Color(0xFF1B5E20)
-    val l = chart.limits
-    val items = listOf(
-        "大限" to l.daXian,
-        "太岁" to l.taiSui,
-        "小限" to l.xiaoXian,
-        "月限" to l.yueXian,
-        "缠木" to l.shanMu,
-        "顶星" to l.dingXing,
-    )
-    Column(
-        modifier = modifier
-            .background(ChipBg, RoundedCornerShape(6.dp))
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
-    ) {
-        items.chunked(columns.coerceAtLeast(1)).forEach { row ->
-            if (columns <= 1) {
-                row.forEach { (k, v) ->
-                    Column {
-                        Text(k, color = Muted, fontSize = 10.sp)
-                        Text(v, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    }
-                }
-            } else {
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    row.forEach { (k, v) ->
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            horizontalAlignment = Alignment.Start,
-                        ) {
-                            Text(k, color = Muted, fontSize = 10.sp)
-                            Text(v, color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                        }
-                    }
-                    repeat(columns - row.size) {
-                        Spacer(modifier = Modifier.weight(1f))
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -795,48 +619,110 @@ private fun AspectsPane(chart: QizhengChart) {
     val mingInPalace = ((chart.mingDuLon % 30.0) + 30.0) % 30.0
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-        // 立命 / 安身
-        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-            Text(
-                "立命：${chart.mingBranch}${fmt2(mingInPalace)} ${mingLoc?.name ?: "？"}${mingLoc?.degreeInXiu?.let { fmt2(it) } ?: "？"}",
-                fontSize = 17.sp,
-                color = Ink,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f),
-            )
+        // 立命 / 安身：带色小卡
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(Accent.copy(alpha = if (dark) 0.18f else 0.08f))
+                    .border(1.dp, Accent.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+            ) {
+                Column {
+                    Text("立命", fontSize = 11.sp, color = Muted)
+                    Spacer(modifier = Modifier.height(3.dp))
+                    Text(
+                        "${chart.mingBranch}${fmt2(mingInPalace)} ${mingLoc?.name ?: "？"}${mingLoc?.degreeInXiu?.let { fmt2(it) } ?: "？"}",
+                        fontSize = 14.sp, color = Accent, fontWeight = FontWeight.SemiBold,
+                    )
+                }
+            }
             moon?.let { m ->
-                Text(
-                    "安身：${m.branch}${fmt2(((m.longitude % 30.0) + 30.0) % 30.0)} ${m.xiu}${fmt2(m.xiuDegree)}",
-                    fontSize = 17.sp,
-                    color = Ink,
-                    fontWeight = FontWeight.Bold,
-                )
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (dark) theme.panel else Color(0xFFF5F5F5))
+                        .border(1.dp, Line, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                ) {
+                    Column {
+                        Text("安身", fontSize = 11.sp, color = Muted)
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            "${m.branch}${fmt2(((m.longitude % 30.0) + 30.0) % 30.0)} ${m.xiu}${fmt2(m.xiuDegree)}",
+                            fontSize = 14.sp, color = Ink, fontWeight = FontWeight.SemiBold,
+                        )
+                    }
+                }
             }
         }
-        HorizontalDivider(color = Line)
 
-        // 星曜位置表
-        chart.stars.forEach { s ->
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // 星曜位置：两列网格，每颗星一行看全（星名+状态 / 宿度 / 宫度）
+        val starCells = chart.stars.map { s ->
             val motion = when {
                 s.retro -> "逆"
                 kotlin.math.abs(s.speed) >= 1.0 -> "速"
                 else -> ""
             }
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 7.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(s.key, fontSize = 15.sp, color = Ink, modifier = Modifier.width(40.dp))
-                Text("${s.xiu}${fmt2(s.xiuDegree)}°", fontSize = 15.sp, color = Ink, modifier = Modifier.width(120.dp))
-                Text("${s.branch}${fmt2(((s.longitude % 30.0) + 30.0) % 30.0)}°", fontSize = 15.sp, color = Ink, modifier = Modifier.width(110.dp))
-                Text(motion, fontSize = 13.sp, color = Muted, modifier = Modifier.width(36.dp))
-                chart.dignity[s.key]?.let { level ->
-                    Text(level, fontSize = 13.sp, color = Accent)
+            Triple(s, motion, chart.dignity[s.key])
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (dark) theme.panel else Color(0xFFF5F5F5))
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            starCells.chunked(2).forEach { row ->
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    row.forEach { (s, motion, level) ->
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (dark) Color(0xFF33312E) else Color(0xFFFFFFFF))
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(s.key, fontSize = 15.sp, color = Accent, fontWeight = FontWeight.Bold)
+                                if (motion.isNotBlank()) {
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(motion, fontSize = 10.sp, color = Muted)
+                                }
+                                Spacer(modifier = Modifier.weight(1f))
+                                if (level != null) {
+                                    Text(
+                                        level,
+                                        fontSize = 10.sp, color = Accent,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(3.dp))
+                                            .background(Accent.copy(alpha = 0.12f))
+                                            .padding(horizontal = 5.dp, vertical = 1.dp),
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Row {
+                                Text("宿 ", fontSize = 10.sp, color = Muted)
+                                Text("${s.xiu}${fmt2(s.xiuDegree)}°", fontSize = 12.sp, color = Ink, fontWeight = FontWeight.Medium)
+                            }
+                            Row {
+                                Text("宫 ", fontSize = 10.sp, color = Muted)
+                                Text(
+                                    "${s.branch}${fmt2(((s.longitude % 30.0) + 30.0) % 30.0)}°",
+                                    fontSize = 12.sp, color = Ink, fontWeight = FontWeight.Medium,
+                                )
+                            }
+                        }
+                    }
+                    if (row.size == 1) Spacer(modifier = Modifier.weight(1f))
                 }
             }
-            HorizontalDivider(color = Line, thickness = 0.5.dp)
         }
     }
 }
@@ -858,19 +744,9 @@ private fun PatternsPane(chart: QizhengChart) {
     var selected by remember { mutableStateOf<PatternView?>(null) }
 
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
-        Row(modifier = Modifier.fillMaxWidth()) {
-            Text("政余喜格", fontSize = 16.sp, color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text("政余忌格", fontSize = 16.sp, color = Ink, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-        }
-        Text(
-            "点击条目查看释义",
-            fontSize = 12.sp,
-            color = Muted,
-            modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
-        )
-        Row(modifier = Modifier.fillMaxWidth()) {
-            PatternColumn(xi, Modifier.weight(1f), nameColor = Accent, onPick = { selected = it })
-            PatternColumn(ji, Modifier.weight(1f), nameColor = Danger, onPick = { selected = it })
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            PatternColumn(xi, Modifier.weight(1f), title = "喜格", nameColor = Accent, onPick = { selected = it })
+            PatternColumn(ji, Modifier.weight(1f), title = "忌格", nameColor = Danger, onPick = { selected = it })
         }
     }
 
@@ -919,31 +795,55 @@ private fun PatternsPane(chart: QizhengChart) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PatternColumn(
     items: List<PatternView>,
     modifier: Modifier,
-    nameColor: Color = DestinyTheme.ink,
+    title: String,
+    nameColor: Color,
     onPick: (PatternView) -> Unit,
 ) {
+    val softBg = if (LocalDestinyColorMode.current == DestinyColorMode.Dark) {
+        nameColor.copy(alpha = 0.12f)
+    } else {
+        nameColor.copy(alpha = 0.06f)
+    }
     Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(softBg)
+            .border(1.dp, nameColor.copy(alpha = 0.25f), RoundedCornerShape(8.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(modifier = Modifier.size(7.dp).clip(CircleShape).background(nameColor))
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(title, fontSize = 13.sp, color = nameColor, fontWeight = FontWeight.SemiBold)
+            Spacer(modifier = Modifier.weight(1f))
+            Text("${items.size}", fontSize = 11.sp, color = nameColor.copy(alpha = 0.75f))
+        }
+        Spacer(modifier = Modifier.height(8.dp))
         if (items.isEmpty()) {
-            Text("无", fontSize = 15.sp, color = DestinyTheme.muted)
+            Text("无", fontSize = 12.sp, color = DestinyTheme.muted)
         } else {
-            items.forEach { p ->
-                Text(
-                    p.name,
-                    fontSize = 15.sp,
-                    color = nameColor,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onPick(p) }
-                        .padding(vertical = 6.dp, horizontal = 2.dp),
-                )
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                items.forEach { p ->
+                    Text(
+                        p.name,
+                        fontSize = 12.sp,
+                        color = nameColor,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(nameColor.copy(alpha = 0.12f))
+                            .clickable { onPick(p) }
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                    )
+                }
             }
         }
     }

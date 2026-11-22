@@ -37,6 +37,17 @@ import zhiqiu.iztro.bazi.ui.BaziFlowPage
 import zhiqiu.iztro.bazi.ui.BaziOriginalPage
 import zhiqiu.iztro.bazi.ui.BaziThemeProvider
 
+/**
+ * 模块级排盘缓存：Tab 切走后 BaziSection 会退出组合，切回时用缓存直接出盘，
+ * 避免重新排盘造成的一次长帧。key 用档案身份 + 出生参数 + 流盘选择。
+ */
+private object BaziChartCache {
+    @Volatile var originalKey: List<Any?>? = null
+    @Volatile var original: OriginalChart? = null
+    @Volatile var flowKey: List<Any?>? = null
+    @Volatile var flow: FlowChart? = null
+}
+
 /** 八字页：排盘走宿主适配层（Profile→chart），盘面来自 bazi-ui 模块 */
 @Composable
 fun BaziSection(
@@ -56,33 +67,51 @@ fun BaziSection(
         profile.birthdayType, profile.isLeapMonth,
     )
 
-    // 原局后台排盘，避免切 Tab 时主线程卡顿
-    var originalChart by remember(profile.id) { mutableStateOf<OriginalChart?>(null) }
+    // 原局后台排盘，避免切 Tab 时主线程卡顿；命中模块缓存则直接出盘
+    var originalChart by remember(profile.id) {
+        mutableStateOf(
+            if (BaziChartCache.originalKey == profileKey) BaziChartCache.original else null,
+        )
+    }
     var originalFailed by remember(profile.id) { mutableStateOf(false) }
     LaunchedEffect(profileKey) {
+        if (BaziChartCache.originalKey == profileKey && BaziChartCache.original != null) {
+            originalChart = BaziChartCache.original
+            return@LaunchedEffect
+        }
         originalFailed = false
-        originalChart = null
         val chart = withContext(Dispatchers.Default) {
             runCatching { profile.toOriginalChart() }.getOrNull()
         }
         originalChart = chart
+        BaziChartCache.originalKey = profileKey
+        BaziChartCache.original = chart
         originalFailed = chart == null
     }
 
     var selection by remember(profile.id) { mutableStateOf<FlowSelection?>(null) }
     var flowVisited by remember(profile.id) { mutableStateOf(false) }
-    var flowChart by remember(profile.id) { mutableStateOf<FlowChart?>(null) }
+    val flowKey: List<Any?> = listOf(profile.id, profile.birthday, profile.timeIndex, selection)
+    var flowChart by remember(profile.id) {
+        mutableStateOf(if (BaziChartCache.flowKey == flowKey) BaziChartCache.flow else null)
+    }
     var flowFailed by remember(profile.id) { mutableStateOf(false) }
     LaunchedEffect(subTab) {
         if (subTab == 1) flowVisited = true
     }
     LaunchedEffect(profileKey, selection, flowVisited) {
         if (!flowVisited) return@LaunchedEffect
+        if (BaziChartCache.flowKey == flowKey && BaziChartCache.flow != null) {
+            flowChart = BaziChartCache.flow
+            return@LaunchedEffect
+        }
         flowFailed = false
         val chart = withContext(Dispatchers.Default) {
             runCatching { profile.toFlowChart(selection) }.getOrNull()
         }
         flowChart = chart
+        BaziChartCache.flowKey = flowKey
+        BaziChartCache.flow = chart
         flowFailed = chart == null
     }
 
