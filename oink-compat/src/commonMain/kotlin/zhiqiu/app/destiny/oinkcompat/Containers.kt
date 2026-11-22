@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -42,6 +43,34 @@ import zhiqiu.applewidgets.kmp.oink.theme.oinkLightColors
  * 高阶 MD3 容器兼容层：保持 Scaffold/TopAppBar/NavigationBar 等签名，
  * 内部用 foundation + Oink 令牌实现，业务侧改 import 即可。
  */
+
+/** Oink 小标题 + 内容分区 */
+@Composable
+fun Section(
+    title: String? = null,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    zhiqiu.applewidgets.kmp.oink.layout.OinkSection(
+        title = title,
+        modifier = modifier,
+        content = content,
+    )
+}
+
+/** Oink 卡片（圆角 + 描边 + 顶部高光） */
+@Composable
+fun Card(
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(0.dp),
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    zhiqiu.applewidgets.kmp.oink.basic.OinkCard(
+        modifier = modifier,
+        contentPadding = contentPadding,
+        content = content,
+    )
+}
 
 @Composable
 fun Scaffold(
