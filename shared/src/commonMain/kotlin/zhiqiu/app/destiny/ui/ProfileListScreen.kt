@@ -36,7 +36,6 @@ import zhiqiu.app.destiny.oinkcompat.TooltipBox
 import zhiqiu.app.destiny.oinkcompat.TooltipDefaults
 import zhiqiu.app.destiny.oinkcompat.rememberTooltipState
 import androidx.compose.ui.text.input.VisualTransformation
-import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
 import zhiqiu.app.destiny.oinkcompat.Text
 import zhiqiu.app.destiny.oinkcompat.TextButton
 import zhiqiu.app.destiny.oinkcompat.CircularProgressIndicator
@@ -284,7 +283,6 @@ fun ProfileListScreen(
                 }
             }
         }
-        HorizontalDivider(thickness = 0.5.dp, color = DestinyTheme.line)
         Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
             ToolStrip(
                 onAdd = onAdd,
