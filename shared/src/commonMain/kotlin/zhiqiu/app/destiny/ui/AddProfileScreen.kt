@@ -66,7 +66,6 @@ import kotlinx.coroutines.withContext
 import zhiqiu.app.destiny.chart.computeBaziSummary
 import zhiqiu.app.destiny.chart.resolvedSolarDate
 import zhiqiu.app.destiny.i18n.AppStrings
-import zhiqiu.app.destiny.profile.CaseType
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import zhiqiu.app.destiny.time.TIME_INDEX_LABELS
@@ -472,8 +471,17 @@ fun AddProfileScreen(
             Button(
                 onClick = {
                     val now = Clock.System.now().toEpochMilliseconds()
-                    val draft = Profile(
-                        id = initial?.id.orEmpty(),
+                    val base = initial ?: Profile(
+                        id = "",
+                        name = "",
+                        gender = "男",
+                        birthdayType = "solar",
+                        birthday = "",
+                        timeIndex = 0,
+                        createdAt = now,
+                        updatedAt = now,
+                    )
+                    val draft = base.copy(
                         name = name.trim().ifBlank { "未命名" },
                         gender = gender,
                         birthdayType = if (mode == InputMode.Lunar) "lunar" else "solar",
@@ -484,9 +492,7 @@ fun AddProfileScreen(
                         clockHour = clockHour,
                         clockMinute = clockMinute,
                         note = note.trim(),
-                        caseType = initial?.caseType ?: CaseType.BAZI,
                         groupName = groupName,
-                        createdAt = initial?.createdAt ?: now,
                         updatedAt = now,
                     )
                     val saved = runCatching {

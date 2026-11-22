@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
 import zhiqiu.app.destiny.oinkcompat.Icon
+import zhiqiu.app.destiny.oinkcompat.IconButton
 import zhiqiu.app.destiny.oinkcompat.Text
 import androidx.compose.foundation.clickable
 import androidx.compose.runtime.Composable
@@ -72,6 +73,7 @@ fun ChartPagerScreen(
     colorMode: DestinyColorMode = DestinyColorMode.Light,
     onColorModeChange: (DestinyColorMode) -> Unit = {},
     onSaveQizhengPanZhi: (String) -> Unit = {},
+    onEditProfile: () -> Unit = {},
 ) {
     var tab by remember { mutableIntStateOf(if (profile.birthday.isBlank()) 3 else 0) }
     var sheetOpen by remember { mutableStateOf(false) }
@@ -170,6 +172,13 @@ fun ChartPagerScreen(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+                IconButton(onClick = onEditProfile) {
+                    Icon(
+                        imageVector = FeatherIcons.Edit,
+                        contentDescription = "编辑档案",
+                        tint = theme.accent,
+                    )
+                }
             }
             HorizontalDivider(thickness = 0.5.dp, color = theme.line)
             Box(modifier = Modifier.weight(1f).fillMaxWidth()) {

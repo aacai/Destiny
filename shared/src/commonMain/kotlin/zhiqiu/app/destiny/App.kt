@@ -66,6 +66,7 @@ import zhiqiu.xiaoliuren.ui.XiaoLiuRenScreen
 private object Routes {
     const val List = "list"
     const val Add = "add"
+    const val Edit = "edit/{profileId}"
     const val Chart = "chart/{profileId}"
     const val Books = "books"
     const val Reader = "reader/{bookId}"
@@ -77,6 +78,7 @@ private object Routes {
     const val Qimen = "qimen"
 
     fun chart(profileId: String) = "chart/$profileId"
+    fun edit(profileId: String) = "edit/$profileId"
     fun reader(bookId: String) = "reader/$bookId"
 }
 
@@ -382,6 +384,31 @@ fun App(
                     )
                 }
                 composable(
+                    route = Routes.Edit,
+                    arguments = listOf(
+                        navArgument("profileId") { type = NavType.StringType },
+                    ),
+                ) { entry ->
+                    val profileId = entry.arguments?.read { getStringOrNull("profileId") }
+                    val profile = remember(profileId, profiles) {
+                        profiles.find { it.id == profileId }
+                    }
+                    if (profile == null) {
+                        LaunchedEffect(profileId) { goBack() }
+                    } else {
+                        AddProfileScreen(
+                            initial = profile,
+                            onSave = { updated ->
+                                scope.launch {
+                                    repository.upsert(updated)
+                                    goBack()
+                                }
+                            },
+                            onCancel = { goBack() },
+                        )
+                    }
+                }
+                composable(
                     route = Routes.Chart,
                     arguments = listOf(
                         navArgument("profileId") { type = NavType.StringType },
@@ -466,6 +493,7 @@ fun App(
                                         repository.upsert(profile.copy(qizhengPanZhi = panZhi))
                                     }
                                 },
+                                onEditProfile = { navController.navigate(Routes.edit(profile.id)) },
                             )
                         }
                     }
