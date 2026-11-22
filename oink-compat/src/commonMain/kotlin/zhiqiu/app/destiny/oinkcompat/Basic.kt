@@ -367,6 +367,20 @@ fun LinearProgressIndicator(
     )
 }
 
+/** 三点跳动加载（Oink 三点 dots） */
+@Composable
+fun Dots(
+    modifier: Modifier = Modifier,
+    color: Color = Color.Unspecified,
+    dotSize: androidx.compose.ui.unit.Dp = 8.dp,
+) {
+    zhiqiu.applewidgets.kmp.oink.basic.OinkDots(
+        modifier = modifier,
+        color = color,
+        dotSize = dotSize,
+    )
+}
+
 @Composable
 fun OutlinedTextField(
     value: String,
