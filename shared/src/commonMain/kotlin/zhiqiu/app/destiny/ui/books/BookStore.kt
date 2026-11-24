@@ -42,6 +42,11 @@ object BookStore {
         BookMeta("zipingzhenquan", "子平真诠", "命理", 0xFF2C3E50, 0xFF1B2631),
         BookMeta("ditiunsui", "滴天髓", "命理", 0xFF9B59B6, 0xFF6C3483),
         BookMeta("ditiunsuichanwei", "滴天髓阐微", "命理", 0xFFE67E22, 0xFF9C5405),
+        BookMeta("guolaoxingzong", "果老星宗", "命理", 0xFF4A235A, 0xFF1B2631),
+        BookMeta("luozhijing", "罗织经", "谋略", 0xFF566573, 0xFF2C3E50),
+        BookMeta("zengshanbuyi", "增删卜易", "术数", 0xFF1F618D, 0xFF154360),
+        BookMeta("zhouyi", "易经", "经典", 0xFF7D6608, 0xFF4A3800),
+        BookMeta("shanghan_zabinglun", "伤寒杂病论", "医家", 0xFF117864, 0xFF0B3B33),
     )
 
     private val cache = mutableMapOf<String, Book>()
