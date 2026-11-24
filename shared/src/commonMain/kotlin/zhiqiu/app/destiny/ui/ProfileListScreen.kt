@@ -25,6 +25,8 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import zhiqiu.app.destiny.oinkcompat.AlertDialog
+import zhiqiu.app.destiny.oinkcompat.Button
+import zhiqiu.app.destiny.oinkcompat.OutlinedButton
 import zhiqiu.app.destiny.oinkcompat.DropdownMenu
 import zhiqiu.app.destiny.oinkcompat.DropdownMenuItem
 import zhiqiu.app.destiny.oinkcompat.ExperimentalMaterial3Api
@@ -56,6 +58,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
@@ -96,8 +99,8 @@ import zhiqiu.app.destiny.time.timeIndexLabel
 import zhiqiu.app.destiny.oinkcompat.Checkbox
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 
-private enum class SortKey(val label: String) {
-    CREATED("创建"), NAME("名字"), BIRTH("生日"),
+private enum class SortKey(val labelKey: String) {
+    CREATED("sort_created"), NAME("sort_name"), BIRTH("sort_birth"),
 }
 
 /** 从「公历」串里解析 y/m/d 用于生日排序；解析不了返回 Int.MIN_VALUE 排到最后 */
@@ -151,6 +154,7 @@ fun ProfileListScreen(
     val scope = rememberCoroutineScope()
     val Muted = DestinyTheme.muted
     var query by rememberSaveable { mutableStateOf("") }
+    var groupFilter by rememberSaveable { mutableStateOf(CaseType.LIFE) }
     var typeFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var sortKey by rememberSaveable { mutableStateOf(SortKey.CREATED) }
     var ascending by rememberSaveable { mutableStateOf(false) }
@@ -195,7 +199,9 @@ fun ProfileListScreen(
     )
 
     val q = query.trim()
+    val groupTotal = profiles.count { CaseType.groupOf(it.caseType) == groupFilter }
     val filtered = profiles.filter { p ->
+        val groupOk = CaseType.groupOf(p.caseType) == groupFilter
         val typeOk = typeFilter == null || p.caseType == typeFilter
         val queryOk = q.isBlank() ||
             p.name.contains(q, ignoreCase = true) ||
@@ -206,7 +212,7 @@ fun ProfileListScreen(
             p.groupName.contains(q, ignoreCase = true) ||
             CaseType.label(p.caseType).contains(q, ignoreCase = true) ||
             p.payload.contains(q, ignoreCase = true)
-        typeOk && queryOk
+        groupOk && typeOk && queryOk
     }
     val sorted = when (sortKey) {
         SortKey.NAME ->
@@ -217,11 +223,8 @@ fun ProfileListScreen(
             if (ascending) filtered.sortedBy { it.createdAt } else filtered.sortedByDescending { it.createdAt }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(DestinyTheme.page),
-    ) {
+    Box(modifier = Modifier.fillMaxSize().background(DestinyTheme.page)) {
+        Column(modifier = Modifier.fillMaxSize()) {
         // 固定顶栏（不用 M3 TopAppBar）
         Row(
             modifier = Modifier
@@ -231,10 +234,19 @@ fun ProfileListScreen(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(AppStrings.archive, color = DestinyTheme.ink, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Text(
-                    if (q.isBlank()) "共 ${profiles.size} 个档案"
-                    else "匹配 ${sorted.size} / ${profiles.size}",
+                    if (groupFilter == CaseType.LIFE) "${AppStrings.lifeCase} · ${AppStrings.archive}"
+                    else "${AppStrings.divination} · ${AppStrings.archive}",
+                    color = DestinyTheme.ink,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                )
+                Text(
+                    when {
+                        q.isNotBlank() -> "${AppStrings.match} ${sorted.size} / $groupTotal"
+                        typeFilter != null -> "${sorted.size} / $groupTotal"
+                        else -> AppStrings.totalArchives(groupTotal)
+                    },
                     color = DestinyTheme.muted,
                     fontSize = 12.sp,
                 )
@@ -244,16 +256,105 @@ fun ProfileListScreen(
                 contentDescription = if (colorMode == DestinyColorMode.Dark) AppStrings.dayMode else AppStrings.nightMode,
                 onClick = onToggleColorMode,
             )
-            Box {
-                TipIconButton(
-                    icon = FeatherIcons.MoreVertical,
-                    contentDescription = AppStrings.dataBackup,
-                    onClick = { showMenu = !showMenu },
+            TipIconButton(
+                icon = FeatherIcons.MoreVertical,
+                contentDescription = AppStrings.dataBackup,
+                onClick = { showMenu = !showMenu },
+            )
+        }
+        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            SearchBar(
+                query = query,
+                onQueryChange = { query = it },
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            GroupTabRow(
+                current = groupFilter,
+                counts = remember(profiles) {
+                    profiles.groupingBy { CaseType.groupOf(it.caseType) }.eachCount()
+                },
+                onSelect = { group ->
+                    if (group != groupFilter) {
+                        groupFilter = group
+                        typeFilter = null
+                    }
+                },
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            ToolStrip(
+                group = groupFilter,
+                onAdd = onAdd,
+                onOpenLiuyao = onOpenLiuyao,
+                onOpenXiaoLiuRen = onOpenXiaoLiuRen,
+                onOpenMeiHua = onOpenMeiHua,
+                onOpenQimen = onOpenQimen,
+                onOpenBooks = onOpenBooks,
+            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TypeFilterRow(
+                    modifier = Modifier.weight(1f),
+                    current = typeFilter,
+                    types = CaseType.typesOf(groupFilter),
+                    counts = remember(profiles) { profiles.groupingBy { it.caseType }.eachCount() },
+                    onSelect = { typeFilter = it },
                 )
-                DropdownMenu(
-                    expanded = showMenu,
-                    onDismissRequest = { showMenu = false },
-                    containerColor = DestinyTheme.card,
+                Spacer(modifier = Modifier.width(8.dp))
+                SortButton(
+                    current = sortKey,
+                    ascending = ascending,
+                    onSelect = { key ->
+                        if (sortKey == key) {
+                            ascending = !ascending
+                        } else {
+                            sortKey = key
+                            ascending = key != SortKey.BIRTH
+                        }
+                    },
+                )
+            }
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (sorted.isEmpty()) {
+                    item {
+                        EmptyState(
+                            searching = q.isNotBlank(),
+                            group = groupFilter,
+                            onAdd = onAdd,
+                        )
+                    }
+                }
+                items(sorted, key = { it.id }) { profile ->
+                    ProfileRow(
+                        profile = profile,
+                        onClick = { onOpen(profile) },
+                        onDelete = { pendingDelete = profile },
+                    )
+                }
+            }
+        }
+        }
+        if (showMenu) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(onClick = { showMenu = false }),
+                contentAlignment = Alignment.TopEnd,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .padding(top = 56.dp, end = 8.dp)
+                        .width(210.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(DestinyTheme.card)
+                        .border(1.dp, DestinyTheme.line, RoundedCornerShape(12.dp))
+                        .padding(4.dp),
                 ) {
                     MenuAction(FeatherIcons.Upload, AppStrings.exportBackup) {
                         showMenu = false
@@ -283,71 +384,15 @@ fun ProfileListScreen(
                 }
             }
         }
-        Column(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            ToolStrip(
-                onAdd = onAdd,
-                onOpenLiuyao = onOpenLiuyao,
-                onOpenXiaoLiuRen = onOpenXiaoLiuRen,
-                onOpenMeiHua = onOpenMeiHua,
-                onOpenQimen = onOpenQimen,
-                onOpenBooks = onOpenBooks,
-            )
-            SearchBar(
-                query = query,
-                onQueryChange = { query = it },
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            TypeFilterRow(
-                current = typeFilter,
-                counts = remember(profiles) { profiles.groupingBy { it.caseType }.eachCount() },
-                onSelect = { typeFilter = it },
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            SortRow(
-                current = sortKey,
-                ascending = ascending,
-                onSelect = { key ->
-                    if (sortKey == key) {
-                        ascending = !ascending
-                    } else {
-                        sortKey = key
-                        ascending = key != SortKey.BIRTH
-                    }
-                },
-            )
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                if (q.isNotBlank() && sorted.isEmpty()) {
-                    item {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text("没有匹配「$q」的档案", color = Muted, fontSize = 13.sp)
-                        }
-                    }
-                }
-                items(sorted, key = { it.id }) { profile ->
-                    ProfileRow(
-                        profile = profile,
-                        onClick = { onOpen(profile) },
-                        onDelete = { pendingDelete = profile },
-                    )
-                }
-            }
-        }
     }
 
     pendingDelete?.let { profile ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("确认删除", color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
+            title = { Text(AppStrings.confirmDelete, color = DestinyTheme.ink, fontWeight = FontWeight.Bold) },
             text = {
                 Text(
-                    "确定删除「${profile.name.ifBlank { "未命名" }}」吗？此操作不可恢复。",
+                    AppStrings.deleteAsk(profile.name.ifBlank { AppStrings.unnamed }),
                     color = DestinyTheme.muted,
                     fontSize = 14.sp,
                 )
@@ -555,6 +600,7 @@ private fun ImportDialog(
 /** 功能入口横滑，避免工具变多之后把字挤没。 */
 @Composable
 private fun ToolStrip(
+    group: String,
     onAdd: () -> Unit,
     onOpenLiuyao: () -> Unit,
     onOpenXiaoLiuRen: () -> Unit,
@@ -565,17 +611,26 @@ private fun ToolStrip(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
+            .then(if (group == CaseType.LIFE) Modifier else Modifier.horizontalScroll(rememberScrollState()))
             .padding(horizontal = 16.dp)
             .padding(bottom = 2.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        ToolCard(FeatherIcons.Plus, "新建档案", "排盘建档", onAdd, primary = true)
-        ToolCard(FeatherIcons.Hexagon, "六爻", "摇卦断事", onOpenLiuyao)
-        ToolCard(FeatherIcons.Compass, "小六壬", "掌诀起课", onOpenXiaoLiuRen)
-        ToolCard(FeatherIcons.Aperture, "梅花", "易数起卦", onOpenMeiHua)
-        ToolCard(FeatherIcons.Grid, "奇门", "时家排盘", onOpenQimen)
-        ToolCard(FeatherIcons.BookOpen, AppStrings.bookshelf, AppStrings.ancientTexts, onOpenBooks)
+        if (group == CaseType.LIFE) {
+            ToolCard(
+                FeatherIcons.Plus, AppStrings.newLifeCase, AppStrings.basicInfo, onAdd,
+                primary = true, modifier = Modifier.weight(1f), fill = true,
+            )
+            ToolCard(
+                FeatherIcons.BookOpen, AppStrings.bookshelf, AppStrings.ancientTexts, onOpenBooks,
+                modifier = Modifier.weight(1f), fill = true,
+            )
+        } else {
+            ToolCard(FeatherIcons.Hexagon, "六爻", "摇卦断事", onOpenLiuyao)
+            ToolCard(FeatherIcons.Compass, "小六壬", "掌诀起课", onOpenXiaoLiuRen)
+            ToolCard(FeatherIcons.Aperture, "梅花", "易数起卦", onOpenMeiHua)
+            ToolCard(FeatherIcons.Grid, "奇门", "时家排盘", onOpenQimen)
+        }
     }
 }
 
@@ -586,12 +641,13 @@ private fun ToolCard(
     hint: String,
     onClick: () -> Unit,
     primary: Boolean = false,
+    modifier: Modifier = Modifier,
+    fill: Boolean = false,
 ) {
     val theme = DestinyTheme
     val tone = if (primary) Color.White else theme.ink
     Column(
-        modifier = Modifier
-            .width(104.dp)
+        modifier = modifier.then(if (fill) Modifier else Modifier.width(104.dp))
             .clip(RoundedCornerShape(14.dp))
             .background(if (primary) theme.accent else theme.card)
             .border(
@@ -655,7 +711,7 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
         Spacer(modifier = Modifier.width(10.dp))
         Box(modifier = Modifier.weight(1f)) {
             if (query.isEmpty()) {
-                Text("搜索名字、日期、四柱…", color = theme.muted, fontSize = 14.sp)
+                Text(AppStrings.searchHint, color = theme.muted, fontSize = 14.sp)
             }
             BasicTextField(
                 value = query,
@@ -682,20 +738,60 @@ private fun SearchBar(query: String, onQueryChange: (String) -> Unit) {
 }
 
 @Composable
+private fun GroupTabRow(
+    current: String,
+    counts: Map<String, Int>,
+    onSelect: (String) -> Unit,
+) {
+    val theme = DestinyTheme
+    Row(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        val groups = listOf(
+            CaseType.LIFE to AppStrings.lifeCase,
+            CaseType.DIVINATION_GROUP to AppStrings.divination,
+        )
+        groups.forEach { (group, label) ->
+            val active = current == group
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { onSelect(group) }
+                    .padding(vertical = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    "$label ${counts[group] ?: 0}",
+                    color = if (active) theme.accent else theme.muted,
+                    fontSize = 14.sp,
+                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(0.42f)
+                        .height(2.dp)
+                        .clip(RoundedCornerShape(1.dp))
+                        .background(if (active) theme.accent else Color.Transparent),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun TypeFilterRow(
+    modifier: Modifier = Modifier,
     current: String?,
+    types: List<String>,
     counts: Map<String, Int>,
     onSelect: (String?) -> Unit,
 ) {
     val theme = DestinyTheme
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
+        modifier = modifier.horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        val options = listOf(null) + CaseType.ALL
+        val options = listOf(null) + types
         options.forEach { type ->
             val label = if (type == null) AppStrings.all else CaseType.label(type)
             val active = type == current
@@ -720,51 +816,91 @@ private fun TypeFilterRow(
 }
 
 @Composable
-private fun SortRow(
+private fun SortButton(
     current: SortKey,
     ascending: Boolean,
     onSelect: (SortKey) -> Unit,
 ) {
     val theme = DestinyTheme
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(theme.panel)
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        SortKey.entries.forEach { key ->
-            val active = key == current
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(if (active) theme.card else Color.Transparent)
-                    .clickable { onSelect(key) }
-                    .padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.Center,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    key.label,
-                    color = if (active) theme.accent else theme.muted,
-                    fontSize = 13.sp,
-                    fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) {
+            Text(
+                "${AppStrings.sort} · ${AppStrings.t(current.labelKey)} ${if (ascending) "↑" else "↓"}",
+                color = theme.muted,
+                fontSize = 12.sp,
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            containerColor = theme.card,
+        ) {
+            SortKey.entries.forEach { key ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            AppStrings.t(key.labelKey),
+                            color = if (key == current) theme.accent else theme.ink,
+                            fontSize = 13.sp,
+                        )
+                    },
+                    onClick = {
+                        expanded = false
+                        onSelect(key)
+                    },
                 )
-                if (active) {
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        if (ascending) "↑" else "↓",
-                        color = theme.accent,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                }
             }
         }
     }
+}
+
+@Composable
+private fun EmptyState(
+    searching: Boolean,
+    group: String,
+    onAdd: () -> Unit,
+) {
+    val theme = DestinyTheme
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 56.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Icon(
+            imageVector = if (searching) FeatherIcons.Search else FeatherIcons.Plus,
+            contentDescription = null,
+            tint = theme.muted,
+            modifier = Modifier.size(32.dp),
+        )
+        Spacer(modifier = Modifier.height(14.dp))
+        Text(
+            if (searching) AppStrings.noMatch else AppStrings.noArchives,
+            color = theme.ink,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        if (!searching) {
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                if (group == CaseType.LIFE) AppStrings.emptyLife else AppStrings.emptyDivination,
+                color = theme.muted,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(horizontal = 32.dp),
+            )
+            if (group == CaseType.LIFE) {
+                Spacer(modifier = Modifier.height(18.dp))
+                Button(onClick = onAdd) { Text(AppStrings.newLifeCase, fontSize = 13.sp) }
+            }
+        }
+    }
+}
+
+/** 长占问保留首尾、中间省略，避免标题行被挤爆。 */
+private fun middleEllipsis(text: String, max: Int = 22): String {
+    if (text.length <= max) return text
+    val head = (max - 1) / 2
+    val tail = max - 1 - head
+    return text.take(head) + "…" + text.takeLast(tail)
 }
 
 @Composable
@@ -803,10 +939,13 @@ private fun ProfileRow(
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    profile.name.ifBlank { "未命名" },
+                    middleEllipsis(profile.name.ifBlank { AppStrings.unnamed }),
                     color = theme.ink,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
                 )
                 if (profile.gender.isNotBlank()) {
                     Spacer(modifier = Modifier.width(6.dp))
@@ -837,7 +976,9 @@ private fun ProfileRow(
                             .padding(horizontal = 5.dp, vertical = 1.dp),
                     )
                 }
-                if (profile.groupName.isNotBlank() && profile.groupName != "默认") {
+                if (profile.caseType == CaseType.BAZI &&
+                    profile.groupName.isNotBlank() && profile.groupName != "默认"
+                ) {
                     Spacer(modifier = Modifier.width(6.dp))
                     Text("· ${profile.groupName}", color = theme.muted, fontSize = 11.sp)
                 }

@@ -36,6 +36,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import zhiqiu.applewidgets.kmp.oink.theme.oinkDarkColors
+import zhiqiu.applewidgets.kmp.oink.theme.oinkLightColors
 import zhiqiu.liuyao.Branch
 import zhiqiu.liuyao.InstalledHexagram
 import zhiqiu.liuyao.InstalledYao
@@ -55,30 +57,33 @@ data class PanColors(
     val pillarRed: Color,
 )
 
-/** 内置日间六爻色板 */
+private val oinkLight = oinkLightColors()
+private val oinkDark = oinkDarkColors()
+
+/** 内置日间六爻色板：与全局统一走 oink 中性色 */
 val LightPanColors = PanColors(
-    page = Color(0xFFF5F3EE),
-    card = Color(0xFFFFFFFF),
-    ink = Color(0xFF222222),
-    muted = Color(0xFF8A8578),
-    line = Color(0xFFE2DED2),
-    accent = Color(0xFF26A6A6),
-    yongShenGold = Color(0xFFD9A441),
-    shiMark = Color(0xFFB3261E),
-    pillarRed = Color(0xFFD32F2F),
+    page = oinkLight.bg,
+    card = oinkLight.card,
+    ink = oinkLight.text,
+    muted = oinkLight.text2,
+    line = oinkLight.line2,
+    accent = oinkLight.accent,
+    yongShenGold = oinkLight.warningText,
+    shiMark = oinkLight.dangerText,
+    pillarRed = oinkLight.danger,
 )
 
-/** 内置夜间六爻色板 */
+/** 内置夜间六爻色板：与全局统一走 oink 中性色 */
 val DarkPanColors = PanColors(
-    page = Color(0xFF1C1B19),
-    card = Color(0xFF2A2825),
-    ink = Color(0xFFE8E4DC),
-    muted = Color(0xFF9E988C),
-    line = Color(0xFF3F3C36),
-    accent = Color(0xFF4DB6B6),
-    yongShenGold = Color(0xFFFFD54F),
-    shiMark = Color(0xFFEF9A9A),
-    pillarRed = Color(0xFFEF5350),
+    page = oinkDark.bg,
+    card = oinkDark.card,
+    ink = oinkDark.text,
+    muted = oinkDark.text2,
+    line = oinkDark.line2,
+    accent = oinkDark.accent,
+    yongShenGold = oinkDark.warningText,
+    shiMark = oinkDark.dangerText,
+    pillarRed = oinkDark.danger,
 )
 
 /** 成套六爻主题：lightTheme / darkTheme 可整体替换 */

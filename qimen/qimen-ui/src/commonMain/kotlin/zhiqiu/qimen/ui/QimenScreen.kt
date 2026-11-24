@@ -22,6 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import zhiqiu.app.destiny.oinkcompat.AlertDialog
+import zhiqiu.app.destiny.oinkcompat.Button
+import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
 import zhiqiu.app.destiny.oinkcompat.Text
 import zhiqiu.app.destiny.oinkcompat.TextButton
 import androidx.compose.runtime.Composable
@@ -88,6 +90,77 @@ fun QimenScreen(
     }
 }
 
+/** 从存档的结构化数据只读重播奇门局，展示与起局页同款盘面。 */
+@Composable
+fun QimenCaseViewer(
+    question: String,
+    year: Int, month: Int, day: Int, hour: Int, minute: Int,
+    plate: String,
+    boundary: String,
+    solarText: String,
+    pillarText: String,
+    yuanText: String,
+    dunText: String,
+    onBack: () -> Unit = {},
+    onEdit: (() -> Unit)? = null,
+    noteSection: (@Composable () -> Unit)? = null,
+    darkTheme: Boolean = false,
+) {
+    QimenThemeProvider(darkTheme = darkTheme) {
+        var selected by remember { mutableStateOf<Palace?>(null) }
+        val chart = remember(year, month, day, hour, minute, plate, boundary) {
+            runCatching {
+                cast(
+                    year, month, day, hour, minute,
+                    runCatching { PlateKind.valueOf(plate) }.getOrDefault(PlateKind.Zhuan),
+                    runCatching { DayBoundary.valueOf(boundary) }.getOrDefault(DayBoundary.Hour23),
+                )
+            }.getOrNull()
+        }
+        Column(modifier = Modifier.fillMaxSize().background(QimenTheme.page)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onBack) { Text(QimenStrings.backShort, color = QimenTheme.accent, fontSize = 15.sp) }
+                Text("局例详情", color = QimenTheme.ink, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                if (onEdit != null) {
+                    TextButton(onClick = onEdit) { Text(QimenStrings.edit, color = QimenTheme.accent, fontSize = 13.sp) }
+                }
+            }
+            HorizontalDivider(thickness = 0.5.dp, color = QimenTheme.line)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                if (question.isNotBlank()) {
+                    Text("占问：$question", color = QimenTheme.ink, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+                if (chart != null) {
+                    InfoCard(chart)
+                    Spacer(modifier = Modifier.height(10.dp))
+                    QimenBoard(chart = chart, selected = selected, onSelect = { selected = it })
+                    selected?.let { palace ->
+                        Spacer(modifier = Modifier.height(10.dp))
+                        PalaceDetail(chart, palace)
+                    }
+                } else {
+                    Text(
+                        listOfNotNull(solarText, pillarText, "$yuanText · $dunText").filter { it.isNotBlank() }.joinToString("\n"),
+                        color = QimenTheme.ink,
+                        fontSize = 14.sp,
+                    )
+                }
+                if (noteSection != null) noteSection()
+            }
+        }
+    }
+}
+
 @Composable
 private fun ScreenContent(onBack: () -> Unit, onSave: (QimenSave) -> Unit) {
     val seed = remember { deviceNow() }
@@ -145,17 +218,16 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (QimenSave) -> Unit) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.weight(1f),
             )
-            Box(
+            Text(
+                QimenStrings.rule,
+                color = QimenTheme.accent,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(QimenTheme.panel)
-                    .border(1.dp, QimenTheme.line, CircleShape)
-                    .clickable { showRule = true },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("？", color = QimenTheme.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            }
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { showRule = true }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
         }
         Column(
             modifier = Modifier
@@ -245,39 +317,31 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (QimenSave) -> Unit) {
                     PalaceDetail(chart, palace)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(QimenTheme.accent)
-                        .clickable {
-                            val id = buildString { repeat(32) { append("abcdefghijklmnopqrstuvwxyz0123456789"[kotlin.random.Random.nextInt(36)]) } }
-                            val summary = buildString {
-                                if (question.isNotBlank()) appendLine("【占问】${question.trim()}")
-                                appendLine("【时间】${chart.solarText}")
-                                appendLine("【四柱】${chart.pillarText}")
-                                appendLine("【局式】${chart.termName}${chart.yuanText} · ${chart.dunText}")
-                                appendLine("【值符】${chart.zhiFu.label}　【值使】${chart.zhiShi.full}")
-                            }
-                            onSave(
-                                QimenSave(
-                                    id = id,
-                                    name = question.trim().ifBlank { chart.solarText },
-                                    note = summary,
-                                    groupName = "奇门",
-                                    mode = mode.name, question = question,
-                                    year = whenYear, month = whenMonth, day = whenDay,
-                                    hour = whenHour, minute = whenMinute,
-                                    plate = plate.name, boundary = boundary.name,
-                                    solarText = chart.solarText, pillarText = chart.pillarText,
-                                    yuanText = chart.yuanText, dunText = chart.dunText,
-                                ),
-                            )
-                        }
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(QimenStrings.saveJu, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+                Button(onClick = {
+                    val id = buildString { repeat(32) { append("abcdefghijklmnopqrstuvwxyz0123456789"[kotlin.random.Random.nextInt(36)]) } }
+                    val summary = buildString {
+                        if (question.isNotBlank()) appendLine("【占问】${question.trim()}")
+                        appendLine("【时间】${chart.solarText}")
+                        appendLine("【四柱】${chart.pillarText}")
+                        appendLine("【局式】${chart.termName}${chart.yuanText} · ${chart.dunText}")
+                        appendLine("【值符】${chart.zhiFu.label}　【值使】${chart.zhiShi.full}")
+                    }
+                    onSave(
+                        QimenSave(
+                            id = id,
+                            name = question.trim().ifBlank { chart.solarText },
+                            note = summary,
+                            groupName = "奇门",
+                            mode = mode.name, question = question,
+                            year = whenYear, month = whenMonth, day = whenDay,
+                            hour = whenHour, minute = whenMinute,
+                            plate = plate.name, boundary = boundary.name,
+                            solarText = chart.solarText, pillarText = chart.pillarText,
+                            yuanText = chart.yuanText, dunText = chart.dunText,
+                        ),
+                    )
+                }) {
+                    Text(QimenStrings.saveJu, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
                 }
             },
             onFailure = { error ->

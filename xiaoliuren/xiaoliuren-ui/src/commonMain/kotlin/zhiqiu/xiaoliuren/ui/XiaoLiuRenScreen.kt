@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import zhiqiu.app.destiny.oinkcompat.AlertDialog
 import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
+import zhiqiu.app.destiny.oinkcompat.Button
 import zhiqiu.app.destiny.oinkcompat.Text
 import zhiqiu.app.destiny.oinkcompat.TextButton
 import androidx.compose.runtime.Composable
@@ -165,17 +166,16 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
             Spacer(modifier = Modifier.weight(1f))
             Text("小六壬 · 马前课", color = XlrTheme.ink, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.weight(1f))
-            Box(
+            Text(
+                XiaoLiuRenStrings.rule,
+                color = XlrTheme.accent,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(XlrTheme.panel)
-                    .border(1.dp, XlrTheme.line, CircleShape)
-                    .clickable { showRule = true },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("？", color = XlrTheme.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-            }
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { showRule = true }
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+            )
         }
         Column(
             modifier = Modifier
@@ -390,50 +390,42 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (XiaoLiuRenSave) -> Unit) 
 
         VerdictCard(chart = chart)
         Spacer(modifier = Modifier.height(16.dp))
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(XlrTheme.accent)
-                .clickable {
-                    val id = savedId ?: newXlrId()
-                    val summary = buildString {
-                        if (question.isNotBlank()) appendLine("【占问】${question.trim()}")
-                        appendLine("【课式】${chart.castText}")
-                        if (chart.solarText.isNotBlank()) appendLine("【公历】${chart.solarText}")
-                        appendLine("【三数】${chart.monthCount}・${chart.dayCount}・${chart.hourCount}")
-                        appendLine("【落宫】${chart.palace.label}（${chart.palace.luck.label}）")
-                        appendLine("【断曰】${chart.palace.poem.joinToString(" ")}")
-                    }
-                    onSave(
-                        XiaoLiuRenSave(
-                            id = id,
-                            name = question.trim().ifBlank { "小六壬·${chart.castText}" },
-                            note = summary,
-                            groupName = "小六壬",
-                            mode = mode.name,
-                            question = question,
-                            solarYear = solarYear,
-                            solarMonth = solarMonth,
-                            solarDay = solarDay,
-                            solarHour = solarHour,
-                            solarMinute = solarMinute,
-                            lunarMonth = lunarMonth,
-                            lunarDay = lunarDay,
-                            hourBranchIndex = branch,
-                            isLeapMonth = leap,
-                            countMonth = countMonth.toIntOrNull() ?: 0,
-                            countDay = countDay.toIntOrNull() ?: 0,
-                            countHour = countHour.toIntOrNull() ?: 0,
-                        ),
-                    )
-                    savedId = id
-                    savedHint = true
-                }
-                .padding(vertical = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(XiaoLiuRenStrings.saveCourse, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        Button(onClick = {
+            val id = savedId ?: newXlrId()
+            val summary = buildString {
+                if (question.isNotBlank()) appendLine("【占问】${question.trim()}")
+                appendLine("【课式】${chart.castText}")
+                if (chart.solarText.isNotBlank()) appendLine("【公历】${chart.solarText}")
+                appendLine("【三数】${chart.monthCount}・${chart.dayCount}・${chart.hourCount}")
+                appendLine("【落宫】${chart.palace.label}（${chart.palace.luck.label}）")
+                appendLine("【断曰】${chart.palace.poem.joinToString(" ")}")
+            }
+            onSave(
+                XiaoLiuRenSave(
+                    id = id,
+                    name = question.trim().ifBlank { "小六壬·${chart.castText}" },
+                    note = summary,
+                    groupName = "小六壬",
+                    mode = mode.name,
+                    question = question,
+                    solarYear = solarYear,
+                    solarMonth = solarMonth,
+                    solarDay = solarDay,
+                    solarHour = solarHour,
+                    solarMinute = solarMinute,
+                    lunarMonth = lunarMonth,
+                    lunarDay = lunarDay,
+                    hourBranchIndex = branch,
+                    isLeapMonth = leap,
+                    countMonth = countMonth.toIntOrNull() ?: 0,
+                    countDay = countDay.toIntOrNull() ?: 0,
+                    countHour = countHour.toIntOrNull() ?: 0,
+                ),
+            )
+            savedId = id
+            savedHint = true
+        }) {
+            Text(XiaoLiuRenStrings.saveCourse, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
         }
         if (savedHint) {
             Spacer(modifier = Modifier.height(8.dp))
@@ -916,6 +908,8 @@ fun XiaoLiuRenCaseViewer(
     lunarMonth: Int, lunarDay: Int, hourBranchIndex: Int, isLeapMonth: Boolean,
     countMonth: Int, countDay: Int, countHour: Int,
     onBack: () -> Unit = {},
+    onEdit: (() -> Unit)? = null,
+    noteSection: (@Composable () -> Unit)? = null,
     darkTheme: Boolean = false,
     themeConfig: XlrThemeConfig = XlrThemeConfig.Default,
 ) {
@@ -946,7 +940,14 @@ fun XiaoLiuRenCaseViewer(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 TextButton(onClick = onBack) { Text(XiaoLiuRenStrings.backShort, color = XlrTheme.accent, fontSize = 15.sp) }
-                Text("课式详情", color = XlrTheme.ink, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    "课式详情",
+                    color = XlrTheme.ink, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f),
+                )
+                if (onEdit != null) {
+                    TextButton(onClick = onEdit) { Text(XiaoLiuRenStrings.edit, color = XlrTheme.accent, fontSize = 13.sp) }
+                }
             }
             Column(
                 modifier = Modifier
@@ -996,6 +997,7 @@ fun XiaoLiuRenCaseViewer(
                     }
                 }
             }
+            if (noteSection != null) noteSection()
             } // scroll body
         }
     }

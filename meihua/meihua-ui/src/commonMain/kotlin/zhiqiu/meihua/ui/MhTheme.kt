@@ -5,8 +5,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import zhiqiu.applewidgets.kmp.oink.theme.oinkDarkColors
+import zhiqiu.applewidgets.kmp.oink.theme.oinkLightColors
 
-/** 梅花盘色板：竹青纸底，吉凶分明。 */
+/** 梅花盘色板：与全局统一走 oink 中性色，吉凶用 oink 语义色。 */
 data class MhColors(
     val page: Color,
     val card: Color,
@@ -22,30 +24,33 @@ data class MhColors(
     fun tone(auspicious: Boolean): Color = if (auspicious) lucky else unlucky
 }
 
+private val oinkLight = oinkLightColors()
+private val oinkDark = oinkDarkColors()
+
 val LightMhColors = MhColors(
-    page = Color(0xFFF4F6F2),
-    card = Color(0xFFFFFFFF),
-    panel = Color(0xFFEEF2EC),
-    ink = Color(0xFF1F2A1C),
-    muted = Color(0xFF7A8574),
-    line = Color(0xFFD7DFD2),
-    accent = Color(0xFF2F6B4F),
-    lucky = Color(0xFF1B5E20),
-    unlucky = Color(0xFFB3261E),
-    moving = Color(0xFFC45C26),
+    page = oinkLight.bg,
+    card = oinkLight.card,
+    panel = oinkLight.well,
+    ink = oinkLight.text,
+    muted = oinkLight.text2,
+    line = oinkLight.line2,
+    accent = oinkLight.accent,
+    lucky = oinkLight.successText,
+    unlucky = oinkLight.dangerText,
+    moving = oinkLight.warningText,
 )
 
 val DarkMhColors = MhColors(
-    page = Color(0xFF171A16),
-    card = Color(0xFF242822),
-    panel = Color(0xFF1D211C),
-    ink = Color(0xFFE4E8E0),
-    muted = Color(0xFF9AA394),
-    line = Color(0xFF3A4038),
-    accent = Color(0xFF6FAF8E),
-    lucky = Color(0xFF81C784),
-    unlucky = Color(0xFFEF9A9A),
-    moving = Color(0xFFE08A5A),
+    page = oinkDark.bg,
+    card = oinkDark.card,
+    panel = oinkDark.well,
+    ink = oinkDark.text,
+    muted = oinkDark.text2,
+    line = oinkDark.line2,
+    accent = oinkDark.accent,
+    lucky = oinkDark.successText,
+    unlucky = oinkDark.dangerText,
+    moving = oinkDark.warningText,
 )
 
 data class MhThemeConfig(

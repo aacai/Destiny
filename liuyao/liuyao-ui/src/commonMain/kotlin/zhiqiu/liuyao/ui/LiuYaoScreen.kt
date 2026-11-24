@@ -177,6 +177,8 @@ fun LiuYaoCaseViewer(
     topic: String, sub: String, guaZhu: String, gender: String, question: String,
     note: String,
     onBack: () -> Unit = {},
+    onEdit: (() -> Unit)? = null,
+    noteSection: (@Composable () -> Unit)? = null,
     darkTheme: Boolean = false,
     themeConfig: PanThemeConfig = PanThemeConfig.Default,
 ) {
@@ -207,6 +209,8 @@ fun LiuYaoCaseViewer(
             onBackToInput = onBack,
             onRestart = {},
             readOnly = true,
+            onEdit = onEdit,
+            noteSection = noteSection,
         )
     }
 }

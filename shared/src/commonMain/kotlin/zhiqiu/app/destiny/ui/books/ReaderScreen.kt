@@ -6,9 +6,11 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,7 +19,9 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -30,6 +34,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -41,10 +46,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import compose.icons.FeatherIcons
@@ -58,8 +66,6 @@ import kotlin.math.roundToInt
 import zhiqiu.app.destiny.i18n.AppStrings
 import zhiqiu.app.destiny.oinkcompat.Icon
 import zhiqiu.app.destiny.oinkcompat.IconButton
-import zhiqiu.app.destiny.oinkcompat.Slider
-import zhiqiu.app.destiny.oinkcompat.SliderDefaults
 import zhiqiu.app.destiny.oinkcompat.Text
 
 // ---------- 阅读主题（番茄式 5 背景） ----------
@@ -90,7 +96,14 @@ private const val ANIM_SLIDE = 0
 private const val ANIM_FADE = 1
 private const val ANIM_NONE = 2
 
-/** 阅读偏好 + 每本书章节进度（持久化到 Room 键值表，跨启动生效） */
+/** 阅读位置：章节 + 章内条目/页 + 像素偏移，尽量还原到离开时的位置。 */
+data class ReaderPosition(
+    val section: Int = 0,
+    val item: Int = 0,
+    val offset: Int = 0,
+)
+
+/** 阅读偏好 + 每本书阅读位置（持久化到 Room 键值表，跨启动生效） */
 object ReaderPrefs {
     private var store: ReaderStore? = null
 
@@ -131,8 +144,8 @@ object ReaderPrefs {
             store?.put("reader.pageAnim", pageAnimState.intValue.toString())
         }
 
-    /** 会话内立即生效的章节进度缓存；持久化走 saveLastSection */
-    val lastSection = mutableMapOf<String, Int>()
+    /** 会话内立即生效的进度缓存；持久化走 savePosition */
+    val lastPosition = mutableMapOf<String, ReaderPosition>()
 
     /** 接入 Room 存取器并载入已存偏好（只生效一次） */
     suspend fun attach(s: ReaderStore) {
@@ -145,12 +158,28 @@ object ReaderPrefs {
         s.get("reader.pageAnim")?.toIntOrNull()?.let { pageAnimState.intValue = it.coerceIn(0, 2) }
     }
 
-    suspend fun loadLastSection(bookId: String): Int =
-        store?.get("reader.pos.$bookId")?.toIntOrNull() ?: lastSection[bookId] ?: 0
+    suspend fun loadPosition(bookId: String): ReaderPosition {
+        // 会话内优先用刚写入的缓存，避免 Room 异步落库前读回旧值
+        lastPosition[bookId]?.let { return it }
+        val raw = store?.get("reader.pos.$bookId")
+        if (!raw.isNullOrBlank()) {
+            val parts = raw.split("|")
+            if (parts.size == 3) {
+                return ReaderPosition(
+                    section = parts[0].toIntOrNull() ?: 0,
+                    item = parts[1].toIntOrNull() ?: 0,
+                    offset = parts[2].toIntOrNull() ?: 0,
+                )
+            }
+            // 兼容旧版本只存章节索引的格式
+            parts.firstOrNull()?.toIntOrNull()?.let { return ReaderPosition(section = it) }
+        }
+        return lastPosition[bookId] ?: ReaderPosition()
+    }
 
-    fun saveLastSection(bookId: String, idx: Int) {
-        lastSection[bookId] = idx
-        store?.put("reader.pos.$bookId", idx.toString())
+    fun savePosition(bookId: String, pos: ReaderPosition) {
+        lastPosition[bookId] = pos
+        store?.put("reader.pos.$bookId", "${pos.section}|${pos.item}|${pos.offset}")
     }
 }
 
@@ -279,28 +308,50 @@ fun ReaderScreen(
         }
     }
 
+    fun currentPosition(): ReaderPosition = if (pageMode) {
+        ReaderPosition(section = currentSection, item = pagerState.currentPage)
+    } else {
+        ReaderPosition(
+            section = currentSection,
+            item = listState.firstVisibleItemIndex,
+            offset = listState.firstVisibleItemScrollOffset,
+        )
+    }
+
     LaunchedEffect(b, prefsReady, pageMode) {
         if (!prefsReady) return@LaunchedEffect
-        val idx = ReaderPrefs.loadLastSection(bookId)
+        val pos = ReaderPrefs.loadPosition(bookId)
         if (pageMode) {
-            val target = pages.indexOfFirst { pg -> pg.any { it.sectionIdx == idx } }.coerceAtLeast(0)
+            val target = pos.item.takeIf { it in pages.indices }
+                ?: pages.indexOfFirst { pg -> pg.any { it.sectionIdx == pos.section } }.coerceAtLeast(0)
             if (target in pages.indices) pagerState.scrollToPage(target)
-        } else if (idx > 0 && idx < anchors.size) {
-            listState.scrollToItem(anchors[idx])
+        } else if (pos.item in 1 until items.size) {
+            listState.scrollToItem(pos.item, pos.offset)
+        } else if (pos.section in 1 until anchors.size) {
+            listState.scrollToItem(anchors[pos.section])
         }
     }
-    LaunchedEffect(currentSection) {
-        delay(1000)
-        ReaderPrefs.saveLastSection(bookId, currentSection)
+    val progressKey = if (pageMode) pagerState.currentPage else listState.firstVisibleItemIndex
+    LaunchedEffect(currentSection, progressKey) {
+        delay(600)
+        ReaderPrefs.savePosition(bookId, currentPosition())
+    }
+    DisposableEffect(bookId) {
+        onDispose { ReaderPrefs.savePosition(bookId, currentPosition()) }
     }
 
     fun jumpSection(si: Int, animated: Boolean = true) {
         val clamped = si.coerceIn(0, b.sections.size - 1)
-        ReaderPrefs.saveLastSection(bookId, clamped)
+        val targetPage = if (pageMode) {
+            pages.indexOfFirst { pg -> pg.any { it.sectionIdx == clamped } }.coerceAtLeast(0)
+        } else 0
+        ReaderPrefs.savePosition(
+            bookId,
+            ReaderPosition(section = clamped, item = if (pageMode) targetPage else anchors.getOrNull(clamped) ?: 0),
+        )
         scope.launch {
             if (pageMode) {
-                val target = pages.indexOfFirst { pg -> pg.any { it.sectionIdx == clamped } }.coerceAtLeast(0)
-                goToPage(pagerState, target, animated && ReaderPrefs.pageAnim != ANIM_NONE)
+                goToPage(pagerState, targetPage, animated && ReaderPrefs.pageAnim != ANIM_NONE)
             } else {
                 val a = anchors.getOrNull(clamped) ?: return@launch
                 if (animated) listState.animateScrollToItem(a) else listState.scrollToItem(a)
@@ -314,6 +365,8 @@ fun ReaderScreen(
             return
         }
         val target = (pagerState.currentPage + delta).coerceIn(0, (pages.size - 1).coerceAtLeast(0))
+        val targetSection = pages.getOrNull(target)?.firstOrNull()?.sectionIdx ?: currentSection
+        ReaderPrefs.savePosition(bookId, ReaderPosition(section = targetSection, item = target))
         scope.launch {
             goToPage(pagerState, target, ReaderPrefs.pageAnim != ANIM_NONE)
         }
@@ -543,6 +596,68 @@ private fun TextButton2(text: String, theme: ReaderTheme, onClick: () -> Unit) {
     )
 }
 
+/** 主流紧凑滑块：4dp 轨道 + 18dp 圆形滑块，避免 Oink 胶囊滑块过大。 */
+@Composable
+private fun CompactSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    modifier: Modifier = Modifier,
+    onValueChangeFinished: (() -> Unit)? = null,
+    thumbColor: Color,
+    activeColor: Color,
+    inactiveColor: Color,
+) {
+    val span = valueRange.endInclusive - valueRange.start
+    val fraction = if (span <= 0f) 0f else ((value - valueRange.start) / span).coerceIn(0f, 1f)
+    BoxWithConstraints(
+        modifier = modifier
+            .height(36.dp)
+            .pointerInput(Unit) {
+                fun apply(x: Float, width: Int) {
+                    val f = (x / width.coerceAtLeast(1)).coerceIn(0f, 1f)
+                    onValueChange(valueRange.start + f * span)
+                }
+                detectDragGestures(
+                    onDragStart = { apply(it.x, size.width) },
+                    onDrag = { change, _ ->
+                        change.consume()
+                        apply(change.position.x, size.width)
+                    },
+                    onDragEnd = { onValueChangeFinished?.invoke() },
+                )
+            },
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        val density = LocalDensity.current
+        val thumbDiameter = 18.dp
+        val activePx = constraints.maxWidth * fraction
+        val activeWidth = with(density) { activePx.toDp() }
+        val thumbRadiusPx = with(density) { (thumbDiameter / 2).toPx() }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(inactiveColor),
+        )
+        Box(
+            modifier = Modifier
+                .width(activeWidth)
+                .height(4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(activeColor),
+        )
+        Box(
+            modifier = Modifier
+                .offset { IntOffset((activePx - thumbRadiusPx).roundToInt(), 0) }
+                .size(thumbDiameter)
+                .clip(CircleShape)
+                .background(thumbColor),
+        )
+    }
+}
+
 /** Aa 设置：字号 / 行距 / 翻页方式 / 翻页动画 / 背景 */
 @Composable
 private fun AaPanel(
@@ -569,16 +684,14 @@ private fun AaPanel(
         if (pageMode && pageCount > 0) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("页码", color = theme.text, fontSize = 13.sp)
-                Slider(
+                CompactSlider(
                     value = pageSeek,
                     onValueChange = { pageSeek = it },
                     onValueChangeFinished = { onSeekPage(pageSeek.roundToInt()) },
                     valueRange = 0f..(pageCount - 1).coerceAtLeast(1).toFloat(),
-                    colors = SliderDefaults.colors(
-                        thumbColor = accent,
-                        activeTrackColor = accent,
-                        inactiveTrackColor = theme.divider,
-                    ),
+                    thumbColor = accent,
+                    activeColor = accent,
+                    inactiveColor = theme.divider,
                     modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
                 )
                 Text("${pageSeek.roundToInt() + 1}页", color = theme.text, fontSize = 12.sp)
@@ -586,16 +699,14 @@ private fun AaPanel(
         } else {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("进度", color = theme.text, fontSize = 13.sp)
-                Slider(
+                CompactSlider(
                     value = seek,
                     onValueChange = { seek = it },
                     onValueChangeFinished = { onSeek(seek.roundToInt()) },
                     valueRange = 0f..(sectionCount - 1).coerceAtLeast(1).toFloat(),
-                    colors = SliderDefaults.colors(
-                        thumbColor = accent,
-                        activeTrackColor = accent,
-                        inactiveTrackColor = theme.divider,
-                    ),
+                    thumbColor = accent,
+                    activeColor = accent,
+                    inactiveColor = theme.divider,
                     modifier = Modifier.weight(1f).padding(horizontal = 10.dp),
                 )
                 Text("${seek.roundToInt() + 1}章", color = theme.text, fontSize = 12.sp)
@@ -614,15 +725,13 @@ private fun AaPanel(
                     .clickable { ReaderPrefs.fontSize = ReaderPrefs.fontSize - 1f }
                     .padding(8.dp),
             )
-            Slider(
+            CompactSlider(
                 value = ReaderPrefs.fontSize,
                 onValueChange = { ReaderPrefs.fontSize = it },
                 valueRange = 14f..32f,
-                colors = SliderDefaults.colors(
-                    thumbColor = accent,
-                    activeTrackColor = accent,
-                    inactiveTrackColor = theme.divider,
-                ),
+                thumbColor = accent,
+                activeColor = accent,
+                inactiveColor = theme.divider,
                 modifier = Modifier.weight(1f).padding(horizontal = 4.dp),
             )
             Text(

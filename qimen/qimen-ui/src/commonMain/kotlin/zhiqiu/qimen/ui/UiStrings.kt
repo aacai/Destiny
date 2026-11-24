@@ -18,6 +18,8 @@ object QimenStrings {
         "now" to "此刻",
         "pick" to "自选",
         "question" to "占问",
+        "rule" to "规则说明",
+        "edit" to "编辑",
     )
 
     private val en = mapOf(
@@ -26,6 +28,8 @@ object QimenStrings {
         "now" to "Now",
         "pick" to "Pick",
         "question" to "Question",
+        "rule" to "Rules",
+        "edit" to "Edit",
     )
 
     fun t(key: String): String =
@@ -36,4 +40,6 @@ object QimenStrings {
     val now: String @Composable get() = t("now")
     val pick: String @Composable get() = t("pick")
     val question: String @Composable get() = t("question")
+    val rule: String @Composable get() = t("rule")
+    val edit: String @Composable get() = t("edit")
 }

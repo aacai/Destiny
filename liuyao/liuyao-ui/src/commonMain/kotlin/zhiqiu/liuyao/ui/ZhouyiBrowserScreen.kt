@@ -15,12 +15,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
 import zhiqiu.app.destiny.oinkcompat.Switch
 import zhiqiu.app.destiny.oinkcompat.Text
 import zhiqiu.app.destiny.oinkcompat.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -28,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -37,6 +41,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import zhiqiu.liuyao.HexagramEntry
 import zhiqiu.liuyao.HEXAGRAM_CATALOG
 import zhiqiu.liuyao.PINYIN
@@ -92,6 +97,60 @@ internal fun PinyinText(
     )
 }
 
+private fun withPinyinIfNeeded(s: String, showPinyin: Boolean): String {
+    if (!showPinyin) return s
+    return buildString {
+        s.forEach { ch ->
+            val key = ch.toString()
+            append(ch)
+            if (key[0] in '一'..'鿿' && key in RARE_CHARS) {
+                PINYIN[key]?.let { append("（$it）") }
+            }
+        }
+    }
+}
+
+/** 整卦纯文本，供「复制全文」用；开启注音时把拼音一并按字插入。 */
+private fun buildZhouyiCopyText(entry: HexagramEntry, showPinyin: Boolean): String {
+    val text = zhouyiOf(entry)
+    val yi = zhouyiTranslationOf(entry)
+    val daXiang = daXiangOf(entry)
+    val xiaoXiang = xiaoXiangOf(entry)
+    val tuan = tuanOf(entry)
+    val wenyan = wenyanOf(entry)
+    return buildString {
+        appendLine("${entry.fullName}（${entry.palace.label}宫）")
+        appendLine()
+        appendLine("【卦辞】${withPinyinIfNeeded(text.guaCi, showPinyin)}")
+        appendLine("译：${yi.guaYi}")
+        if (daXiang.isNotEmpty()) appendLine("【大象传】${withPinyinIfNeeded(daXiang, showPinyin)}")
+        if (tuan.isNotEmpty()) appendLine("【彖传】${withPinyinIfNeeded(tuan, showPinyin)}")
+        appendLine("【爻辞（六爻）】")
+        entry.bitsBottomUp.forEachIndexed { i, bit ->
+            val pos = i + 1
+            val yang = bit == 1
+            val yaoName = when (pos) {
+                1 -> if (yang) "初九" else "初六"
+                6 -> if (yang) "上九" else "上六"
+                else -> (if (yang) "九" else "六") + "二三四五"[pos - 2]
+            }
+            appendLine("$yaoName：${withPinyinIfNeeded(text.yaoCi[i], showPinyin)}")
+            appendLine("译：${yi.yaoYi[i]}")
+            xiaoXiang.getOrNull(i)?.let { appendLine("象：${withPinyinIfNeeded(it, showPinyin)}") }
+        }
+        text.yongCi?.let { yong ->
+            val tag = if (entry.upper == Trigram.QIAN) "用九" else "用六"
+            appendLine("【$tag】${withPinyinIfNeeded(yong, showPinyin)}")
+            yongYiOf(entry)?.let { appendLine("译：$it") }
+            yongXiangOf(entry)?.let { appendLine("象：${withPinyinIfNeeded(it, showPinyin)}") }
+        }
+        if (wenyan != null) appendLine("【文言】${withPinyinIfNeeded(wenyan, showPinyin)}")
+        wenyanYiOf(entry)?.let { wy ->
+            wy.split("‖").filter { it.isNotBlank() }.forEach { appendLine("译：$it") }
+        }
+    }
+}
+
 /** 易经浏览：64 卦目录 → 单卦全文（卦辞/大象/彖/爻辞/文言）。 */
 @Composable
 fun ZhouyiBrowserScreen(
@@ -108,6 +167,14 @@ fun ZhouyiBrowserScreen(
 private fun ZhouyiBrowserContent(onBack: () -> Unit) {
     var selected by remember { mutableStateOf<HexagramEntry?>(null) }
     var showPinyin by remember { mutableStateOf(false) }
+    var copied by remember { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
+    LaunchedEffect(copied) {
+        if (copied) {
+            delay(1600)
+            copied = false
+        }
+    }
     Column(Modifier.fillMaxSize().background(PanCardBg)) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp),
@@ -126,9 +193,21 @@ private fun ZhouyiBrowserContent(onBack: () -> Unit) {
                 modifier = Modifier.weight(1f),
             )
             if (selected != null) {
-                Text("拼音注音", color = PanMuted, fontSize = 12.sp)
+                Text("拼音", color = PanMuted, fontSize = 12.sp)
                 Spacer(Modifier.width(4.dp))
                 Switch(checked = showPinyin, onCheckedChange = { showPinyin = it })
+                Spacer(Modifier.width(4.dp))
+                TextButton(onClick = {
+                    val entry = selected ?: return@TextButton
+                    clipboard.setText(AnnotatedString(buildZhouyiCopyText(entry, showPinyin)))
+                    copied = true
+                }) {
+                    Text(
+                        if (copied) LiuYaoStrings.copied else LiuYaoStrings.copyAll,
+                        color = PanAccent,
+                        fontSize = 12.sp,
+                    )
+                }
             }
         }
         HorizontalDivider(thickness = 0.5.dp, color = PanLine)
@@ -168,7 +247,9 @@ private fun ZhouyiBrowserContent(onBack: () -> Unit) {
                 }
             }
         } else {
-            ZhouyiDetail(entry = sel, showPinyin = showPinyin)
+            SelectionContainer {
+                ZhouyiDetail(entry = sel, showPinyin = showPinyin)
+            }
         }
     }
 }

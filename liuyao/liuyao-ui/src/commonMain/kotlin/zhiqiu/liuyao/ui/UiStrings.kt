@@ -19,6 +19,9 @@ object LiuYaoStrings {
         "result" to "排盘结果",
         "case_detail" to "卦例详情",
         "save" to "保存",
+        "edit" to "编辑",
+        "copy_all" to "复制全文",
+        "copied" to "已复制",
     )
 
     private val en = mapOf(
@@ -28,6 +31,9 @@ object LiuYaoStrings {
         "result" to "Chart Result",
         "case_detail" to "Case Detail",
         "save" to "Save",
+        "edit" to "Edit",
+        "copy_all" to "Copy all",
+        "copied" to "Copied",
     )
 
     fun t(key: String): String =
@@ -39,4 +45,7 @@ object LiuYaoStrings {
     val result: String @Composable get() = t("result")
     val caseDetail: String @Composable get() = t("case_detail")
     val save: String @Composable get() = t("save")
+    val edit: String @Composable get() = t("edit")
+    val copyAll: String @Composable get() = t("copy_all")
+    val copied: String @Composable get() = t("copied")
 }

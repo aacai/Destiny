@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import zhiqiu.app.destiny.oinkcompat.AlertDialog
 import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
+import zhiqiu.app.destiny.oinkcompat.Button
 import zhiqiu.app.destiny.oinkcompat.Text
 import zhiqiu.app.destiny.oinkcompat.TextButton
 import androidx.compose.runtime.Composable
@@ -101,12 +102,77 @@ fun MeiHuaScreen(
     }
 }
 
+/** 从存档的结构化数据只读重播梅花卦例，展示与起卦页同款结果板。 */
+@Composable
+fun MeiHuaCaseViewer(
+    tab: String,
+    question: String,
+    lunarMonth: Int,
+    lunarDay: Int,
+    hourBranch: Int,
+    yearBranch: Int,
+    leap: Boolean,
+    upperNum: String,
+    lowerNum: String,
+    summary: String,
+    onBack: () -> Unit = {},
+    onEdit: (() -> Unit)? = null,
+    noteSection: (@Composable () -> Unit)? = null,
+    darkTheme: Boolean = false,
+    themeConfig: MhThemeConfig = MhThemeConfig.Default,
+) {
+    MhThemeProvider(darkTheme = darkTheme, config = themeConfig) {
+        val rebuildable = tab == "NOW" || tab == "LUNAR" || tab == "NUMBERS"
+        val chart = remember(tab, question, lunarMonth, lunarDay, hourBranch, yearBranch, leap, upperNum, lowerNum) {
+            if (!rebuildable) null else runCatching {
+                if (tab == "NUMBERS") {
+                    castFromNumbers(parseNum(upperNum), parseNum(lowerNum), lunarMonth, question)
+                } else {
+                    castFromLunar(yearBranch, lunarMonth, lunarDay, hourBranch, leap, question)
+                }
+            }.getOrNull()
+        }
+        Column(modifier = Modifier.fillMaxSize().background(MhTheme.page)) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onBack) { Text(MeiHuaStrings.backShort, color = MhTheme.accent, fontSize = 15.sp) }
+                Text("卦例详情", color = MhTheme.ink, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+                if (onEdit != null) {
+                    TextButton(onClick = onEdit) { Text(MeiHuaStrings.edit, color = MhTheme.accent, fontSize = 13.sp) }
+                }
+            }
+            HorizontalDivider(thickness = 0.5.dp, color = MhTheme.line)
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                if (question.isNotBlank()) {
+                    Text("占问：$question", color = MhTheme.ink, fontSize = 14.sp)
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
+                if (chart != null) {
+                    ResultBoard(chart = chart, expandTrace = true, onToggleTrace = {})
+                } else if (summary.isNotBlank()) {
+                    Text(summary, color = MhTheme.ink, fontSize = 14.sp)
+                }
+                if (noteSection != null) noteSection()
+            }
+        }
+    }
+}
+
 @Composable
 private fun ScreenContent(onBack: () -> Unit, onSave: (MeiHuaSave) -> Unit) {
     val seed = remember { castNow() }
     val seedStamp = seed.stamp
     var tab by remember { mutableStateOf(CastTab.NOW) }
     var question by remember { mutableStateOf("") }
+    var noteDraft by remember { mutableStateOf<String?>(null) }
     var showRule by remember { mutableStateOf(false) }
     var expandTrace by remember { mutableStateOf(true) }
 
@@ -164,6 +230,13 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (MeiHuaSave) -> Unit) {
         )
         CastTab.RANDOM -> randomChart
     }
+    val autoNote = buildString {
+        if (question.isNotBlank()) appendLine("【占问】${question.trim()}")
+        appendLine("【起卦】${chart.trace.summary}")
+        appendLine("【体用】体${chart.ti.label} 用${chart.yong.label} · ${chart.relation.label}")
+        appendLine("【卦象】${chart.upper.label}上 ${chart.lower.label}下")
+    }
+    val noteText = noteDraft ?: autoNote
 
     Column(
         modifier = Modifier
@@ -292,36 +365,39 @@ private fun ScreenContent(onBack: () -> Unit, onSave: (MeiHuaSave) -> Unit) {
 
         Spacer(modifier = Modifier.height(12.dp))
         ResultBoard(chart = chart, expandTrace = expandTrace, onToggleTrace = { expandTrace = !expandTrace })
-        Spacer(modifier = Modifier.height(16.dp))
-        Box(
+        Spacer(modifier = Modifier.height(12.dp))
+        Text(MeiHuaStrings.note, color = MhTheme.muted, fontSize = 11.sp)
+        Spacer(modifier = Modifier.height(6.dp))
+        BasicTextField(
+            value = noteText,
+            onValueChange = { noteDraft = it },
+            textStyle = TextStyle(fontSize = 13.sp, color = MhTheme.ink, lineHeight = 19.sp),
+            cursorBrush = SolidColor(MhTheme.accent),
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
-                .background(MhTheme.accent)
-                .clickable {
-                    val id = buildString { repeat(32) { append("abcdefghijklmnopqrstuvwxyz0123456789"[kotlin.random.Random.nextInt(36)]) } }
-                    val summary = buildString {
-                        if (question.isNotBlank()) appendLine("【占问】${question.trim()}")
-                        appendLine("【起卦】${chart.trace.summary}")
-                        appendLine("【体用】体${chart.ti.label} 用${chart.yong.label} · ${chart.relation.label}")
-                        appendLine("【卦象】${chart.upper.label}上 ${chart.lower.label}下")
-                    }
-                    onSave(
-                        MeiHuaSave(
-                            id = id,
-                            name = question.trim().ifBlank { chart.trace.summary },
-                            note = summary,
-                            groupName = "梅花",
-                            tab = tab.name, question = question,
-                            lunarMonth = lunarMonth, lunarDay = lunarDay,
-                            hourBranch = hourBranch, yearBranch = yearBranch, leap = leap,
-                            upperNum = upperNum, lowerNum = lowerNum, summary = chart.trace.summary,
-                        ),
-                    )
-                }
-                .padding(vertical = 12.dp),
-            contentAlignment = Alignment.Center,
-        ) { Text(MeiHuaStrings.saveGua, color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.SemiBold) }
+                .heightIn(min = 110.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(MhTheme.panel)
+                .padding(12.dp),
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(onClick = {
+            val id = buildString { repeat(32) { append("abcdefghijklmnopqrstuvwxyz0123456789"[kotlin.random.Random.nextInt(36)]) } }
+            onSave(
+                MeiHuaSave(
+                    id = id,
+                    name = question.trim().ifBlank { "梅花·${chart.upper.label}上${chart.lower.label}下" },
+                    note = noteText,
+                    groupName = "梅花",
+                    tab = tab.name, question = question,
+                    lunarMonth = lunarMonth, lunarDay = lunarDay,
+                    hourBranch = hourBranch, yearBranch = yearBranch, leap = leap,
+                    upperNum = upperNum, lowerNum = lowerNum, summary = chart.trace.summary,
+                ),
+            )
+        }) {
+            Text(MeiHuaStrings.saveGua, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+        }
         Spacer(modifier = Modifier.height(24.dp))
         } // scroll body
     }
@@ -351,17 +427,16 @@ private fun TopBar(onBack: () -> Unit, onRule: () -> Unit) {
         Spacer(modifier = Modifier.weight(1f))
         Text("梅花易数", color = MhTheme.ink, fontSize = 16.sp, fontWeight = FontWeight.Bold)
         Spacer(modifier = Modifier.weight(1f))
-        Box(
+        Text(
+            MeiHuaStrings.rule,
+            color = MhTheme.accent,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
             modifier = Modifier
-                .size(26.dp)
-                .clip(CircleShape)
-                .background(MhTheme.panel)
-                .border(1.dp, MhTheme.line, CircleShape)
-                .clickable(onClick = onRule),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text("？", color = MhTheme.muted, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        }
+                .clip(RoundedCornerShape(8.dp))
+                .clickable(onClick = onRule)
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+        )
     }
 }
 

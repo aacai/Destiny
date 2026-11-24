@@ -19,6 +19,9 @@ object MeiHuaStrings {
         "lunar" to "农历",
         "numbers" to "报数",
         "question" to "占问",
+        "rule" to "规则说明",
+        "edit" to "编辑",
+        "note" to "备注",
     )
 
     private val en = mapOf(
@@ -28,6 +31,9 @@ object MeiHuaStrings {
         "lunar" to "Lunar",
         "numbers" to "Numbers",
         "question" to "Question",
+        "rule" to "Rules",
+        "edit" to "Edit",
+        "note" to "Note",
     )
 
     fun t(key: String): String =
@@ -39,4 +45,7 @@ object MeiHuaStrings {
     val lunar: String @Composable get() = t("lunar")
     val numbers: String @Composable get() = t("numbers")
     val question: String @Composable get() = t("question")
+    val rule: String @Composable get() = t("rule")
+    val edit: String @Composable get() = t("edit")
+    val note: String @Composable get() = t("note")
 }

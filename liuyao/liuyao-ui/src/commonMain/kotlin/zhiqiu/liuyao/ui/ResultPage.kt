@@ -102,6 +102,8 @@ fun ResultPage(
     onSaved: (String) -> Unit = {},
     /** 只读查看模式：隐藏起卦/重起/保存按钮，标题改为「卦例」。 */
     readOnly: Boolean = false,
+    onEdit: (() -> Unit)? = null,
+    noteSection: (@Composable () -> Unit)? = null,
 ) {
     val chart = remember(kinds, dayInfo, topic, sub, gender) {
         val d = dayInfo ?: return@remember null
@@ -115,8 +117,14 @@ fun ResultPage(
             TextButton(onClick = onBackToInput) {
                 Text(if (readOnly) LiuYaoStrings.backShort else LiuYaoStrings.start, color = PanAccent, fontSize = 15.sp)
             }
-            Text(if (readOnly) LiuYaoStrings.caseDetail else LiuYaoStrings.result, color = PanInk, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.weight(1f))
+            Text(
+                if (readOnly) LiuYaoStrings.caseDetail else LiuYaoStrings.result,
+                color = PanInk, fontSize = 17.sp, fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            if (onEdit != null) {
+                TextButton(onClick = onEdit) { Text(LiuYaoStrings.edit, color = PanAccent, fontSize = 13.sp) }
+            }
             if (!readOnly) {
             TextButton(onClick = onRestart) { Text(LiuYaoStrings.restart, color = PanAccent, fontSize = 13.sp) }
             TextButton(
@@ -137,7 +145,7 @@ fun ResultPage(
                     onSave(
                         LiuYaoSave(
                             id = id,
-                            name = question.trim().ifBlank { c.original.entry.fullName },
+                            name = question.trim().ifBlank { "六爻·${c.original.entry.fullName}" },
                             note = summary,
                             groupName = "六爻",
                             yaoKinds = kinds.mapNotNull { it?.name },
@@ -237,7 +245,7 @@ fun ResultPage(
             }
             if (textsOpen) FullTextsSection(chart = chart)
             if (nayinOpen) NayinTableCard()
-            NoteSection(note = note, onNote = onNote)
+            if (noteSection != null) noteSection() else NoteSection(note = note, onNote = onNote)
             ShuoGuaSection()
             Spacer(Modifier.height(16.dp))
         }

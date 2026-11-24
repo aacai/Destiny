@@ -22,6 +22,11 @@ import zhiqiu.app.destiny.oinkcompat.Icon
 import zhiqiu.app.destiny.oinkcompat.IconButton
 import zhiqiu.app.destiny.oinkcompat.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -39,7 +44,13 @@ import zhiqiu.app.destiny.ui.theme.DestinyTheme
 fun BookshelfScreen(
     onBack: () -> Unit,
     onOpen: (String) -> Unit,
+    readerStore: ReaderStore,
 ) {
+    var positions by remember { mutableStateOf<Map<String, ReaderPosition>>(emptyMap()) }
+    LaunchedEffect(readerStore) {
+        ReaderPrefs.attach(readerStore)
+        positions = BookStore.catalog.associate { it.id to ReaderPrefs.loadPosition(it.id) }
+    }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -73,14 +84,23 @@ fun BookshelfScreen(
             modifier = Modifier.fillMaxSize(),
         ) {
             items(BookStore.catalog, key = { it.id }) { meta ->
-                BookCover(meta = meta, onClick = { onOpen(meta.id) })
+                BookCover(
+                    meta = meta,
+                    position = positions[meta.id],
+                    onClick = { onOpen(meta.id) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun BookCover(meta: BookMeta, onClick: () -> Unit) {
+private fun BookCover(
+    meta: BookMeta,
+    position: ReaderPosition?,
+    onClick: () -> Unit,
+) {
+    val hasProgress = position != null && (position.section > 0 || position.item > 0)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -131,8 +151,12 @@ private fun BookCover(meta: BookMeta, onClick: () -> Unit) {
             maxLines = 1,
         )
         Text(
-            "古籍 · 全本",
-            color = DestinyTheme.muted,
+            if (hasProgress) {
+                "${AppStrings.continueReading} · ${AppStrings.chapterShort((position?.section ?: 0) + 1)}"
+            } else {
+                "古籍 · 全本"
+            },
+            color = if (hasProgress) DestinyTheme.accent else DestinyTheme.muted,
             fontSize = 11.sp,
         )
     }

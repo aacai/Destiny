@@ -1,6 +1,7 @@
 package zhiqiu.app.destiny
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -27,6 +28,10 @@ import androidx.navigation.navArgument
 import androidx.savedstate.read
 import kotlinx.coroutines.launch
 import kotlin.time.Clock
+import zhiqiu.applewidgets.kmp.oink.overlay.OinkToastHost
+import zhiqiu.applewidgets.kmp.oink.overlay.OinkToastVariant
+import zhiqiu.applewidgets.kmp.oink.overlay.rememberOinkToastState
+import zhiqiu.app.destiny.i18n.AppStrings
 import zhiqiu.app.destiny.profile.CaseType
 import zhiqiu.app.destiny.profile.LiuYaoPayload
 import zhiqiu.app.destiny.profile.MeiHuaPayload
@@ -44,6 +49,8 @@ import zhiqiu.app.destiny.sharing.createSharedHttpClient
 import zhiqiu.app.destiny.ui.AboutScreen
 import zhiqiu.app.destiny.ui.AddProfileScreen
 import zhiqiu.app.destiny.ui.ChartPagerScreen
+import zhiqiu.app.destiny.ui.CaseEditScreen
+import zhiqiu.app.destiny.ui.CaseNoteSection
 import zhiqiu.app.destiny.ui.SimpleCaseDetail
 import zhiqiu.app.destiny.ui.ProfileListScreen
 import zhiqiu.app.destiny.ui.books.BookshelfScreen
@@ -57,7 +64,9 @@ import zhiqiu.liuyao.ui.LiuYaoCaseViewer
 import zhiqiu.liuyao.ui.LiuYaoSave
 import zhiqiu.liuyao.ui.LiuYaoScreen
 import zhiqiu.liuyao.ui.ZhouyiBrowserScreen
+import zhiqiu.meihua.ui.MeiHuaCaseViewer
 import zhiqiu.meihua.ui.MeiHuaScreen
+import zhiqiu.qimen.ui.QimenCaseViewer
 import zhiqiu.qimen.ui.QimenScreen
 import zhiqiu.xiaoliuren.ui.XiaoLiuRenCaseViewer
 import zhiqiu.xiaoliuren.ui.XiaoLiuRenSave
@@ -68,6 +77,7 @@ private object Routes {
     const val Add = "add"
     const val Edit = "edit/{profileId}"
     const val Chart = "chart/{profileId}"
+    const val CaseEdit = "caseEdit/{profileId}"
     const val Books = "books"
     const val Reader = "reader/{bookId}"
     const val Liuyao = "liuyao"
@@ -78,6 +88,7 @@ private object Routes {
     const val Qimen = "qimen"
 
     fun chart(profileId: String) = "chart/$profileId"
+    fun caseEdit(profileId: String) = "caseEdit/$profileId"
     fun edit(profileId: String) = "edit/$profileId"
     fun reader(bookId: String) = "reader/$bookId"
 }
@@ -145,9 +156,38 @@ fun App(
     val readerStore = remember(repository) { repository.readerStore }
     val sharing = remember { BackupSharing(FileIoClient(createSharedHttpClient())) }
     val navController = rememberNavController()
+    val toastState = rememberOinkToastState()
+    // 存档后立刻跳详情时，observeAll 的 Flow 可能还没发新值，先用它兜底。
+    var justSaved by remember { mutableStateOf<Profile?>(null) }
     // 主页(Routes.List)是导航栈根，永不 pop；防止连点返回把主页 pop 掉导致白屏。
     fun goBack() {
         if (navController.previousBackStackEntry != null) navController.popBackStack()
+    }
+
+    // 起卦存档后直接打开详情，让用户看到保存结果；返回时回到档案列表。
+    fun openSavedCase(saved: Profile) {
+        justSaved = saved
+        toastState.show(AppStrings.t("saved"), OinkToastVariant.Success)
+        navController.navigate(Routes.chart(saved.id)) {
+            popUpTo(Routes.List)
+            launchSingleTop = true
+        }
+    }
+
+    fun caseQuestion(profile: Profile): String = when (profile.caseType) {
+        CaseType.LIUYAO -> LiuYaoPayload.decode(profile.payload)?.question.orEmpty()
+        CaseType.XIAOLIUREN -> XiaoLiuRenPayload.decode(profile.payload)?.question.orEmpty()
+        CaseType.MEIHUA -> MeiHuaPayload.decode(profile.payload)?.question.orEmpty()
+        CaseType.QIMEN -> QimenPayload.decode(profile.payload)?.question.orEmpty()
+        else -> ""
+    }
+
+    fun withQuestion(profile: Profile, question: String): String = when (profile.caseType) {
+        CaseType.LIUYAO -> (LiuYaoPayload.decode(profile.payload) ?: LiuYaoPayload()).copy(question = question).encode()
+        CaseType.XIAOLIUREN -> (XiaoLiuRenPayload.decode(profile.payload) ?: XiaoLiuRenPayload()).copy(question = question).encode()
+        CaseType.MEIHUA -> (MeiHuaPayload.decode(profile.payload) ?: MeiHuaPayload()).copy(question = question).encode()
+        CaseType.QIMEN -> (QimenPayload.decode(profile.payload) ?: QimenPayload()).copy(question = question).encode()
+        else -> profile.payload
     }
 
     var colorMode by remember { mutableStateOf(DestinyColorMode.Light) }
@@ -172,10 +212,15 @@ fun App(
             StatusBarIconSync(colorMode)
             val colors = DestinyTheme
             MaterialThemeHost(darkTheme = colorMode == DestinyColorMode.Dark) {
-                // 系统/手势返回键：主页永远消费掉，不允许把根页面 pop 出栈。
+                // 系统/手势返回键：逐层返回，已在主页则退出应用（不 pop 根页面）。
                 AppBackHandler(enabled = true) {
-                    if (navController.previousBackStackEntry != null) navController.popBackStack()
+                    if (navController.previousBackStackEntry != null) {
+                        navController.popBackStack()
+                    } else {
+                        exitApp()
+                    }
                 }
+                Box(modifier = Modifier.fillMaxSize()) {
                 NavHost(
                     // 红绿灯色带由宿主统一留出，各页面顶栏不必各自避让
                     modifier = Modifier
@@ -220,7 +265,7 @@ fun App(
                         onSave = { save ->
                             scope.launch {
                                 val now = Clock.System.now().toEpochMilliseconds()
-                                repository.upsert(
+                                val saved = repository.upsert(
                                     Profile(
                                         id = save.id,
                                         name = save.name,
@@ -246,6 +291,7 @@ fun App(
                                         updatedAt = now,
                                     ),
                                 )
+                                openSavedCase(saved)
                             }
                         },
                     )
@@ -258,7 +304,7 @@ fun App(
                         onSave = { save ->
                             scope.launch {
                                 val now = Clock.System.now().toEpochMilliseconds()
-                                repository.upsert(
+                                val saved = repository.upsert(
                                     Profile(
                                         id = save.id,
                                         name = save.name,
@@ -276,6 +322,7 @@ fun App(
                                         createdAt = now, updatedAt = now,
                                     ),
                                 )
+                                openSavedCase(saved)
                             }
                         },
                     )
@@ -287,7 +334,7 @@ fun App(
                         onSave = { save ->
                             scope.launch {
                                 val now = Clock.System.now().toEpochMilliseconds()
-                                repository.upsert(
+                                val saved = repository.upsert(
                                     Profile(
                                         id = save.id,
                                         name = save.name,
@@ -306,6 +353,7 @@ fun App(
                                         createdAt = now, updatedAt = now,
                                     ),
                                 )
+                                openSavedCase(saved)
                             }
                         },
                     )
@@ -319,7 +367,7 @@ fun App(
                         onSave = { save ->
                             scope.launch {
                                 val now = Clock.System.now().toEpochMilliseconds()
-                                repository.upsert(
+                                val saved = repository.upsert(
                                     Profile(
                                         id = save.id,
                                         name = save.name,
@@ -342,6 +390,7 @@ fun App(
                                         updatedAt = now,
                                     ),
                                 )
+                                openSavedCase(saved)
                             }
                         },
                     )
@@ -357,6 +406,7 @@ fun App(
                     BookshelfScreen(
                         onBack = { goBack() },
                         onOpen = { bookId -> navController.navigate(Routes.reader(bookId)) },
+                        readerStore = readerStore,
                     )
                 }
                 composable(
@@ -390,8 +440,9 @@ fun App(
                     ),
                 ) { entry ->
                     val profileId = entry.arguments?.read { getStringOrNull("profileId") }
-                    val profile = remember(profileId, profiles) {
+                    val profile = remember(profileId, profiles, justSaved) {
                         profiles.find { it.id == profileId }
+                            ?: justSaved?.takeIf { it.id == profileId }
                     }
                     if (profile == null) {
                         LaunchedEffect(profileId) { goBack() }
@@ -401,6 +452,7 @@ fun App(
                             onSave = { updated ->
                                 scope.launch {
                                     repository.upsert(updated)
+                                    toastState.show(AppStrings.t("saved"), OinkToastVariant.Success)
                                     goBack()
                                 }
                             },
@@ -415,14 +467,32 @@ fun App(
                     ),
                 ) { entry ->
                     val profileId = entry.arguments?.read { getStringOrNull("profileId") }
-                    val profile = remember(profileId, profiles) {
+                    val profile = remember(profileId, profiles, justSaved) {
                         profiles.find { it.id == profileId }
+                            ?: justSaved?.takeIf { it.id == profileId }
                     }
                     if (profile == null) {
                         LaunchedEffect(profileId) {
                             goBack()
                         }
                     } else {
+                        val noteSection: @Composable () -> Unit = {
+                            CaseNoteSection(
+                                question = caseQuestion(profile),
+                                note = profile.note,
+                                onSaveNote = { newNote ->
+                                    scope.launch {
+                                        repository.upsert(
+                                            profile.copy(
+                                                note = newNote,
+                                                updatedAt = Clock.System.now().toEpochMilliseconds(),
+                                            ),
+                                        )
+                                        toastState.show(AppStrings.t("saved"), OinkToastVariant.Success)
+                                    }
+                                },
+                            )
+                        }
                         when (profile.caseType) {
                             CaseType.LIUYAO -> {
                                 val p = remember(profile.payload) { LiuYaoPayload.decode(profile.payload) }
@@ -435,6 +505,8 @@ fun App(
                                     question = p?.question ?: profile.name,
                                     note = profile.note,
                                     onBack = { goBack() },
+                                    onEdit = { navController.navigate(Routes.caseEdit(profile.id)) },
+                                    noteSection = noteSection,
                                     darkTheme = colorMode == DestinyColorMode.Dark,
                                     themeConfig = themes.pan,
                                 )
@@ -452,34 +524,51 @@ fun App(
                                     countMonth = p?.countMonth ?: 0, countDay = p?.countDay ?: 0,
                                     countHour = p?.countHour ?: 0,
                                     onBack = { goBack() },
+                                    onEdit = { navController.navigate(Routes.caseEdit(profile.id)) },
+                                    noteSection = noteSection,
                                     darkTheme = colorMode == DestinyColorMode.Dark,
                                     themeConfig = themes.xlr,
                                 )
                             }
                             CaseType.MEIHUA -> {
                                 val p = remember(profile.payload) { MeiHuaPayload.decode(profile.payload) }
-                                SimpleCaseDetail(
-                                    title = "梅花卦例 · ${profile.name}",
-                                    rows = listOfNotNull(
-                                        p?.question?.takeIf { it.isNotBlank() }?.let { "占问" to it },
-                                        p?.summary?.takeIf { it.isNotBlank() }?.let { "起卦" to it },
-                                        profile.note.takeIf { it.isNotBlank() }?.let { "详情" to it },
-                                    ),
+                                MeiHuaCaseViewer(
+                                    tab = p?.tab ?: "NOW",
+                                    question = p?.question ?: profile.name,
+                                    lunarMonth = p?.lunarMonth ?: 1,
+                                    lunarDay = p?.lunarDay ?: 1,
+                                    hourBranch = p?.hourBranch ?: 1,
+                                    yearBranch = p?.yearBranch ?: 1,
+                                    leap = p?.leap ?: false,
+                                    upperNum = p?.upperNum ?: "3",
+                                    lowerNum = p?.lowerNum ?: "5",
+                                    summary = p?.summary.orEmpty(),
                                     onBack = { goBack() },
+                                    onEdit = { navController.navigate(Routes.caseEdit(profile.id)) },
+                                    noteSection = noteSection,
+                                    darkTheme = colorMode == DestinyColorMode.Dark,
+                                    themeConfig = themes.mh,
                                 )
                             }
                             CaseType.QIMEN -> {
                                 val p = remember(profile.payload) { QimenPayload.decode(profile.payload) }
-                                SimpleCaseDetail(
-                                    title = "奇门局例 · ${profile.name}",
-                                    rows = listOfNotNull(
-                                        p?.question?.takeIf { it.isNotBlank() }?.let { "占问" to it },
-                                        p?.solarText?.takeIf { it.isNotBlank() }?.let { "时间" to it },
-                                        p?.pillarText?.takeIf { it.isNotBlank() }?.let { "四柱" to it },
-                                        listOfNotNull(p?.yuanText, p?.dunText).joinToString(" · ").takeIf { it.isNotBlank() }?.let { "局式" to it },
-                                        profile.note.takeIf { it.isNotBlank() }?.let { "详情" to it },
-                                    ),
+                                QimenCaseViewer(
+                                    question = p?.question ?: profile.name,
+                                    year = p?.year ?: 0,
+                                    month = p?.month ?: 0,
+                                    day = p?.day ?: 0,
+                                    hour = p?.hour ?: 0,
+                                    minute = p?.minute ?: 0,
+                                    plate = p?.plate ?: "Zhuan",
+                                    boundary = p?.boundary ?: "Hour23",
+                                    solarText = p?.solarText.orEmpty(),
+                                    pillarText = p?.pillarText.orEmpty(),
+                                    yuanText = p?.yuanText.orEmpty(),
+                                    dunText = p?.dunText.orEmpty(),
                                     onBack = { goBack() },
+                                    onEdit = { navController.navigate(Routes.caseEdit(profile.id)) },
+                                    noteSection = noteSection,
+                                    darkTheme = colorMode == DestinyColorMode.Dark,
                                 )
                             }
                             else -> ChartPagerScreen(
@@ -498,6 +587,43 @@ fun App(
                         }
                     }
                 }
+                composable(
+                    route = Routes.CaseEdit,
+                    arguments = listOf(
+                        navArgument("profileId") { type = NavType.StringType },
+                    ),
+                ) { entry ->
+                    val profileId = entry.arguments?.read { getStringOrNull("profileId") }
+                    val profile = remember(profileId, profiles, justSaved) {
+                        profiles.find { it.id == profileId }
+                            ?: justSaved?.takeIf { it.id == profileId }
+                    }
+                    if (profile == null) {
+                        LaunchedEffect(profileId) { goBack() }
+                    } else {
+                        CaseEditScreen(
+                            profile = profile,
+                            question = caseQuestion(profile),
+                            onBack = { goBack() },
+                            onSave = { name, question, note ->
+                                scope.launch {
+                                    repository.upsert(
+                                        profile.copy(
+                                            name = name,
+                                            note = note,
+                                            payload = withQuestion(profile, question),
+                                            updatedAt = Clock.System.now().toEpochMilliseconds(),
+                                        ),
+                                    )
+                                    toastState.show(AppStrings.t("saved"), OinkToastVariant.Success)
+                                    goBack()
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+            OinkToastHost(state = toastState, modifier = Modifier.fillMaxSize())
             }
         }
         }

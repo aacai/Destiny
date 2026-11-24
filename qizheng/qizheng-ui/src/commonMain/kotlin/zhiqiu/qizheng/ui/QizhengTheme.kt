@@ -1,8 +1,10 @@
 package zhiqiu.qizheng.ui
 
 import androidx.compose.ui.graphics.Color
+import zhiqiu.applewidgets.kmp.oink.theme.oinkDarkColors
+import zhiqiu.applewidgets.kmp.oink.theme.oinkLightColors
 
-/** 七政盘面纸色（行星语义色仍用模块内常量） */
+/** 七政盘面中性色统一走 oink（行星语义色仍用模块内常量） */
 data class QizhengColors(
     val isDark: Boolean,
     val page: Color,
@@ -19,36 +21,39 @@ data class QizhengColors(
     val accent: Color,
 )
 
+private val oinkLight = oinkLightColors()
+private val oinkDark = oinkDarkColors()
+
 val LightQizhengColors = QizhengColors(
     isDark = false,
-    page = Color(0xFFFFFFFF),
-    paper = Color(0xFFFFFFFF),
-    cream = Color(0xFFFDFBF4),
-    hairline = Color(0xFFC9C4B8),
-    line = Color(0xFF212121),
-    soft = Color(0xFF9E9E9E),
-    tick = Color(0xFF424242),
-    ink = Color(0xFF111111),
-    muted = Color(0xFF757575),
-    chipBg = Color(0xFFF5F5F5),
-    chipOn = Color(0xFFE8F5E9),
-    accent = Color(0xFF1B5E20),
+    page = oinkLight.bg,
+    paper = oinkLight.card,
+    cream = oinkLight.wellHi,
+    hairline = oinkLight.line2,
+    line = oinkLight.text,
+    soft = oinkLight.text3,
+    tick = oinkLight.text2,
+    ink = oinkLight.text,
+    muted = oinkLight.text2,
+    chipBg = oinkLight.well,
+    chipOn = oinkLight.accentSoft,
+    accent = oinkLight.accent,
 )
 
 val DarkQizhengColors = QizhengColors(
     isDark = true,
-    page = Color(0xFF1C1B19),
-    paper = Color(0xFF2A2825),
-    cream = Color(0xFF1C1B19),
-    hairline = Color(0xFF3F3C36),
-    line = Color(0xFFE8E4DC),
-    soft = Color(0xFF9E988C),
-    tick = Color(0xFFB0A99C),
-    ink = Color(0xFFE8E4DC),
-    muted = Color(0xFF9E988C),
-    chipBg = Color(0xFF2A2825),
-    chipOn = Color(0xFF1E3A2F),
-    accent = Color(0xFF81C784),
+    page = oinkDark.bg,
+    paper = oinkDark.card,
+    cream = oinkDark.wellHi,
+    hairline = oinkDark.line2,
+    line = oinkDark.text,
+    soft = oinkDark.text3,
+    tick = oinkDark.text2,
+    ink = oinkDark.text,
+    muted = oinkDark.text2,
+    chipBg = oinkDark.well,
+    chipOn = oinkDark.accentSoft,
+    accent = oinkDark.accent,
 )
 
 /**

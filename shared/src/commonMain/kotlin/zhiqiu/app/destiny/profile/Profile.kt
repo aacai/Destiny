@@ -14,6 +14,18 @@ object CaseType {
 
     val ALL = listOf(BAZI, LIUYAO, XIAOLIUREN, MEIHUA, QIMEN)
 
+    const val LIFE = "life"
+    const val DIVINATION_GROUP = "divination"
+
+    /** 命例和卜卦在档案页分开存放与筛选。 */
+    val LIFE_TYPES = listOf(BAZI)
+    val DIVINATION_TYPES = listOf(LIUYAO, XIAOLIUREN, MEIHUA, QIMEN)
+
+    fun groupOf(type: String): String = if (type == BAZI) LIFE else DIVINATION_GROUP
+
+    fun typesOf(group: String): List<String> =
+        if (group == LIFE) LIFE_TYPES else DIVINATION_TYPES
+
     fun label(type: String): String = when (type) {
         BAZI -> "命例"
         LIUYAO -> "六爻"

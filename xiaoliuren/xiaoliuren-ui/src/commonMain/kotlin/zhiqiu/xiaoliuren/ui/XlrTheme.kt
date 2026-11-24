@@ -5,8 +5,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import zhiqiu.applewidgets.kmp.oink.theme.oinkDarkColors
+import zhiqiu.applewidgets.kmp.oink.theme.oinkLightColors
 
-/** 小六壬掌盘色板：暖纸底 + 吉凶双色。 */
+/** 小六壬掌盘色板：与全局统一走 oink 中性色，吉凶用 oink 语义色。 */
 data class XlrColors(
     val page: Color,
     val card: Color,
@@ -22,28 +24,31 @@ data class XlrColors(
     fun palaceColor(auspicious: Boolean): Color = if (auspicious) lucky else unlucky
 }
 
+private val oinkLight = oinkLightColors()
+private val oinkDark = oinkDarkColors()
+
 val LightXlrColors = XlrColors(
-    page = Color(0xFFF5F3EE),
-    card = Color(0xFFFFFFFF),
-    panel = Color(0xFFF5F0ED),
-    ink = Color(0xFF222222),
-    muted = Color(0xFF8A8578),
-    line = Color(0xFFE2DED2),
-    accent = Color(0xFF26A6A6),
-    lucky = Color(0xFF1B5E20),
-    unlucky = Color(0xFFB3261E),
+    page = oinkLight.bg,
+    card = oinkLight.card,
+    panel = oinkLight.well,
+    ink = oinkLight.text,
+    muted = oinkLight.text2,
+    line = oinkLight.line2,
+    accent = oinkLight.accent,
+    lucky = oinkLight.successText,
+    unlucky = oinkLight.dangerText,
 )
 
 val DarkXlrColors = XlrColors(
-    page = Color(0xFF1C1B19),
-    card = Color(0xFF2A2825),
-    panel = Color(0xFF211F1D),
-    ink = Color(0xFFE8E4DC),
-    muted = Color(0xFF9E988C),
-    line = Color(0xFF3F3C36),
-    accent = Color(0xFF4DB6B6),
-    lucky = Color(0xFF81C784),
-    unlucky = Color(0xFFEF9A9A),
+    page = oinkDark.bg,
+    card = oinkDark.card,
+    panel = oinkDark.well,
+    ink = oinkDark.text,
+    muted = oinkDark.text2,
+    line = oinkDark.line2,
+    accent = oinkDark.accent,
+    lucky = oinkDark.successText,
+    unlucky = oinkDark.dangerText,
 )
 
 data class XlrThemeConfig(

@@ -23,6 +23,8 @@ object XiaoLiuRenStrings {
         "solar_desc" to "手选公历年月日时分，自动换算成农历月日与时辰；可为过去的事件补课。",
         "lunar_desc" to "手选农历月日与时辰；闰月按本月计，只标注、不改落宫。",
         "counts_desc" to "随口报三个数，依次作月、日、时之数，推演与农历同式。",
+        "rule" to "规则说明",
+        "edit" to "编辑",
     )
 
     private val en = mapOf(
@@ -36,6 +38,8 @@ object XiaoLiuRenStrings {
         "solar_desc" to "Pick a Gregorian date and time; lunar month, day and hour are converted automatically.",
         "lunar_desc" to "Pick a lunar month, day and hour. Leap months are labeled but not moved.",
         "counts_desc" to "Enter three numbers for month, day and hour; deduction follows the lunar method.",
+        "rule" to "Rules",
+        "edit" to "Edit",
     )
 
     fun t(key: String): String =
@@ -51,4 +55,6 @@ object XiaoLiuRenStrings {
     val solarDesc: String @Composable get() = t("solar_desc")
     val lunarDesc: String @Composable get() = t("lunar_desc")
     val countsDesc: String @Composable get() = t("counts_desc")
+    val rule: String @Composable get() = t("rule")
+    val edit: String @Composable get() = t("edit")
 }
