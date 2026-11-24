@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -221,8 +222,10 @@ fun AlertDialog(
     ) {
         Column(
             modifier = modifier
+                // 先约束宽度再 fillMaxWidth：顺序反了会让 fillMaxWidth 把 min 锁成全屏宽，widthIn 失效
+                .widthIn(min = 280.dp, max = 400.dp)
                 .fillMaxWidth()
-                .padding(24.dp)
+                .padding(horizontal = 24.dp)
                 .clickable(enabled = false, onClick = {})
                 .clip(shape)
                 .background(if (containerColor == Color.Unspecified) OinkTheme.colors.pop else containerColor)
@@ -425,4 +428,24 @@ fun MaterialThemeHost(
 ) {
     val colors = if (darkTheme) oinkDarkColors() else oinkLightColors()
     OinkTheme(colors = colors) { content() }
+}
+
+/** OKUI 整月日历：业务侧薄封装，使用 OKUI 令牌与整月网格布局。 */
+@Composable
+fun Calendar(
+    year: Int,
+    month: Int,
+    selectedDay: Int?,
+    onSelectDay: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+    onMonthChange: (Int, Int) -> Unit = { _, _ -> },
+) {
+    zhiqiu.applewidgets.kmp.oink.form.OinkCalendar(
+        year = year,
+        month = month,
+        selectedDay = selectedDay,
+        onSelectDay = onSelectDay,
+        modifier = modifier,
+        onMonthChange = onMonthChange,
+    )
 }

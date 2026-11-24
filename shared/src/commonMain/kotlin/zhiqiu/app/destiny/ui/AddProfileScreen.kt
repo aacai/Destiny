@@ -29,6 +29,7 @@ import androidx.compose.foundation.verticalScroll
 import zhiqiu.app.destiny.oinkcompat.AlertDialog
 import zhiqiu.app.destiny.oinkcompat.Button
 import zhiqiu.app.destiny.oinkcompat.ButtonDefaults
+import zhiqiu.app.destiny.oinkcompat.Calendar as OinkCalendarCompat
 import zhiqiu.app.destiny.oinkcompat.Icon
 import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
 import zhiqiu.app.destiny.oinkcompat.Switch
@@ -70,7 +71,7 @@ import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import zhiqiu.app.destiny.time.TIME_INDEX_LABELS
 import zhiqiu.iztro.bazi.lookup.BaziCandidate
-import zhiqiu.iztro.calendar.Calendar
+import zhiqiu.iztro.calendar.Calendar as IztroCalendar
 import zhiqiu.iztro.calendar.LunarDate
 import zhiqiu.iztro.bazi.lookup.BaziPillars
 import zhiqiu.iztro.bazi.lookup.StemBranch
@@ -313,7 +314,7 @@ fun AddProfileScreen(
                     if (mode == InputMode.Lunar) {
                         val (ly, lm, ld) = parseBirthdayParts(birthday)
                         val lunarText = runCatching {
-                            val solar = Calendar.lunar2solar(birthday, isLeapMonth)
+                            val solar = IztroCalendar.lunar2solar(birthday, isLeapMonth)
                             val cn = LunarDate(
                                 lunarYear = ly?.toIntOrNull() ?: 0,
                                 lunarMonth = lm?.toIntOrNull() ?: 1,
@@ -543,11 +544,18 @@ fun AddProfileScreen(
             },
             text = {
                 Column(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     if (mode == InputMode.Solar) {
-                        SolarCalendarPicker(y = y, m = m, d = d) { ny, nm, nd -> birthday = "$ny-$nm-$nd" }
+                        OinkCalendarCompat(
+                            year = y,
+                            month = m,
+                            selectedDay = d,
+                            onSelectDay = { nd -> applyDatePick(day = nd.toString()) },
+                            onMonthChange = { ny, nm -> applyDatePick(year = ny.toString(), month = nm.toString()) },
+                        )
                     } else {
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                             WheelColumn((1900..2100).map { it.toString() }, y - 1900) { applyDatePick(year = (1900 + it).toString()) }
@@ -560,11 +568,20 @@ fun AddProfileScreen(
                             Switch(checked = isLeapMonth, onCheckedChange = { isLeapMonth = it })
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        WheelColumn((0..23).map { it.toString().padStart(2, '0') }, clockHour) { clockHour = it }
-                        WheelColumn((0..59).map { it.toString().padStart(2, '0') }, clockMinute) { clockMinute = it }
+                    HorizontalDivider(color = DestinyTheme.line)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        Text("时", color = DestinyTheme.muted, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        WheelColumn((0..23).map { it.toString().padStart(2, '0') }, clockHour, compact = true) { clockHour = it }
+                        Text(":", color = DestinyTheme.ink, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        WheelColumn((0..59).map { it.toString().padStart(2, '0') }, clockMinute, compact = true) { clockMinute = it }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("分", color = DestinyTheme.muted, fontSize = 12.sp)
                     }
-                    Text("时 · 分", color = DestinyTheme.muted, fontSize = 11.sp)
                 }
             },
         )
@@ -1064,11 +1081,12 @@ private fun dayOfWeekCn(d: kotlinx.datetime.DayOfWeek): String = when (d) {
 private fun WheelColumn(
     items: List<String>,
     startIndex: Int,
+    compact: Boolean = false,
     onCenterChange: (Int) -> Unit,
 ) {
-    val itemHeight = 34.dp
+    val itemHeight = if (compact) 32.dp else 34.dp
     val listState = rememberLazyListState(
-        initialFirstVisibleItemIndex = startIndex.coerceIn(0, items.size - 1),
+        initialFirstVisibleItemIndex = (startIndex - if (compact) 1 else 2).coerceAtLeast(0).coerceAtMost(items.size - 1),
     )
     // 视口垂直中点所在的项即当前值
     val centerIndex by remember {
@@ -1090,8 +1108,10 @@ private fun WheelColumn(
     // 固定宽高：避免 AlertDialog intrinsic 测量穿透到 LazyColumn
     LazyColumn(
         state = listState,
-        modifier = Modifier.width(92.dp).height(itemHeight * 5),
-        contentPadding = PaddingValues(vertical = itemHeight * 2),
+        modifier = Modifier
+            .width(if (compact) 56.dp else 92.dp)
+            .height(itemHeight * if (compact) 3 else 5),
+        contentPadding = PaddingValues(vertical = itemHeight * if (compact) 1 else 2),
         flingBehavior = rememberSnapFlingBehavior(listState),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
