@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import zhiqiu.app.destiny.oinkcompat.Dots
 import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
 import zhiqiu.app.destiny.oinkcompat.Icon
 import zhiqiu.app.destiny.oinkcompat.IconButton
@@ -77,6 +78,7 @@ fun ChartPagerScreen(
     var tab by remember { mutableIntStateOf(if (profile.birthday.isBlank()) 3 else 0) }
     var sheetOpen by remember { mutableStateOf(false) }
     var pickCategory by remember { mutableStateOf<String?>(null) }
+    var iztroLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val theme = DestinyTheme
     val iztroMode = if (colorMode == DestinyColorMode.Dark) IztroColorMode.Dark else IztroColorMode.Light
@@ -194,19 +196,35 @@ fun ChartPagerScreen(
                         )
                     }
                     1 -> if (hasBirth) {
-                        Iztrolabe(
-                            birthday = profile.birthday,
-                            birthTime = profile.timeIndex,
-                            gender = profile.gender,
-                            birthdayType = profile.birthdayType,
-                            isLeapMonth = profile.isLeapMonth,
-                            fixLeap = profile.fixLeap,
-                            name = profile.name,
-                            colorMode = iztroMode,
-                            onColorModeChange = onIztroColorModeChange,
-                            themeConfig = iztroThemeConfig,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                        Box(Modifier.fillMaxSize()) {
+                            Iztrolabe(
+                                birthday = profile.birthday,
+                                birthTime = profile.timeIndex,
+                                gender = profile.gender,
+                                birthdayType = profile.birthdayType,
+                                isLeapMonth = profile.isLeapMonth,
+                                fixLeap = profile.fixLeap,
+                                name = profile.name,
+                                colorMode = iztroMode,
+                                onColorModeChange = onIztroColorModeChange,
+                                onLoadingChange = { iztroLoading = it },
+                                themeConfig = iztroThemeConfig,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                            // 加载动画属于 App：模块只上报加载态
+                            if (iztroLoading) {
+                                Box(
+                                    modifier = Modifier.fillMaxSize().background(theme.page),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Dots(color = theme.accent)
+                                        Spacer(Modifier.height(6.dp))
+                                        Text(text = "排盘中…", color = theme.ink, fontSize = 13.sp)
+                                    }
+                                }
+                            }
+                        }
                     } else {
                         MemoTabScreen(
                             profile = profile,
