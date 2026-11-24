@@ -122,7 +122,7 @@ private fun buildZhouyiCopyText(entry: HexagramEntry, showPinyin: Boolean): Stri
         appendLine("${entry.fullName}（${entry.palace.label}宫）")
         appendLine()
         appendLine("【卦辞】${withPinyinIfNeeded(text.guaCi, showPinyin)}")
-        appendLine("译：${yi.guaYi}")
+        appendLine("译：${yi.guaYi.removePrefix("${text.name}卦：")}")
         if (daXiang.isNotEmpty()) appendLine("【大象传】${withPinyinIfNeeded(daXiang, showPinyin)}")
         if (tuan.isNotEmpty()) appendLine("【彖传】${withPinyinIfNeeded(tuan, showPinyin)}")
         appendLine("【爻辞（六爻）】")
@@ -134,8 +134,11 @@ private fun buildZhouyiCopyText(entry: HexagramEntry, showPinyin: Boolean): Stri
                 6 -> if (yang) "上九" else "上六"
                 else -> (if (yang) "九" else "六") + "二三四五"[pos - 2]
             }
+            val yaoYi = yi.yaoYi[i]
+                .removePrefix("$yaoName：")
+                .removePrefix("$yaoName:")
             appendLine("$yaoName：${withPinyinIfNeeded(text.yaoCi[i], showPinyin)}")
-            appendLine("译：${yi.yaoYi[i]}")
+            appendLine("译：$yaoYi")
             xiaoXiang.getOrNull(i)?.let { appendLine("象：${withPinyinIfNeeded(it, showPinyin)}") }
         }
         text.yongCi?.let { yong ->
@@ -144,9 +147,13 @@ private fun buildZhouyiCopyText(entry: HexagramEntry, showPinyin: Boolean): Stri
             yongYiOf(entry)?.let { appendLine("译：$it") }
             yongXiangOf(entry)?.let { appendLine("象：${withPinyinIfNeeded(it, showPinyin)}") }
         }
-        if (wenyan != null) appendLine("【文言】${withPinyinIfNeeded(wenyan, showPinyin)}")
-        wenyanYiOf(entry)?.let { wy ->
-            wy.split("‖").filter { it.isNotBlank() }.forEach { appendLine("译：$it") }
+        if (wenyan != null) {
+            val parts = wenyan.split("\n").filter { it.isNotBlank() }
+            val yiParts = wenyanYiOf(entry)?.split("‖")?.filter { it.isNotBlank() }.orEmpty()
+            parts.forEachIndexed { i, part ->
+                appendLine("【文言·${i + 1}】${withPinyinIfNeeded(part, showPinyin)}")
+                yiParts.getOrNull(i)?.let { appendLine("译：$it") }
+            }
         }
     }
 }
@@ -272,7 +279,33 @@ private fun SectionLabel(text: String) {
     }
 }
 
-/** 单卦全文详情。 */
+/** 原文块，译文紧跟其后；无译文时只显示原文（象传、彖传等）。 */
+@Composable
+private fun VerseBlock(
+    original: String,
+    translation: String?,
+    showPinyin: Boolean,
+    originalColor: Color = PanInk,
+    originalSize: TextUnit = 14.sp,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+            .background(PanCardBg, RoundedCornerShape(8.dp))
+            .border(1.dp, PanLine, RoundedCornerShape(8.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        val lh = (originalSize.value + 5).sp
+        if (showPinyin) PinyinText(original, originalColor, originalSize, lh)
+        else Text(original, color = originalColor, fontSize = originalSize, lineHeight = lh)
+        if (!translation.isNullOrBlank()) {
+            HorizontalDivider(thickness = 0.5.dp, color = PanLine.copy(alpha = 0.6f))
+            Text("译：$translation", color = PanMuted, fontSize = 12.5.sp, lineHeight = 18.sp)
+        }
+    }
+}
+
+/** 单卦全文详情：原文与译文逐段相邻，避免长原文后堆一长串译文。 */
 @Composable
 private fun ZhouyiDetail(entry: HexagramEntry, showPinyin: Boolean) {
     val text = zhouyiOf(entry)
@@ -281,27 +314,24 @@ private fun ZhouyiDetail(entry: HexagramEntry, showPinyin: Boolean) {
     val xiaoXiang = xiaoXiangOf(entry)
     val tuan = tuanOf(entry)
     val wenyan = wenyanOf(entry)
+    val guaYi = yi.guaYi.removePrefix("${text.name}卦：")
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(horizontal = 14.dp, vertical = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        @Composable
-        fun pt(s: String, color: Color, size: TextUnit, lh: TextUnit) {
-            if (showPinyin) PinyinText(s, color, size, lh)
-            else Text(s, color = color, fontSize = size, lineHeight = lh)
-        }
         SectionLabel("卦辞")
-        pt(text.guaCi, PanInk, 15.sp, 21.sp)
-        Text("译：${yi.guaYi}", color = PanMuted, fontSize = 13.sp, lineHeight = 18.sp)
+        VerseBlock(text.guaCi, guaYi, showPinyin, originalSize = 15.sp)
+
         if (daXiang.isNotEmpty()) {
             SectionLabel("大象传")
-            pt(daXiang, PanAccent, 13.sp, 18.sp)
+            VerseBlock(daXiang, null, showPinyin, PanAccent, 13.sp)
         }
         if (tuan.isNotEmpty()) {
             SectionLabel("彖传")
-            pt(tuan, PanAccent, 13.sp, 18.sp)
+            VerseBlock(tuan, null, showPinyin, PanAccent, 13.sp)
         }
+
         SectionLabel("爻辞（六爻）")
         entry.bitsBottomUp.forEachIndexed { i, bit ->
             val pos = i + 1
@@ -311,39 +341,28 @@ private fun ZhouyiDetail(entry: HexagramEntry, showPinyin: Boolean) {
                 6 -> if (yang) "上九" else "上六"
                 else -> (if (yang) "九" else "六") + "二三四五"[pos - 2]
             }
-            Column(
-                modifier = Modifier.fillMaxWidth()
-                    .background(PanCardBg, RoundedCornerShape(8.dp))
-                    .border(1.dp, PanLine, RoundedCornerShape(8.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                pt("$yaoName：${text.yaoCi[i]}", PanInk, 14.sp, 19.sp)
-                Text("译：${yi.yaoYi[i]}", color = PanMuted, fontSize = 13.sp, lineHeight = 17.sp)
-                xiaoXiang.getOrNull(i)?.let { xiao ->
-                    pt("象：$xiao", PanAccent, 12.5.sp, 17.sp)
-                }
+            val yaoYi = yi.yaoYi[i]
+                .removePrefix("$yaoName：")
+                .removePrefix("$yaoName:")
+            VerseBlock("$yaoName：${text.yaoCi[i]}", yaoYi, showPinyin)
+            xiaoXiang.getOrNull(i)?.let { xiao ->
+                VerseBlock("象：$xiao", null, showPinyin, PanAccent, 12.5.sp)
             }
         }
-        // 乾坤全变附用九/用六
+
         text.yongCi?.let { yong ->
             val tag = if (entry.upper == Trigram.QIAN) "用九" else "用六"
             SectionLabel(tag)
-            pt(yong, PanInk, 14.sp, 19.sp)
-            yongYiOf(entry)?.let { yy ->
-                Text("译：$yy", color = PanMuted, fontSize = 13.sp, lineHeight = 17.sp)
-            }
-            yongXiangOf(entry)?.let { yx -> pt("象：$yx", PanAccent, 13.sp, 18.sp) }
+            VerseBlock(yong, yongYiOf(entry), showPinyin)
+            yongXiangOf(entry)?.let { yx -> VerseBlock("象：$yx", null, showPinyin, PanAccent, 13.sp) }
         }
+
         if (wenyan != null) {
             SectionLabel("文言")
-            pt(wenyan, PanInk, 13.sp, 18.sp)
-        }
-        wenyanYiOf(entry)?.let { wy ->
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                wy.split("‖").filter { it.isNotBlank() }.forEach { line ->
-                    Text("译：$line", color = PanMuted, fontSize = 13.sp, lineHeight = 17.sp)
-                }
+            val parts = wenyan.split("\n").filter { it.isNotBlank() }
+            val yiParts = wenyanYiOf(entry)?.split("‖")?.filter { it.isNotBlank() }.orEmpty()
+            parts.forEachIndexed { i, part ->
+                VerseBlock(part, yiParts.getOrNull(i), showPinyin, originalSize = 13.sp)
             }
         }
         Spacer(Modifier.padding(bottom = 16.dp))
