@@ -1,32 +1,25 @@
 package zhiqiu.app.destiny.ui.bazi
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import zhiqiu.app.destiny.oinkcompat.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.window.Dialog
-
-private val Panel = Color(0xFFFFFFFF)
-private val Ink = Color(0xFF222222)
-private val Muted = Color(0xFF757575)
-private val Accent = Color(0xFF26C6C6)
+import zhiqiu.app.destiny.i18n.AppStrings
+import zhiqiu.app.destiny.oinkcompat.AlertDialog
+import zhiqiu.app.destiny.oinkcompat.Text
+import zhiqiu.app.destiny.oinkcompat.TextButton
+import zhiqiu.app.destiny.ui.theme.DestinyTheme
 
 /** 一条术语资料：标题 + 多段「条目 → 说明」 */
 data class GlossaryItem(
@@ -283,6 +276,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
         xingGe: String,
         shiYe: String,
         hunYin: String,
+        quXiang: String,
+        yun: String,
         vararg alias: String,
     ) {
         val item = GlossaryItem(
@@ -294,6 +289,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
                 "性格" to xingGe,
                 "事业" to shiYe,
                 "婚姻六亲" to hunYin,
+                "取象" to quXiang,
+                "行运" to yun,
             ),
         )
         put(name, item)
@@ -307,6 +304,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
         "比肩之人自尊心极强，凡事不甘居人后，主意自成、不易受人摆布；外表谦和而内心固执，认定之理九牛难回。重信守诺、讲义气，朋友有难常倾力相助；惟财产界限模糊，借贷往来每有去无回，交友虽广而知己寥寥。为人正派但不善权变，遇事宁可硬扛也不肯低头求助。",
         "宜技术、专业、体力型行业，凭真本领与手艺立身；合伙经营初期同甘者众，日久因利益生嫌隙，若要合伙必先明订契约、亲兄弟明算账。身弱之人得比肩反而如虎添翼，与友人共事可得其力，能成众人之事。不宜投机取巧之业，赌性一开必致破败。",
         "男命比肩重重，为争夺妻财之象，婚缘多阻或妻缘迟来，婚后亦须防兄弟朋友介入家事；女命比肩多则姐妹情深而夫星受争，婚前追求者众、竞争激烈。手足之间情义深笃，然涉及家产分配亦难免参商。与父母缘分中平，早年独立较早。",
+        "取象为重复、并列、同行、同辈、自立、分夺与竞争，落在身体可看筋骨、体力与自我支撑；落在人事多指朋友、同事、合伙人与同资源者。比肩透干而有根，主人自我主张明显；藏于支中，则多为暗中助力或隐性竞争。",
+        "行运遇比肩，身弱者多得朋友扶助，适合合伙创业、团队协作与借势而起；身旺者则易破财、分家、争妻、与人竞利，合作尤须明算账。流年引动比肩，常见借贷往来、同行竞争、分润纠纷；若逢官杀制比，反能转为自律与职位之责。",
         "比",
     )
     put(
@@ -316,6 +315,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
         "劫财之人豪爽慷慨、出手大方，行动力强、说干就干，人缘极好、应酬频繁；然冲动好赌、性急易怒，做事虎头蛇尾，耐性不足。讲义气重朋友，常为朋友两肋插刀，却也最容易被朋友拖累牵连，破财皆因「情面」二字。",
         "宜武职、军警、运动员、业务开拓、工程外包等竞争性、开拓性行业，以行动取财；不宜守成理财之业，钱财须经他人之手管理为宜。合作事业须防对方卷款，签字画押切不可省。",
         "男命劫财旺者，克妻之象明显，婚姻多竞争者，防妻被夺或妻子体弱多病；女命劫财多者争夫夺爱、闺蜜成情敌，感情之路坎坷。与父亲缘分较薄，早年离父或聚少离多。兄弟朋友之间表面热络，暗中防利益反目。",
+        "取象为冲锋、争夺、冒险、投机、包装、炒作与强取，阳干劫财尤近羊刃之性。它既主朋友助力，也主异性竞争与财物分夺；在事象上多见突击行动、抢占资源、借势营销、合伙分利。",
+        "行运遇劫财，身弱者可借人脉与冲劲抗杀、打开局面；身旺者多主破财、受骗、冲动投资、争讼与小人劫夺。流年见劫财贴财，防借钱不还、合伙卷款、竞标失利；若配食伤可把锋芒化为才干，逢官杀则可把野性收为权力。",
         "劫",
     )
     put(
@@ -325,6 +326,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
         "食神之人乐观开朗、宽厚随和，与人无争、与世无求，重生活情趣，好美食、好艺术、好山水。心思细腻而不露锋芒，说话委婉动听，人缘极佳；然进取心稍缓，安于现状，容易沉迷安逸享乐而懒散拖延。",
         "宜餐饮、美食、文艺创作、教育、演艺、旅游休闲等行业，凭口才与才艺生财，顺其自然反而财源自至；不宜高压竞争性强的岗位，愈从容愈见其才。女命食神旺者，宜从事与子女、美食、美妆相关之业。",
         "女命食神为子女星，食神旺者子女贤孝、生养顺遂；男命食神旺者安逸有福，然事业进取心平缓，宜配强势之妻以激励。一生不缺口福，体态易丰腴；与人相处和睦，少小人暗害。",
+        "取象为才艺、口才、餐饮、作品、课程、生育、享受与温和表达，也主福气、寿元与生活情趣。食神透干而有气，多见表达顺畅、作品受众、口福不缺；食神入库或受克，则才华潜藏、表达含蓄、享受打折。",
+        "行运遇食神，身旺者利创作、教学、演艺、产品打磨与子女缘，常以温和方式得财；身弱者泄气太过，反主疲惫、体虚、想多做少。流年逢偏印夺食，防计划中断、合同反复、饮食失宜；逢七杀则成食神制杀，利考试、竞技、职场攻守。",
         "食",
     )
     put(
@@ -334,6 +337,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
         "伤官之人才高气傲、思维跳跃、口才极佳，创意源源不绝；然自视甚高、目中无人，说话直率刻薄，常有惊人语句，易得罪人而不自知。不服管束、藐视规章，对权威有天生的反抗心；情绪起伏大，爱之欲其生、恶之欲其死。",
         "宜创作、演艺、演讲、设计、技术革新、自由职业等不受拘束之业，愈自由愈见才华；在体制内则易顶撞上司、藐视制度而遭排挤。伤官生财者宜自营事业，以创意赚钱，往往一夜成名或一鸣惊人。",
         "女命伤官旺者，对伴侣挑剔苛刻、言语如刀，婚姻多波折，古书谓「女命伤官福不真」，宜配年龄差距大、性格宽厚包容之人，或聚少离多反能白首；男命伤官旺者才华出众却屡与上司冲突，宜晚婚，妻缘亦有波折，防因口舌伤及枕边人。",
+        "取象为创意、表达、演讲、设计、技艺革新、反叛、挑剔、口舌与锋芒外露，女命亦取为子女。它主「我生者」中激烈外放的一面：有才而难守规矩，有作品而常带争议；伤官透干多聪明外现，藏支则多为内心不服、暗中求变。",
+        "行运遇伤官，利创新、跳槽、参赛、成名、自由职业与以才艺变现；伤官生财者尤利创业与自我包装。若伤官见官，防顶撞上司、合同纠纷、官非口舌；得印星制化则成「伤官配印」，反而利证照、学业与大器晚成。身弱者忌过度消耗与情绪失控。",
         "伤",
     )
     put(
@@ -343,6 +348,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
         "偏财之人慷慨豪爽、出手大方，交际手腕高明、八面玲珑；机敏善变、嗅觉灵敏，最擅长捕捉商机。重情重义却不专一，对金钱的态度是「钱是赚来的不是攒来的」，理财观念薄弱，花大钱不眨眼。",
         "宜贸易、金融、投资、业务开拓、流动性行业，财路极广、赚钱门道多；不适合守成式的固定薪俸，愈流动愈有利。惟投机心重，赌性一成则大起大落，须防孤注一掷。",
         "男命偏财旺者，异性缘极佳、风流倜傥，防外缘扰家、家庭不稳；与父亲缘分或聚少离多，或父亲经营有方。女命偏财旺者善于理财社交、独立大方，然财虽旺而劫财亦觊觎，须防闺中密友争利。",
+        "取象为机会财、项目财、人脉财、投资红利、佣金副业与流动性收入，男命亦取为父亲、情人与异性缘；在人事上主慷慨、机敏、善交际，在事象上多见商机、交易、应酬、临时进账与大方花费。",
+        "行运遇偏财，身旺者利投资、贸易、业务开拓、副业经营与人脉变现，常有意外进财；身弱财多则反主负债、被财务拖累、因贪念失守。流年逢比劫贴身，防分财、合伙纠纷与借出不还；逢官星护财，则可把机会财转为名位与资源。",
         "才",
     )
     put(
@@ -352,6 +359,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
         "正财之人踏实节俭、守信重诺、安分守己，一分钱掰成两半花，理财保守稳健；为人现实而重家庭，责任感强，然进取心与冒险精神不足，不擅变通，容易安于小富即安。",
         "宜固定薪俸、稳健行业、长期经营之业，积累型财富，愈久愈厚；不适合高风险投机，亦不宜与人合伙账目不清之业。身旺者可创业守成，置产置业一生不辍。",
         "男命正财旺者，妻贤惠顾家、勤俭持家，然多惧内之象，家庭观念极重；女命正财旺者勤俭务实、相夫教子。与六亲账目分明，亲友借钱多不肯通融，故常被讥小气，实则保守而已。",
+        "取象为正薪、稳定收入、资产、契约、实物、妻星与家庭责任，也主节俭、踏实、现实感与可预期的回报。正财透干而有根，多主收入来源清楚、善于积累；正财入墓或被劫，则多见钱财周转不灵、付出与回报不成正比。",
+        "行运遇正财，身旺者利加薪、晋升、置产、成家与长期积累，钱财多来自正当职业；身弱财重则主压力、劳碌、为财所困。流年逢比劫夺财，防借贷、合伙分利与意外支出；逢官星护财、财生官，则利职业名分与稳定地位。",
         "财",
     )
     put(
@@ -361,6 +370,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
         "七杀之人魄力十足、果决狠劲，执行力与抗压性远超常人；脾气急躁、报复心强，恩怨分明、宁折不弯。环境愈严酷愈能激发其斗志，天生适合乱世与竞争，安平之世反觉压抑无聊。",
         "宜军警、司法、外科医疗、竞技体育、开创性行业，凡需铁腕与魄力者皆能胜任；仕途上多掌生杀之权。惟一生劳碌险恶，成败起伏大，成则大权在握，败则身败名裂。",
         "七杀之人感情上强势急躁、占有欲强，女命杀重者所遇非人、婚姻多争，或夫性粗暴；男命七杀为子，得子多刚毅。与六亲缘分带刑克，一生知交零落，孤独感深。",
+        "取象为压力、竞争、权威、纪律、军警、司法、疾病、灾害、小人与险境，男命亦取为儿子。其为「克我且与我异」之力：易显为压迫、冲突与急难，制化得宜则显为权柄、胆识与决断。",
+        "行运遇七杀，身强而有制化者多主升迁、掌权、竞争胜出与危机中建功；身弱无制则防病灾、官非、被欺压与意外伤损。食神制杀利技术攻关、考试竞技；印星化杀利学历证照、贵人护持；财星生杀须防因财惹祸、因欲招险。",
         "杀",
     )
     put(
@@ -370,6 +381,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
         "正官之人端正自律、责任感极重，遵守规则、重视名誉，行事光明磊落、一丝不苟；然保守拘谨、求稳怕变，压抑自己的欲望以迎合社会规范，缺乏冒险与变通的胆识。",
         "宜公职、行政、管理、大型机构等讲究体制与名分之业，仕途顺遂、步步高升；不利自由职业与投机冒险。一生名誉重于利益，宁失财不失信。",
         "女命正官清旺者，夫贤有靠、婚姻美满；官星混杂或官多者，烂桃花缠身、夫缘反复难定。男命正官旺者子女端正、家教严明；六亲中以名誉为重，宁吃亏不损形象。",
+        "取象为规则、职位、证照、名声、上司、法律、礼法与自我约束，女命亦取为夫星。正官主「有情之克」：克我而使我成器，清透一位多主名分端正、行事有度；官杀混杂或官多无制，则规则变压力、名分变束缚。",
+        "行运遇正官，利考试、升职、考照、婚恋稳定与名望提升；身弱官重则主压力过大、被管束、畏首畏尾。流年逢伤官见官，防顶撞上司、合约纠纷与官非；官印相生利学历资质与权位，财官相生利以资源换名分，但财过旺则易贪财坏名。",
         "官",
     )
     put(
@@ -379,6 +392,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
         "偏印之人敏感细腻、洞察力极强，直觉敏锐如电；心思深藏不露、多疑少信任，待人疏离而有礼貌。喜独立思考、不走寻常路，品味独特而曲高和寡；内心常感孤独，情绪不外露。",
         "宜研究、医卜星相、宗教玄学、艺术创作、技术专门领域等冷门偏业，愈偏门愈能出类拔萃；不适合大团队协作与商业应酬。其成就常大器晚成，中年之后方见真章。",
         "感情上淡漠慢热、不善表达爱意，伴侣须有极大耐心；女命偏印旺者与子女缘分较薄，怀孕生产多波折，须留意。与母亲缘分或有过节，家中有继母或隔代教养之象者亦不罕见。",
+        "取象为偏门学问、玄学宗教、研究、直觉、专精技术、幕后策划、继母与隔代长辈，也主孤僻、多疑与非主流审美。偏印之生带有距离感：学多为冷门，助多为隐性，亲缘多不按常理。",
+        "行运遇偏印，利研究、考证、技艺专精、玄学缘分与幕后运筹；身弱得偏印，多有非主流贵人或特殊资源扶持。若枭神夺食，防表达受阻、子女缘薄、饮食失调与才华被压；见偏财制印，则可把冷门知识变现；身旺印重则防孤僻封闭、想多做少。",
         "枭",
     )
     put(
@@ -388,6 +403,8 @@ val TEN_GOD_GLOSSARY: Map<String, GlossaryItem> = buildMap {
         "正印之人仁慈良善、心地宽厚、重名誉轻利益，好学深思、有宗教与艺术气质；然依赖心重、缺乏行动力，遇事惯于求助他人，优柔寡断、想多做少。",
         "宜教育、文化、出版、公务、宗教慈善等以名誉与学问立身之业，名望愈高愈吉；不宜亲自经商逐利，财星坏印反损清誉。一生多贵人师长提携，考试升迁皆得其利。",
         "男命正印旺者，妻管严之象明显，与母亲缘分深厚甚至婆媳不和之根源；女命正印旺者文静贤淑、知书达理，然主动性与企图心偏弱。子女缘平顺，家教以德为先。",
+        "取象为母亲、贵人、学历、文书、证照、名誉、慈善、庇护、记忆与传统，也主安稳、依赖与精神归属。正印之生有情有常：多主正向扶持、名正言顺的帮助；印星过旺则庇护成溺爱，反损行动力。",
+        "行运遇正印，利学习考试、证照升迁、贵人提携、置产安居与积累口碑；身弱逢印最吉，常有师长、长辈或制度性资源托底。若财星坏印，防因财损名、学业中断、文书疏漏；印重身旺则防怠惰依赖、优柔寡断；官印相生主名正言顺的职位与声誉。",
         "印",
     )
 }
@@ -410,22 +427,20 @@ fun tenGodFull(name: String): String = when (name) {
 /** 八字术语资料弹窗：标题 + 标签 + 逐条「条目 → 说明」 */
 @Composable
 fun BaziInfoDialog(item: GlossaryItem, onDismiss: () -> Unit) {
-    Dialog(onDismissRequest = onDismiss) {
-        Column(
-            modifier = Modifier
-                .background(Panel, RoundedCornerShape(10.dp))
-                .padding(20.dp),
-        ) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(item.title, fontSize = 18.sp, color = Ink, fontWeight = FontWeight.Bold)
+                Text(item.title, fontSize = 18.sp, color = DestinyTheme.ink, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text(item.tag, fontSize = 12.sp, color = Accent, fontWeight = FontWeight.SemiBold)
+                Text(item.tag, fontSize = 12.sp, color = DestinyTheme.accent, fontWeight = FontWeight.SemiBold)
             }
-            Spacer(modifier = Modifier.height(12.dp))
+        },
+        text = {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(360.dp)
+                    .heightIn(max = 360.dp)
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -434,24 +449,30 @@ fun BaziInfoDialog(item: GlossaryItem, onDismiss: () -> Unit) {
                         Text(
                             label,
                             fontSize = 13.sp,
-                            color = Accent,
+                            color = DestinyTheme.accent,
                             fontWeight = FontWeight.SemiBold,
                             modifier = Modifier.width(60.dp),
                         )
-                        Text(text, fontSize = 14.sp, color = Ink, lineHeight = 21.sp, modifier = Modifier.weight(1f))
+                        Text(
+                            text,
+                            fontSize = 14.sp,
+                            color = DestinyTheme.ink,
+                            lineHeight = 21.sp,
+                            modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(14.dp))
-            Text(
-                "知道了",
-                color = Accent,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier
-                    .align(Alignment.End)
-                    .clickable(onClick = onDismiss),
-            )
-        }
-    }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(
+                    AppStrings.gotIt,
+                    color = DestinyTheme.accent,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+            }
+        },
+    )
 }

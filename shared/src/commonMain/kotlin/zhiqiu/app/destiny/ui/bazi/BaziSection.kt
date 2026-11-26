@@ -23,6 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import zhiqiu.app.destiny.bazi.original.toFlowChart
 import zhiqiu.app.destiny.bazi.original.toOriginalChart
+import zhiqiu.app.destiny.i18n.AppStrings
 import zhiqiu.app.destiny.profile.Profile
 import zhiqiu.app.destiny.ui.theme.DestinyColorMode
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
@@ -115,15 +116,20 @@ fun BaziSection(
         flowFailed = chart == null
     }
 
+    val tenGodTag = AppStrings.tenGod
+    val shenShaTag = AppStrings.shenSha
+    val reference = AppStrings.reference
+    val onTenGodClick: (String) -> Unit = { name ->
+        val full = tenGodFull(name)
+        info = TEN_GOD_GLOSSARY[full]
+            ?: GlossaryItem(full, tenGodTag, listOf(reference to AppStrings.tenGodPending()))
+    }
     val onBaziElementClick: (BaziElementType, String) -> Unit = { type, name ->
-        info = when (type) {
-            BaziElementType.ShenSha -> SHEN_SHA_GLOSSARY[name]
-                ?: GlossaryItem(name, "神煞", listOf("资料" to "该神煞资料整理中"))
-            BaziElementType.TenGod -> {
-                val full = tenGodFull(name)
-                TEN_GOD_GLOSSARY[full]
-                    ?: GlossaryItem(full, "十神", listOf("资料" to "该十神资料整理中"))
-            }
+        if (type == BaziElementType.ShenSha) {
+            info = SHEN_SHA_GLOSSARY[name]
+                ?: GlossaryItem(name, shenShaTag, listOf(reference to AppStrings.shenShaPending()))
+        } else {
+            onTenGodClick(name)
         }
     }
 
@@ -161,6 +167,7 @@ fun BaziSection(
                     originalChart != null -> BaziOriginalPage(
                         chart = originalChart!!,
                         onBaziElementClick = onBaziElementClick,
+                        onTenGodClick = onTenGodClick,
                     )
                     originalFailed -> Text("八字排盘失败，请检查出生信息", modifier = Modifier.fillMaxSize())
                     else -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

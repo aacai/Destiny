@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import zhiqiu.app.destiny.oinkcompat.Dots
+import zhiqiu.app.destiny.oinkcompat.DropdownMenu
+import zhiqiu.app.destiny.oinkcompat.DropdownMenuItem
 import zhiqiu.app.destiny.oinkcompat.HorizontalDivider
 import zhiqiu.app.destiny.oinkcompat.Icon
 import zhiqiu.app.destiny.oinkcompat.IconButton
@@ -41,6 +43,7 @@ import compose.icons.feathericons.BookOpen
 import compose.icons.feathericons.Compass
 import compose.icons.feathericons.Edit
 import compose.icons.feathericons.FileText
+import compose.icons.feathericons.Settings
 import compose.icons.feathericons.Star
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.compose.rememberFilePickerLauncher
@@ -59,6 +62,7 @@ import zhiqiu.app.destiny.ui.qizheng.QizhengSection
 import zhiqiu.app.destiny.ui.theme.DestinyColorMode
 import zhiqiu.app.destiny.ui.theme.DestinyTheme
 import zhiqiu.app.destiny.ui.theme.LocalDestinyAppThemes
+import zhiqiu.iztro.IztroConfig
 import zhiqiu.iztro.ui.IztroColorMode
 import zhiqiu.iztro.ui.Iztrolabe
 
@@ -79,6 +83,10 @@ fun ChartPagerScreen(
     var sheetOpen by remember { mutableStateOf(false) }
     var pickCategory by remember { mutableStateOf<String?>(null) }
     var iztroLoading by remember { mutableStateOf(false) }
+    var ziweiAlgorithm by remember { mutableStateOf("default") }
+    var ziweiAstroType by remember { mutableStateOf("heaven") }
+    var ziweiSettingsOpen by remember { mutableStateOf(false) }
+    val iztroOptions = remember(ziweiAlgorithm) { IztroConfig(algorithm = ziweiAlgorithm) }
     val scope = rememberCoroutineScope()
     val theme = DestinyTheme
     val iztroMode = if (colorMode == DestinyColorMode.Dark) IztroColorMode.Dark else IztroColorMode.Light
@@ -173,6 +181,57 @@ fun ChartPagerScreen(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+                Box {
+                    IconButton(onClick = { ziweiSettingsOpen = true }) {
+                        Icon(
+                            imageVector = FeatherIcons.Settings,
+                            contentDescription = "盘制设置",
+                            tint = theme.muted,
+                        )
+                    }
+                    DropdownMenu(
+                        expanded = ziweiSettingsOpen,
+                        onDismissRequest = { ziweiSettingsOpen = false },
+                        containerColor = theme.card,
+                    ) {
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "通行版",
+                                    color = if (ziweiAlgorithm == "default") theme.accent else theme.ink,
+                                    fontSize = 13.sp,
+                                )
+                            },
+                            onClick = { ziweiAlgorithm = "default"; ziweiSettingsOpen = false },
+                        )
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    "中州派",
+                                    color = if (ziweiAlgorithm == "zhongzhou") theme.accent else theme.ink,
+                                    fontSize = 13.sp,
+                                )
+                            },
+                            onClick = { ziweiAlgorithm = "zhongzhou"; ziweiSettingsOpen = false },
+                        )
+                        if (ziweiAlgorithm != "default") {
+                            HorizontalDivider(thickness = 0.5.dp, color = theme.line)
+                            listOf("heaven" to "天盘", "earth" to "地盘", "human" to "人盘")
+                                .forEach { (value, label) ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text(
+                                                label,
+                                                color = if (ziweiAstroType == value) theme.accent else theme.ink,
+                                                fontSize = 13.sp,
+                                            )
+                                        },
+                                        onClick = { ziweiAstroType = value; ziweiSettingsOpen = false },
+                                    )
+                                }
+                        }
+                    }
+                }
                 IconButton(onClick = onEditProfile) {
                     Icon(
                         imageVector = FeatherIcons.Edit,
@@ -205,6 +264,8 @@ fun ChartPagerScreen(
                                 isLeapMonth = profile.isLeapMonth,
                                 fixLeap = profile.fixLeap,
                                 name = profile.name,
+                                options = iztroOptions,
+                                astroType = ziweiAstroType,
                                 colorMode = iztroMode,
                                 onColorModeChange = onIztroColorModeChange,
                                 onLoadingChange = { iztroLoading = it },

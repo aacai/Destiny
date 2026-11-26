@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.sp
 import zhiqiu.applewidgets.kmp.oink.basic.OinkText
 import zhiqiu.applewidgets.kmp.oink.layout.OinkDivider
 import zhiqiu.applewidgets.kmp.oink.overlay.OinkDialog
+import zhiqiu.applewidgets.kmp.oink.overlay.OinkMenu
+import zhiqiu.applewidgets.kmp.oink.overlay.OinkMenuDefaults
 import zhiqiu.applewidgets.kmp.oink.theme.OinkAccent
 import zhiqiu.applewidgets.kmp.oink.theme.OinkColors
 import zhiqiu.applewidgets.kmp.oink.theme.OinkTheme
@@ -252,16 +254,16 @@ fun DropdownMenu(
     containerColor: Color = Color.Unspecified,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    if (expanded) {
-        Box(modifier.clickable(onClick = onDismissRequest)) {
-            Column(
-                modifier = Modifier
-                    .background(OinkTheme.colors.pop)
-                    .padding(4.dp),
-                content = content,
-            )
-        }
-    }
+    val colors = OinkMenuDefaults.colors().copy(
+        container = if (containerColor == Color.Unspecified) OinkTheme.colors.pop else containerColor,
+    )
+    OinkMenu(
+        expanded = expanded,
+        onDismissRequest = onDismissRequest,
+        modifier = modifier,
+        colors = colors,
+        content = content,
+    )
 }
 
 @Composable

@@ -56,6 +56,11 @@ object AppStrings {
         "solar" to "公历",
         "lunar" to "农历",
         "got_it" to "知道了",
+        "reference" to "资料",
+        "ten_god" to "十神",
+        "shen_sha" to "神煞",
+        "ten_god_pending" to "该十神资料整理中",
+        "shen_sha_pending" to "该神煞资料整理中",
         "day_mode" to "日间模式",
         "night_mode" to "夜间模式",
         "data_backup" to "数据与备份",
@@ -137,6 +142,11 @@ object AppStrings {
         "solar" to "Gregorian",
         "lunar" to "Lunar",
         "got_it" to "Got it",
+        "reference" to "Reference",
+        "ten_god" to "Ten Gods",
+        "shen_sha" to "Symbolic Stars",
+        "ten_god_pending" to "Details for this Ten God are being prepared.",
+        "shen_sha_pending" to "Details for this star are being prepared.",
         "day_mode" to "Day mode",
         "night_mode" to "Night mode",
         "data_backup" to "Data & Backup",
@@ -246,6 +256,11 @@ object AppStrings {
     val solar: String @Composable get() = t("solar")
     val lunar: String @Composable get() = t("lunar")
     val gotIt: String @Composable get() = t("got_it")
+    val reference: String @Composable get() = t("reference")
+    val tenGod: String @Composable get() = t("ten_god")
+    val shenSha: String @Composable get() = t("shen_sha")
+    fun tenGodPending(): String = t("ten_god_pending")
+    fun shenShaPending(): String = t("shen_sha_pending")
     val dayMode: String @Composable get() = t("day_mode")
     val nightMode: String @Composable get() = t("night_mode")
     val dataBackup: String @Composable get() = t("data_backup")
